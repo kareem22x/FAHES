@@ -1,0 +1,255 @@
+/* ==========================================================================
+   Inspector legibility layer
+   --------------------------------------------------------------------------
+   Loaded by app/inspector/layout.tsx, so it always comes after globals.css and
+   refresh.css in the cascade. It only re-states rules that already exist for the
+   inspector workspace and only touches:
+
+     · font-size      — the old UI used 7/8/9/10/11px; nothing may be < 12px now
+     · line-height    — dense 8-9px lines become 12-13px lines
+     · padding / min-height / grid tracks that were sized for a 9px line box
+
+   Colours, borders, radii, the box structure and the information architecture
+   are untouched. Nothing in globals.css or refresh.css is removed.
+
+   Type mapping (single token scale from :root in globals.css):
+
+     --inspector-text-meta  12px    captions, timestamps, counters, footers,
+                                    hints, chips, step labels (was 7-9px)
+     --inspector-text-ui    12.5px  pills, badges, kickers, tags (was 8-10px)
+     --inspector-text-body  13.5px  body copy, labels, table content, buttons,
+                                    form controls, links (was 9-11px)
+
+   Heading sizes are left as they are (h1/h2/h3 keep their absolute values), so
+   the relative hierarchy is preserved; a heading that used to be a 11px label
+   only moves inside the body tier.
+   ========================================================================== */
+
+.inspector-dashboard {
+  --inspector-text-meta: var(--text-2xs); /* 12px  */
+  --inspector-text-ui: var(--text-xs); /* 12.5px */
+  --inspector-text-body: var(--text-sm); /* 13.5px */
+  --inspector-text-lead: var(--text-base); /* 14.5px */
+}
+
+/* --- Sidebar -------------------------------------------------------------
+   The 242px (208px under 900px) column keeps its width; the nav rows keep their
+   40px min-height because a 13.5px line box is only ~20px tall. The column can
+   scroll instead of clipping when the taller text needs more than 100vh. */
+
+.inspector-sidebar { overflow-y: auto; }
+.inspector-logo small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-nav-caption { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-sidebar nav a { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-nav-count { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-sidebar-help > strong { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-sidebar-help > p { font-size: var(--inspector-text-meta); line-height: 1.7; }
+.inspector-sidebar-user > span { min-width: 0; }
+.inspector-sidebar-user strong { font-size: var(--inspector-text-ui); line-height: 1.5; }
+.inspector-sidebar-user small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-sidebar-user > button { font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+/* --- Topbar --------------------------------------------------------------
+   The 65px bar (57px on mobile) becomes min-height driven so a wrapped
+   description grows the bar instead of overflowing it. */
+
+.inspector-topbar { height: auto; min-height: 65px; padding-block: 10px; }
+.inspector-topbar > div:first-child { min-width: 0; }
+.inspector-breadcrumb { font-size: var(--inspector-text-ui); line-height: 1.5; }
+.inspector-status-pill { font-size: var(--inspector-text-ui); line-height: 1.5; }
+.inspector-topbar-description { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-icon-button { flex: 0 0 auto; }
+
+/* --- Welcome, kickers, badges ------------------------------------------- */
+
+.inspector-section-kicker { font-size: var(--inspector-text-ui); line-height: 1.5; }
+.inspector-welcome p { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-approved-badge { font-size: var(--inspector-text-ui); line-height: 1.5; }
+
+/* --- Stat cards / notice ------------------------------------------------- */
+
+.inspector-stat-label { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-stat-card > strong > small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-stat-card > small { min-height: 20px; font-size: var(--inspector-text-meta); line-height: 1.6; }
+.inspector-notice p { font-size: var(--inspector-text-body); line-height: 1.7; }
+
+/* --- Work area: presence, city picker, save ------------------------------ */
+
+.inspector-presence strong { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-presence small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-city-option { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-save-button { font-size: var(--inspector-text-body); line-height: 1.5; }
+
+/* --- Verification side card --------------------------------------------- */
+
+.inspector-side-card > p { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-check-row { font-size: var(--inspector-text-ui); line-height: 1.6; }
+.inspector-check-row > strong { font-size: var(--inspector-text-ui); }
+.inspector-details-link { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-empty-state h3 { font-size: var(--inspector-text-lead); }
+.inspector-empty-state p { font-size: var(--inspector-text-body); line-height: 1.75; }
+.inspector-footer { font-size: var(--inspector-text-meta); line-height: 1.6; }
+
+/* --- Section headings / counts ------------------------------------------ */
+
+.inspector-section-count { font-size: var(--inspector-text-ui); line-height: 1.5; }
+
+/* --- Today schedule ------------------------------------------------------
+   The 94px time column was sized for a 9px date; at 12px the Arabic date needs
+   ~118px. The connector between rows is re-anchored to the row itself so it
+   stretches with the taller rows (top/bottom instead of a fixed 83px), and its
+   inline offset is derived from the same variables that build the tracks. */
+
+.inspector-schedule-item {
+  --ins-schedule-time: 118px;
+  --ins-schedule-marker: 12px;
+  --ins-schedule-gap: 12px;
+  grid-template-columns: var(--ins-schedule-time) var(--ins-schedule-marker) minmax(0, 1fr) auto;
+  gap: var(--ins-schedule-gap);
+  min-height: 88px;
+}
+.inspector-schedule-time strong { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-schedule-time small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-schedule-marker { position: static; }
+.inspector-schedule-item:not(:last-child) .inspector-schedule-marker::after {
+  position: absolute;
+  top: 50%;
+  bottom: -50%;
+  /* item padding-inline-start (2px) + time track + gap + half of the 9px marker */
+  inset-inline-start: calc(2px + var(--ins-schedule-time) + var(--ins-schedule-gap) + 4.5px);
+  inset-inline-end: auto;
+  z-index: 0;
+  width: 1px;
+  height: auto;
+  background: #dce4ec;
+  content: '';
+}
+.inspector-schedule-content > div > strong { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-schedule-content p { font-size: var(--inspector-text-meta); line-height: 1.6; }
+.inspector-inline-link { font-size: var(--inspector-text-body); line-height: 1.5; }
+
+/* --- Request cards ------------------------------------------------------- */
+
+.inspector-request-number { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-request-card h3 span { font-size: var(--inspector-text-ui); }
+.inspector-request-status { font-size: var(--inspector-text-ui); line-height: 1.5; }
+.inspector-request-details small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-request-details strong { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-request-address { font-size: var(--inspector-text-meta); line-height: 1.6; }
+.inspector-request-note { font-size: var(--inspector-text-body); line-height: 1.7; }
+
+/* --- Offer form ----------------------------------------------------------
+   The price column keeps its boxed input (37px tall is still comfortable for a
+   13.5px control) but gets a wider minimum so the 13.5px label does not wrap. */
+
+.inspector-offer-form { grid-template-columns: minmax(150px, .65fr) minmax(0, 1.35fr) auto; }
+.inspector-offer-form label { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-offer-form label small { font-size: var(--inspector-text-meta); }
+.inspector-price-input input { font-size: var(--inspector-text-body); }
+.inspector-price-input > span { font-size: var(--inspector-text-meta); }
+.inspector-offer-form textarea { font-size: var(--inspector-text-body); line-height: 1.6; }
+.inspector-offer-submit { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-offer-submitted { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-offline-hint { font-size: var(--inspector-text-body); line-height: 1.6; }
+
+/* --- Assigned / completed cards ----------------------------------------- */
+
+.inspector-assigned-main h3 { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-assigned-main p { font-size: var(--inspector-text-meta); line-height: 1.6; }
+.inspector-assigned-info small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-assigned-info strong { font-size: var(--inspector-text-body); line-height: 1.6; }
+.inspector-primary-link, .inspector-secondary-link { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-empty-panel h2 { font-size: var(--inspector-text-lead); }
+.inspector-empty-panel p { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-feature-status { font-size: var(--inspector-text-ui); line-height: 1.5; }
+
+/* --- Inspection detail shell -------------------------------------------- */
+
+.inspector-back-link { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-detail-title p { font-size: var(--inspector-text-body); line-height: 1.6; }
+.inspector-detail-vehicle small, .inspector-report-summary small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-detail-tags span { font-size: var(--inspector-text-ui); line-height: 1.5; }
+.inspector-map-caption { font-size: var(--inspector-text-meta); line-height: 1.5; }
+/* The link inherits the 14.5px body size and the 1.9 body leading; the grid rows
+   of the 160px placeholder stretch and centre it, so its line box reached into
+   the absolutely positioned caption. Reserving space at the bottom keeps the two
+   apart now that the caption is a 12px pill instead of an 8px one. */
+.inspector-map-placeholder { padding-block-end: 30px; }
+.inspector-map-placeholder a { line-height: 1.5; }
+.inspector-location-details small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-location-details strong, .inspector-location-details > div > span > span { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-detail-notes { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-offer-panel > div:first-child p { font-size: var(--inspector-text-body); line-height: 1.6; }
+.inspector-detail-summary-row span { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-detail-summary-row strong { font-size: var(--inspector-text-body); line-height: 1.6; }
+.inspector-detail-privacy { font-size: var(--inspector-text-meta); line-height: 1.7; }
+.inspector-local-state { font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+/* --- Workflow stepper ---------------------------------------------------- */
+
+.inspector-step { font-size: var(--inspector-text-meta); line-height: 1.6; }
+.inspector-step-marker { font-size: var(--inspector-text-ui); }
+.inspector-workflow-actions > span { font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+/* --- Checklist ----------------------------------------------------------- */
+
+.inspector-checklist-progress { font-size: var(--inspector-text-ui); line-height: 1.5; }
+.inspector-checklist-disclaimer { font-size: var(--inspector-text-meta); line-height: 1.7; }
+.inspector-checklist-section summary { font-size: var(--inspector-text-body); line-height: 1.6; }
+.inspector-checklist-section summary > small { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-checklist-item legend { font-size: var(--inspector-text-body); line-height: 1.6; }
+.inspector-result-options label { font-size: var(--inspector-text-meta); line-height: 1.6; }
+.inspector-notes-field { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-notes-field textarea { font-size: var(--inspector-text-body); line-height: 1.7; }
+
+/* --- Media upload --------------------------------------------------------
+   The photo tiles go from a 105px minimum to 136px so a 12px category label
+   plus the delete button still fit on one line; the caption may wrap as a
+   safety net. */
+
+.inspector-upload-toolbar > label:first-child { font-size: var(--inspector-text-meta); line-height: 1.5; }
+.inspector-upload-toolbar select { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-upload-button, .inspector-video-picker { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-photo-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); }
+.inspector-photo-item figcaption { flex-wrap: wrap; row-gap: 2px; font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+/* --- Report preview / copy address -------------------------------------- */
+
+.inspector-report-summary strong { font-size: var(--inspector-text-body); line-height: 1.7; }
+.inspector-preview-notice { font-size: var(--inspector-text-meta); line-height: 1.7; }
+.inspector-copy-location { font-size: var(--inspector-text-body); line-height: 1.5; }
+.inspector-copy-address > span { font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+/* --- Responsive guards ---------------------------------------------------
+   390px / 768px / 1440px must never scroll horizontally. */
+
+@media (max-width: 900px) {
+  /* 681-900px: the four fixed tracks of the assigned card no longer fit the
+     narrow workspace, so it reflows to the same two-column shape the mobile
+     rules already use. */
+  .inspector-assigned-card { grid-template-columns: minmax(0, 1fr) auto; }
+  .inspector-assigned-info { padding-inline-start: 51px; }
+  .inspector-assigned-card > .inspector-primary-link { grid-column: 1 / -1; width: 100%; }
+  /* The 208px sidebar gives the nav labels a little more room. */
+  .inspector-sidebar nav a { gap: 9px; padding-inline: 9px; }
+}
+
+@media (max-width: 680px) {
+  .inspector-topbar { height: auto; min-height: 57px; padding-block: 8px; }
+  .inspector-topbar-description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .inspector-schedule-item {
+    --ins-schedule-time: 104px;
+    --ins-schedule-marker: 10px;
+    --ins-schedule-gap: 8px;
+    grid-template-columns: var(--ins-schedule-time) var(--ins-schedule-marker) minmax(0, 1fr);
+  }
+  .inspector-presence small { max-width: 132px; }
+  /* The taller mobile nav needs a little more reserved space below content. */
+  .inspector-dashboard-layout { padding-bottom: 84px; }
+  .inspector-mobile-nav a { font-size: var(--inspector-text-meta); line-height: 1.35; }
+}

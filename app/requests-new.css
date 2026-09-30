@@ -1,0 +1,135 @@
+/* ==========================================================================
+   New-request wizard ("طلب فحص جديد") — page-scoped layer.
+   --------------------------------------------------------------------------
+   Imported only by app/requests/new/page.tsx, so it loads after globals.css
+   and refresh.css and wins at equal specificity. Every colour, radius, shadow
+   and duration comes from the :root tokens; no new palette, no JS animation.
+
+   Layout: one full-width step rail above a single centred form column, so the
+   form keeps a comfortable measure on a narrow laptop and stays one column on
+   phones. Written without a BOM on purpose — a BOM in the middle of a bundled
+   chunk turns the rule that follows it into an unreachable selector.
+   ========================================================================== */
+
+.wiz-main { width: min(820px, 100%); margin-inline: auto; }
+
+/* --- Page head (a touch tighter than the dashboard default) --------------- */
+
+.app-page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .8rem; }
+.app-page-head h2 { margin-top: .35rem; font-size: clamp(23px, 3vw, 30px); }
+.app-page-head p { max-width: 620px; margin-top: .45rem; color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.95; }
+
+/* --- Step rail / progress indicator -------------------------------------- */
+
+.wiz-steps-panel { width: min(820px, 100%); margin-inline: auto; padding: 1.05rem 1.2rem 1.15rem; }
+.wiz-steps-panel .app-panel-head { align-items: center; margin-bottom: .9rem; }
+.wiz-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.wiz-step {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: .7rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: #f8fafd;
+  padding: .6rem .75rem;
+}
+.wiz-step-dot {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink-700);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+}
+.wiz-step-text { display: grid; min-width: 0; gap: .15rem; }
+.wiz-step-text strong { color: var(--ink-800); font-size: var(--text-sm); }
+.wiz-step-text small { color: var(--color-text-muted); font-size: var(--text-2xs); }
+.wiz-step.is-done { border-color: var(--mint-100); background: var(--mint-100); }
+.wiz-step.is-done .wiz-step-dot { border-color: var(--mint-600); background: var(--mint-600); color: #fff; }
+.wiz-step.is-current { border-color: var(--brand-200); background: var(--brand-50); box-shadow: 0 0 0 3px rgb(13 116 227 / 10%); }
+.wiz-step.is-current .wiz-step-dot { border-color: var(--brand-600); background: var(--brand-600); color: #fff; }
+.wiz-step.is-current .wiz-step-text strong { color: var(--brand-700); }
+.wiz-step.is-next .wiz-step-dot { background: #fff; color: #7e8da0; }
+
+/* --- Messages + info notes ----------------------------------------------- */
+
+.wiz-error { display: flex; align-items: center; border: 1px solid #f3d5d0; border-radius: var(--radius-md); background: #fdf3f1; margin: 1rem 0 0; padding: .85rem 1.05rem; color: var(--color-error); font-size: var(--text-sm); font-weight: 600; }
+.wiz-note { display: flex; align-items: flex-start; gap: .75rem; border: 1px solid var(--brand-100); border-radius: var(--radius-md); background: var(--brand-50); padding: .95rem 1.05rem; }
+.wiz-note-icon { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border-radius: var(--radius-sm); background: #fff; color: var(--brand-600); }
+.wiz-note p { color: var(--ink-700); font-size: var(--text-base); line-height: 1.9; }
+
+/* --- Step panel + fields ------------------------------------------------- */
+
+.wiz-panel { padding: 1.4rem; }
+.wiz-form, .wiz-fields { display: grid; gap: 1.05rem; }
+.wiz-fields.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wiz-field { display: grid; align-content: start; gap: .45rem; }
+.wiz-field.is-wide { grid-column: 1 / -1; }
+.wiz-label { display: flex; min-height: 24px; align-items: center; gap: .45rem; color: var(--ink-700); font-size: var(--text-base); font-weight: 700; line-height: 1.5; }
+.wiz-hint { border-radius: var(--radius-pill); background: #f3f6fa; padding: .12rem .5rem; color: #7e8da0; font-size: var(--text-2xs); font-weight: 600; }
+.wiz-field input, .wiz-field select, .wiz-field textarea { width: 100%; }
+
+/* --- Choice cards (inspection type) -------------------------------------- */
+
+.wiz-choices { display: grid; gap: .7rem; }
+.wiz-choice {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: .85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: .9rem 1.05rem;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.wiz-choice:hover { border-color: var(--brand-200); background: var(--brand-50); }
+.wiz-choice-check { display: grid; width: 26px; height: 26px; flex: 0 0 auto; place-items: center; border: 1px solid #c2cddd; border-radius: 50%; background: #fff; color: #fff; }
+.wiz-choice-text { display: grid; min-width: 0; flex: 1; gap: .18rem; }
+.wiz-choice-text strong { color: var(--ink-800); font-size: var(--text-md); }
+.wiz-choice-text small { color: var(--color-text-muted); font-size: var(--text-2xs); }
+.wiz-choice.is-active { border-color: var(--brand-500); background: var(--brand-50); box-shadow: 0 0 0 3px rgb(13 116 227 / 12%); }
+.wiz-choice.is-active .wiz-choice-check { border-color: var(--brand-500); background: var(--brand-500); }
+
+/* --- Review panel (step 5) ----------------------------------------------- */
+
+.wiz-review { display: grid; gap: .9rem; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); background: #fbfcfe; padding: 1.05rem 1.15rem; }
+.wiz-review-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem 1.2rem; }
+.wiz-review-row { display: grid; gap: .2rem; }
+.wiz-review-row.is-wide { grid-column: 1 / -1; }
+.wiz-review-row dt { display: flex; align-items: center; gap: .4rem; color: var(--color-text-muted); font-size: var(--text-2xs); font-weight: 600; }
+.wiz-review-row dt svg { flex: 0 0 auto; color: var(--brand-500); }
+.wiz-review-row dd { margin: 0; color: var(--ink-800); font-size: var(--text-base); font-weight: 700; line-height: 1.75; }
+.wiz-review-note { margin: 0; color: var(--ink-700); font-size: var(--text-base); line-height: 1.9; }
+
+/* --- Wizard footer + responsive ------------------------------------------ */
+
+.wiz-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .7rem; border-top: 1px solid var(--color-border-light); margin-top: 1.3rem; padding-top: 1.15rem; }
+
+@media (max-width: 900px) {
+  .wiz-steps { display: flex; gap: .5rem; }
+  .wiz-step { max-width: 140px; flex: 1 1 0; flex-direction: column; gap: .35rem; padding: .5rem .4rem; text-align: center; }
+  .wiz-step-text small { display: none; }
+}
+
+@media (max-width: 720px) {
+  .wiz-fields.is-2, .wiz-review-list { grid-template-columns: minmax(0, 1fr); }
+  .wiz-panel { border: 0; border-radius: 0; padding: 1.1rem 0 0; }
+  .wiz-steps-panel { border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0 0 .4rem; }
+  .wiz-steps-panel .app-panel-head { margin-bottom: .7rem; }
+  .wiz-steps-panel .app-panel-head p { display: none; }
+  .wiz-steps { display: flex; justify-content: center; gap: .4rem; overflow-x: auto; padding-bottom: .2rem; scrollbar-width: none; }
+  .wiz-steps::-webkit-scrollbar { display: none; }
+  .wiz-step { min-height: 0; max-width: none; flex: 0 0 auto; flex-direction: column; gap: .35rem; background: transparent; padding: .25rem; text-align: center; }
+  .wiz-step-text strong { font-size: var(--text-2xs); }
+  .wiz-step.is-current, .wiz-step.is-done { border-radius: var(--radius-sm); padding: .35rem .5rem; }
+  .wiz-foot .btn { flex: 1 1 auto; }
+}
