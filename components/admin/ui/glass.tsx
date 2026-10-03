@@ -2,12 +2,11 @@ import { cn } from '@/lib/utils'
 import type { Tone } from '@/lib/admin/labels'
 
 /**
- * Glassmorphic surface primitives for the admin console.
+ * Light-themed surface primitives for the admin console.
  *
- * Kept free of hooks so they render inside server components. The console is
- * deliberately dark while the public product is light — it is a separate
- * workspace, and the contrast makes it obvious at a glance which environment
- * you are operating in.
+ * Mirrors the inspector dashboard palette: white panels on #f6f9ff ground,
+ * #e3eaf2 hairlines, #102444 ink. Kept free of hooks so they render inside
+ * server components.
  */
 
 export function GlassPanel({
@@ -18,7 +17,7 @@ export function GlassPanel({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-white/10 bg-neutral-950/80 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur-2xl',
+        'rounded-[9px] border border-[#e3eaf2] bg-white shadow-[0_1px_0_0_rgba(255,255,255,0.5)_inset]',
         className,
       )}
       {...props}
@@ -45,7 +44,7 @@ export function GlassCard({
     <GlassPanel className={cn('p-5', className)}>
       {title && (
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-neutral-100">{title}</h2>
+          <h2 className="text-sm font-medium text-[#102444]">{title}</h2>
           {hint}
         </div>
       )}
@@ -55,10 +54,10 @@ export function GlassCard({
 }
 
 const toneStyles: Record<Tone, string> = {
-  good: 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/20',
-  warn: 'bg-amber-400/10 text-amber-300 ring-amber-400/20',
-  bad: 'bg-rose-400/10 text-rose-300 ring-rose-400/20',
-  neutral: 'bg-white/5 text-neutral-300 ring-white/10',
+  good: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  warn: 'bg-amber-50 text-amber-700 ring-amber-200',
+  bad: 'bg-rose-50 text-rose-700 ring-rose-200',
+  neutral: 'bg-slate-100 text-slate-600 ring-slate-200',
 }
 
 export function GlassBadge({
@@ -77,6 +76,7 @@ export function GlassBadge({
         toneStyles[tone],
         className,
       )}
+      {...{ children }}
     >
       {children}
     </span>
@@ -86,7 +86,7 @@ export function GlassBadge({
 /** Small dot used for live/system status indicators. */
 export function StatusDot({ tone = 'good', pulse = false }: { tone?: Tone; pulse?: boolean }) {
   const color =
-    tone === 'good' ? 'bg-emerald-400' : tone === 'warn' ? 'bg-amber-400' : tone === 'bad' ? 'bg-rose-400' : 'bg-neutral-500'
+    tone === 'good' ? 'bg-emerald-500' : tone === 'warn' ? 'bg-amber-500' : tone === 'bad' ? 'bg-rose-500' : 'bg-slate-400'
   return (
     <span className="relative inline-flex size-2 shrink-0">
       {pulse && <span className={cn('absolute inline-flex size-full animate-ping rounded-full opacity-60', color)} />}
@@ -105,20 +105,17 @@ export function GlassButton({
   size?: 'sm' | 'md'
 }) {
   const variants = {
-    ghost: 'border-white/10 bg-white/5 text-neutral-200 hover:bg-white/10 hover:text-white',
-    solid: 'border-transparent bg-white text-neutral-950 hover:bg-neutral-200',
-    danger: 'border-rose-400/20 bg-rose-400/10 text-rose-300 hover:bg-rose-400/20',
-    success: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20',
-    warn: 'border-amber-400/20 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20',
+    ghost: 'border-[#e3eaf2] bg-white text-[#475d78] hover:bg-slate-50 hover:text-[#102444]',
+    solid: 'border-transparent bg-[#0b1f46] text-white hover:bg-[#1a3563]',
+    danger: 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100',
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+    warn: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100',
   } as const
   return (
     <button
       className={cn(
         'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border font-medium transition-colors outline-none',
         'focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:pointer-events-none disabled:opacity-50',
-        // Touch-target floor on phones (44px), compact from `sm` up. The
-        // console is dense, so we grow the hit area only where a finger is
-        // likely to be the pointer.
         'min-h-11 sm:min-h-0',
         size === 'sm' ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs',
         variants[variant],
@@ -131,17 +128,17 @@ export function GlassButton({
 
 export function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-white/10 bg-white/[.02] px-5 py-10 text-center text-xs text-neutral-500">
+    <div className="rounded-xl border border-dashed border-[#e3eaf2] bg-slate-50/50 px-5 py-10 text-center text-xs text-[#65768d]">
       {children}
     </div>
   )
 }
 
 const noticeStyles: Record<Tone, string> = {
-  good: 'border-emerald-400/20 bg-emerald-400/[.07] text-emerald-200',
-  warn: 'border-amber-400/20 bg-amber-400/[.07] text-amber-200',
-  bad: 'border-rose-400/20 bg-rose-400/[.07] text-rose-200',
-  neutral: 'border-white/10 bg-white/[.03] text-neutral-300',
+  good: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  warn: 'border-amber-200 bg-amber-50 text-amber-800',
+  bad: 'border-rose-200 bg-rose-50 text-rose-800',
+  neutral: 'border-[#e3eaf2] bg-slate-50 text-[#102444]',
 }
 
 /**

@@ -4,27 +4,24 @@ import { useId } from 'react'
 import { motion } from 'motion/react'
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import { TrendingDown, TrendingUp } from 'lucide-react'
-import { GlassPanel, GlassBadge } from '@/components/admin/ui/glass'
+import { GlassBadge } from '@/components/admin/ui/glass'
 import { formatArabicNumber } from '@/lib/inspection-status'
 import type { TrendPoint } from '@/lib/admin/store'
 
 type Tone = 'sky' | 'emerald' | 'amber' | 'rose' | 'violet'
 
 const accents: Record<Tone, { stroke: string; bar: string }> = {
-  sky: { stroke: '#38bdf8', bar: 'bg-sky-400' },
-  emerald: { stroke: '#34d399', bar: 'bg-emerald-400' },
-  amber: { stroke: '#fbbf24', bar: 'bg-amber-400' },
-  rose: { stroke: '#fb7185', bar: 'bg-rose-400' },
-  violet: { stroke: '#a78bfa', bar: 'bg-violet-400' },
+  sky: { stroke: '#0c73dd', bar: 'bg-sky-400' },
+  emerald: { stroke: '#10b981', bar: 'bg-emerald-400' },
+  amber: { stroke: '#f59e0b', bar: 'bg-amber-400' },
+  rose: { stroke: '#f43f5e', bar: 'bg-rose-400' },
+  violet: { stroke: '#8b5cf6', bar: 'bg-violet-400' },
 }
 
 export type KpiTrend = { points: TrendPoint[]; key: 'users' | 'inspections' }
 
 /**
- * KPI card with a 14-day sparkline.
- *
- * The delta compares the last 7 days against the 7 before it, which is a more
- * honest "is this moving?" signal than a flat total.
+ * KPI card with a 14-day sparkline — light theme matching inspector design.
  */
 export function KpiCard({
   label,
@@ -42,8 +39,6 @@ export function KpiCard({
   suffix?: string
 }) {
   const accent = accents[tone]
-  // `useId` rather than the label: an SVG gradient id must be URL-safe, and the
-  // labels here are Arabic.
   const gradientId = `kpi-${useId().replace(/:/g, '')}`
   const points = trend?.points ?? []
   const series = trend ? points.map((point) => ({ date: point.date, value: point[trend.key] })) : []
@@ -61,14 +56,13 @@ export function KpiCard({
       whileHover={{ y: -2, scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
     >
-      <GlassPanel className="relative min-w-0 overflow-hidden p-3.5 sm:p-4">
+      <div className="relative min-w-0 overflow-hidden rounded-[9px] border border-[#e3eaf2] bg-white p-3.5 sm:p-4 shadow-[0_1px_0_0_rgba(255,255,255,0.5)_inset]">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-[11px] text-neutral-400">{label}</p>
-            {/* Fluid value: stays legible at 320px, never dominates a 4-up row. */}
-            <p className="mt-1.5 text-[clamp(20px,2.4vw,26px)] leading-tight font-medium text-white">
+            <p className="text-[11px] text-[#65768d]">{label}</p>
+            <p className="mt-1.5 text-[clamp(20px,2.4vw,26px)] leading-tight font-medium text-[#102244]">
               {formatArabicNumber(value)}
-              {suffix && <span className="mr-1 text-xs font-normal text-neutral-500">{suffix}</span>}
+              {suffix && <span className="mr-1 text-xs font-normal text-[#8592a1]">{suffix}</span>}
             </p>
           </div>
           {delta !== null && (
@@ -83,7 +77,7 @@ export function KpiCard({
           )}
         </div>
 
-        {hint && <p className="mt-1 text-[10px] text-neutral-500">{hint}</p>}
+        {hint && <p className="mt-1 text-[10px] text-[#8592a1]">{hint}</p>}
 
         {series.length > 0 && (
           <div className="mt-3 h-10" aria-hidden="true">
@@ -91,20 +85,20 @@ export function KpiCard({
               <AreaChart data={series} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={accent.stroke} stopOpacity={0.35} />
+                    <stop offset="0%" stopColor={accent.stroke} stopOpacity={0.25} />
                     <stop offset="100%" stopColor={accent.stroke} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="date" hide />
                 <Tooltip
                   contentStyle={{
-                    background: 'rgba(10,10,10,.95)',
-                    border: '1px solid rgba(255,255,255,.1)',
+                    background: 'rgba(255,255,255,.97)',
+                    border: '1px solid #e3eaf2',
                     borderRadius: 8,
                     fontSize: 11,
-                    color: '#e5e5e5',
+                    color: '#102244',
                   }}
-                  labelStyle={{ color: '#a3a3a3', fontSize: 10 }}
+                  labelStyle={{ color: '#65768d', fontSize: 10 }}
                   formatter={(value) => [formatArabicNumber(Number(value)), '']}
                 />
                 <Area
@@ -122,15 +116,13 @@ export function KpiCard({
         )}
 
         <span className={`absolute inset-x-0 bottom-0 h-px opacity-40 ${accent.bar}`} />
-      </GlassPanel>
+      </div>
     </motion.div>
   )
 }
 
 /**
- * KPI ladder: 1 column on phones → 2 on tablets → 4 on desktops.
- * `minmax(0, 1fr)` (via grid-cols-N) is what stops a long number from pushing
- * a column wider than its share and creating horizontal overflow.
+ * KPI ladder: 1 column on phones -> 2 on tablets -> 4 on desktops.
  */
 export function KpiGrid({ children }: { children: React.ReactNode }) {
   return (
