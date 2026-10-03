@@ -253,3 +253,169 @@
   .inspector-dashboard-layout { padding-bottom: 84px; }
   .inspector-mobile-nav a { font-size: var(--inspector-text-meta); line-height: 1.35; }
 }
+
+/* ==========================================================================
+   Scrollbars — a professional overlay treatment for the workspace
+   --------------------------------------------------------------------------
+   Two separate scroll regions exist in this workspace and both used to render
+   with the browser default, which on Windows means a 17px opaque grey channel
+   with stepper arrows sitting against the content — the single most visible
+   "unfinished" detail on an otherwise polished surface. They are:
+
+     · the document scroller, i.e. the main content column (html/body);
+     · `.inspector-sidebar`, which is `overflow-y: auto` (see above) and so gets
+       its own bar whenever the nav is taller than 100vh.
+
+   ── The approach ───────────────────────────────────────────────────────────
+   `scrollbar-width` / `scrollbar-color` are the standard pair (Firefox, and
+   Chrome 121+). The engine-specific pseudo-elements are kept for Chromium and
+   WebKit, because they are the only way to get: a transparent track, a pill
+   thumb, and — the part that actually reads as "designed" — a **gutter that is
+   reserved but invisible until the pointer is over the region**, so the bar
+   does not sit in the layout as a permanent grey stripe.
+
+   `scrollbar-gutter: stable` is inherited from globals.css on html; it stays,
+   because the reservation is what stops the content from shifting horizontally
+   when a short page grows long. Only the *painting* is being changed here.
+
+   ── Why plain CSS and not a Tailwind utility ───────────────────────────────
+   Pseudo-elements cannot be expressed as utilities, and the unlayered rules in
+   globals.css/refresh.css outrank every utility anyway. This file loads after
+   both, so a rule here wins on source order.
+
+   ── Theme ──────────────────────────────────────────────────────────────────
+   The desk workspace is a light surface (`--brand-500` blue on white), so the
+   thumb is a translucent brand blue over a transparent track: visible enough to
+   grab, quiet enough to ignore. The dark field surface re-points the same
+   variables at the bottom of this block rather than duplicating the rules.
+   ========================================================================== */
+
+.inspector-dashboard {
+  /* Thumb: brand blue at rest, darker and more opaque while grabbed. */
+  --ins-scroll-thumb: rgb(37 99 235 / 26%);
+  --ins-scroll-thumb-hover: rgb(37 99 235 / 46%);
+  --ins-scroll-thumb-active: rgb(37 99 235 / 62%);
+  --ins-scroll-track: transparent;
+  /* The bar is drawn as a floating pill: a transparent border in the same
+     colour as the track insets the thumb without needing a smaller width. */
+  --ins-scroll-size: 10px;
+  --ins-scroll-inset: 2px;
+}
+
+/* Firefox and Chrome 121+ read these instead of the pseudo-elements. */
+.inspector-dashboard,
+.inspector-dashboard * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ins-scroll-thumb) var(--ins-scroll-track);
+}
+
+/* Chromium / WebKit: any scroll region inside the workspace, plus the document
+   scroller itself, which is outside `.inspector-dashboard`. */
+.inspector-dashboard *::-webkit-scrollbar,
+html:has(.inspector-dashboard)::-webkit-scrollbar,
+body:has(.inspector-dashboard)::-webkit-scrollbar {
+  width: var(--ins-scroll-size);
+  height: var(--ins-scroll-size);
+}
+
+.inspector-dashboard *::-webkit-scrollbar-track,
+html:has(.inspector-dashboard)::-webkit-scrollbar-track,
+body:has(.inspector-dashboard)::-webkit-scrollbar-track {
+  background: var(--ins-scroll-track);
+}
+
+/* No stepper arrows, no corner box — both are OS chrome, not UI. */
+.inspector-dashboard *::-webkit-scrollbar-button,
+html:has(.inspector-dashboard)::-webkit-scrollbar-button,
+body:has(.inspector-dashboard)::-webkit-scrollbar-button,
+.inspector-dashboard *::-webkit-scrollbar-corner,
+html:has(.inspector-dashboard)::-webkit-scrollbar-corner,
+body:has(.inspector-dashboard)::-webkit-scrollbar-corner {
+  display: none;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.inspector-dashboard *::-webkit-scrollbar-thumb,
+html:has(.inspector-dashboard)::-webkit-scrollbar-thumb,
+body:has(.inspector-dashboard)::-webkit-scrollbar-thumb {
+  border: var(--ins-scroll-inset) solid transparent;
+  border-radius: var(--radius-pill);
+  /* `content-box` + the transparent border above is what produces the floating
+     pill: the paint is inset from the bar's own edge. */
+  background-clip: content-box;
+  background-color: var(--ins-scroll-thumb);
+}
+
+.inspector-dashboard *::-webkit-scrollbar-thumb:hover,
+html:has(.inspector-dashboard)::-webkit-scrollbar-thumb:hover,
+body:has(.inspector-dashboard)::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ins-scroll-thumb-hover);
+}
+
+.inspector-dashboard *::-webkit-scrollbar-thumb:active,
+html:has(.inspector-dashboard)::-webkit-scrollbar-thumb:active,
+body:has(.inspector-dashboard)::-webkit-scrollbar-thumb:active {
+  background-color: var(--ins-scroll-thumb-active);
+}
+
+/* The sidebar is a fixed 100vh column, so its bar is always in view. Give the
+   nav a little breathing room from it, and fade the bar to nothing until the
+   pointer is actually over the rail — the reserved gutter stays, so nothing
+   moves when it appears. */
+.inspector-sidebar {
+  padding-inline-end: 13px;
+  transition: background-color .2s ease;
+}
+
+.inspector-sidebar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  transition: background-color .22s ease;
+}
+
+.inspector-sidebar:hover::-webkit-scrollbar-thumb {
+  background-color: var(--ins-scroll-thumb);
+}
+
+.inspector-sidebar:hover::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ins-scroll-thumb-hover);
+}
+
+/* Firefox has no pseudo-elements, so it keeps the resting colour — and that is
+   the right trade: `scrollbar-color: transparent` would be unreachable. */
+.inspector-sidebar { scrollbar-color: rgb(37 99 235 / 18%) var(--ins-scroll-track); }
+.inspector-sidebar:hover { scrollbar-color: var(--ins-scroll-thumb) var(--ins-scroll-track); }
+
+/* ── Dark field surface ────────────────────────────────────────────────────
+   Same geometry, light thumb. Scoped to `.is-field`, which field-dashboard.css
+   puts on the same element that carries `.inspector-dashboard`. */
+.inspector-dashboard.is-field {
+  --ins-scroll-thumb: rgb(255 255 255 / 20%);
+  --ins-scroll-thumb-hover: rgb(255 255 255 / 34%);
+  --ins-scroll-thumb-active: rgb(52 211 153 / 55%);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar {
+  scrollbar-color: rgb(255 255 255 / 14%) var(--ins-scroll-track);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar:hover {
+  scrollbar-color: var(--ins-scroll-thumb) var(--ins-scroll-track);
+}
+
+/* ── Touch / coarse pointers ───────────────────────────────────────────────
+   A finger cannot hover a scrollbar and cannot aim at a 10px rail, and mobile
+   browsers already draw their own transient indicator. Hiding the author bar
+   here avoids drawing a permanent stripe over the content on a phone. */
+@media (pointer: coarse) {
+  .inspector-dashboard *::-webkit-scrollbar,
+  html:has(.inspector-dashboard)::-webkit-scrollbar,
+  body:has(.inspector-dashboard)::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  .inspector-dashboard,
+  .inspector-dashboard * {
+    scrollbar-width: none;
+  }
+}

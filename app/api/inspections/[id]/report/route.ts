@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { resolveInspectorSession, isInspectorSession } from '@/lib/field/access'
 import { enforceApiRateLimit } from '@/lib/api-rate-limit'
 import { assertSameOrigin } from '@/lib/origin'
 import { inspectionResultOptions, expectedChecklistKeys } from '@/lib/inspection-report'
@@ -10,16 +11,25 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession()
-  if (!session || (session.role !== 'customer' && session.role !== 'inspector')) {
+  if (!session) {
     return NextResponse.json({ error: 'يجب تسجيل الدخول لعرض التقرير' }, { status: 401 })
   }
+
+  // The report is dual-audience: the customer who booked it and the inspector
+  // who wrote it. Ownership is enforced per-row inside
+  // `getInspectionReport()`, which compares `requesterId` against the
+  // inspection's `customer_id` / `assigned_inspector_id` — so an owner in
+  // inspector view mode is treated as whichever side actually owns this
+  // specific order, and a stranger is refused even though they got this far.
+  const reportRole: 'customer' | 'inspector' =
+    isInspectorSession(session) ? 'inspector' : 'customer'
 
   try {
     const { id } = await context.params
     const report = await getInspectionReport({
       inspectionId: id,
       requesterId: session.sub,
-      role: session.role,
+      role: reportRole,
     })
     if (!report) return NextResponse.json({ error: 'التقرير غير متاح لهذا الحساب أو لم يصدر بعد' }, { status: 404 })
     return NextResponse.json(report, { headers: { 'Cache-Control': 'private, no-store' } })
@@ -36,8 +46,8 @@ export async function POST(
   const originError = assertSameOrigin(request)
   if (originError) return originError
 
-  const session = await getSession()
-  if (!session || session.role !== 'inspector') {
+  const session = await resolveInspectorSession()
+  if (!session) {
     return NextResponse.json({ error: 'حفظ التقرير متاح للفاحص المسند إليه الطلب فقط' }, { status: 401 })
   }
   const rateLimitResponse = await enforceApiRateLimit(request, 'inspection-report-save', session.sub, {

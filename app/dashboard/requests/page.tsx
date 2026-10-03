@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { CarFront, Plus } from 'lucide-react'
-import RequestCard from '@/components/dashboard/request-card'
+import RequestCard from '@/components/modules/customer/dashboard/request-card'
 import { requireRoles } from '@/lib/auth'
 import { getCustomerRequests, summarizeRequests } from '@/lib/customer-data'
 import { formatArabicNumber, isActiveStatus } from '@/lib/inspection-status'

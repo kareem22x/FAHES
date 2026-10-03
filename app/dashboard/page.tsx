@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
-import RequestCard from '@/components/dashboard/request-card'
+import RequestCard from '@/components/modules/customer/dashboard/request-card'
 import { requireRoles } from '@/lib/auth'
 import { getCustomerRequests, summarizeRequests } from '@/lib/customer-data'
 import { formatArabicDate, formatArabicNumber, isActiveStatus, statusOf } from '@/lib/inspection-status'
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="app-kpis" aria-label="ملخص حسابك">
+      <section className="app-kpis stagger-on-view" aria-label="ملخص حسابك">
         <article className="app-kpi is-brand">
           <span className="app-kpi-icon"><CarFront size={19} /></span>
           <strong>{formatArabicNumber(summary.active)}</strong>

@@ -1,4 +1,4 @@
-import AccountProfile from '@/components/account-profile'
+import AccountProfile from '@/components/modules/account/account-profile'
 
 export const metadata = { title: 'ملفي الشخصي' }
 

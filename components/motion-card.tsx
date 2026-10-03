@@ -4,9 +4,7 @@ import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 
 /**
- * Hover/tap feedback for cards. Reduced-motion handling lives in
- * `MotionProvider` (`<MotionConfig reducedMotion="user">`), so no per-component
- * `useReducedMotion()` is needed here.
+ * Hover/tap feedback for cards.
  */
 export default function MotionCard({ children, className }: { children: ReactNode; className: string }) {
   return (

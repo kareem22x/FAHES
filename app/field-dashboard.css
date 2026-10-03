@@ -1,0 +1,1338 @@
+/* ==========================================================================
+   Fahes inspector FIELD dashboard — dark glassmorphism
+   --------------------------------------------------------------------------
+   Loaded only by app/inspector/field/layout.tsx, so it never reaches the desk
+   dashboard, the customer site or the admin console.
+
+   ── Why this is a token override and not a fresh component library ─────────
+   The desk dashboard already defines ~180 `.inspector-*` rules in globals.css,
+   written for a light surface. Rather than fork every one of them, this file
+   re-points the *tokens* on `.inspector-dashboard.is-field` and then overrides
+   only the handful of rules that genuinely need a different treatment on a dark
+   surface: the frosted panels, the glowing markers, the bottom action bar and
+   the tap targets.
+
+   Two project rules are load-bearing here and are easy to break:
+
+   1. Nothing in this file may be moved into a Tailwind utility on the element.
+      Rules in globals.css/refresh.css are unlayered, so they beat *every*
+      Tailwind utility regardless of specificity or order. A `bg-white/10` on a
+      panel would simply not apply. That is why this is plain CSS.
+
+   2. Do not spell out a Tailwind arbitrary-value class name in prose in any
+      file inside the project tree. Tailwind's scanner reads markdown and
+      comments, and the mask/background form carrying a url() value aborts the
+      whole stylesheet with a 500 on every page. Class names here are described
+      in words for that reason.
+
+   ── Battery saver ──────────────────────────────────────────────────────────
+   `[data-field-battery='on']` drops the expensive layer: backdrop blur becomes
+   an opaque fill, glow shadows go, and the ambient mesh stops animating. It is
+   off by default — see FieldPreferences — and designed to be switched on by a
+   field deployment decision, not silently.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ tokens */
+/**
+ * The dark palette. Values match the spec: a deep #0B0F17 ground, #10B981
+ * emerald and #3B82F6 blue as the two glow accents.
+ */
+.inspector-dashboard.is-field {
+  --field-ground: #0b0f17;
+  --field-ground-2: #0e1420;
+  --field-ground-3: #121a28;
+
+  /* Frosted glass: a translucent lift over the ground, plus a hairline border
+     that is brighter than the fill so panels read as edges, not blocks. */
+  --field-glass: rgb(255 255 255 / 5.5%);
+  --field-glass-strong: rgb(255 255 255 / 9%);
+  --field-glass-border: rgb(255 255 255 / 10%);
+  --field-glass-border-strong: rgb(255 255 255 / 18%);
+
+  --field-emerald: #10b981;
+  --field-emerald-soft: #34d399;
+  --field-blue: #3b82f6;
+  --field-blue-soft: #60a5fa;
+  --field-amber: #f59e0b;
+  --field-rose: #f43f5e;
+  --field-violet: #a78bfa;
+
+  --field-text: #f2f6fb;
+  --field-text-muted: #9aa8bd;
+  --field-text-faint: #6b7a91;
+
+  --field-glow-emerald: 0 0 0 1px rgb(16 185 129 / 32%), 0 0 22px -4px rgb(16 185 129 / 42%);
+  --field-glow-blue: 0 0 0 1px rgb(59 130 246 / 32%), 0 0 22px -4px rgb(59 130 246 / 42%);
+
+  --field-radius: 16px;
+  --field-radius-sm: 11px;
+  --field-radius-pill: 999px;
+
+  /* Field ergonomics: gloves, sunlight, one-handed use. */
+  --field-tap: 48px;
+
+  /* Re-point the desk tokens so shared rules inherit the dark surface. */
+  --inspector-forest: var(--field-text);
+  --inspector-ink: var(--field-text);
+  --inspector-muted: var(--field-text-muted);
+  --inspector-line: var(--field-glass-border);
+
+  --inspector-text-meta: 12px;
+  --inspector-text-ui: 12.5px;
+  --inspector-text-body: 13.5px;
+  --inspector-text-lead: 15px;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--field-ground);
+  /* Two soft light sources, no image request. */
+  background-image:
+    radial-gradient(120% 80% at 12% -10%, rgb(59 130 246 / 13%), transparent 60%),
+    radial-gradient(90% 70% at 100% 0%, rgb(16 185 129 / 10%), transparent 55%);
+  background-attachment: fixed;
+  color: var(--field-text);
+  /* Outdoor legibility: a little more tracking than the desk UI. */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------- nav + shell */
+
+.inspector-dashboard.is-field .inspector-sidebar {
+  border-inline-end: 1px solid var(--field-glass-border);
+  background: rgb(11 15 23 / 82%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.inspector-dashboard.is-field .inspector-logo { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-logo > span:last-child > span { color: var(--field-emerald); }
+.inspector-dashboard.is-field .inspector-logo small { color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-nav-caption { color: var(--field-text-faint); }
+
+.inspector-dashboard.is-field .inspector-sidebar nav a {
+  min-height: var(--field-tap);
+  border-radius: var(--field-radius-sm);
+  color: var(--field-text-muted);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar nav a:hover {
+  background: var(--field-glass);
+  color: var(--field-text);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar nav a.is-current {
+  background: linear-gradient(90deg, rgb(16 185 129 / 18%), rgb(16 185 129 / 4%));
+  box-shadow: inset 2px 0 0 0 var(--field-emerald);
+  color: var(--field-text);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar-help {
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar-help > span {
+  background: rgb(16 185 129 / 16%);
+  color: var(--field-emerald-soft);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar-help > p { color: var(--field-text-muted); }
+
+.inspector-dashboard.is-field .inspector-sidebar-user { border-top-color: var(--field-glass-border); }
+
+.inspector-dashboard.is-field .inspector-user-avatar {
+  background: rgb(16 185 129 / 18%);
+  color: var(--field-emerald-soft);
+}
+
+.inspector-dashboard.is-field .inspector-sidebar-user small { color: var(--field-text-faint); }
+
+.inspector-dashboard.is-field .inspector-topbar {
+  border-bottom: 1px solid var(--field-glass-border);
+  background: rgb(11 15 23 / 76%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.inspector-dashboard.is-field .inspector-breadcrumb { color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-breadcrumb strong { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-topbar-description { color: var(--field-text-faint); }
+
+.inspector-dashboard.is-field .inspector-icon-button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass);
+  color: var(--field-text-muted);
+}
+
+.inspector-dashboard.is-field .inspector-icon-button:hover {
+  border-color: var(--field-glass-border-strong);
+  color: var(--field-text);
+}
+
+.inspector-dashboard.is-field .inspector-status-pill {
+  min-height: 40px;
+  border: 1px solid var(--field-glass-border);
+  background: var(--field-glass);
+  color: var(--field-text-muted);
+  font-size: var(--inspector-text-ui);
+}
+
+.inspector-dashboard.is-field .inspector-status-pill > span { background: var(--field-text-faint); }
+
+.inspector-dashboard.is-field .inspector-status-pill.is-online {
+  border-color: rgb(16 185 129 / 40%);
+  background: rgb(16 185 129 / 12%);
+  color: var(--field-emerald-soft);
+}
+
+.inspector-dashboard.is-field .inspector-status-pill.is-online > span {
+  background: var(--field-emerald);
+  box-shadow: 0 0 0 3px rgb(16 185 129 / 18%);
+}
+
+/* Owner-only "back to the admin console" control in the field topbar.
+   Amber on purpose: it is an *administrative* affordance sitting inside the
+   inspector surface, and the colour makes that visible at a glance rather than
+   blending into the field controls next to it. 44px floor, like every other
+   tap target on this surface. */
+.inspector-dashboard.is-field .field-exit-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgb(245 158 11 / 38%);
+  border-radius: var(--field-radius-sm);
+  background: rgb(245 158 11 / 12%);
+  color: #fcd34d;
+  font-size: var(--inspector-text-ui);
+  font-weight: 600;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.inspector-dashboard.is-field .field-exit-view:hover {
+  border-color: rgb(245 158 11 / 60%);
+  background: rgb(245 158 11 / 18%);
+}
+
+.inspector-dashboard.is-field .field-exit-view:disabled { opacity: 0.65; }
+
+/* Label only once there is room; the icon alone clears the 44px target. */
+@media (max-width: 480px) {
+  .inspector-dashboard.is-field .field-exit-view { padding: 0 10px; }
+  .inspector-dashboard.is-field .field-exit-view span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------- surfaces */
+
+.inspector-dashboard.is-field .inspector-stat-card,
+.inspector-dashboard.is-field .inspector-panel,
+.inspector-dashboard.is-field .inspector-side-card,
+.inspector-dashboard.is-field .inspector-requests-section,
+.inspector-dashboard.is-field .inspector-request-card,
+.inspector-dashboard.is-field .inspector-assigned-card,
+.inspector-dashboard.is-field .inspector-detail-card,
+.inspector-dashboard.is-field .inspector-empty-panel {
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius);
+  background: var(--field-glass);
+  box-shadow: 0 18px 40px -28px rgb(0 0 0 / 90%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+  color: var(--field-text);
+}
+
+.inspector-dashboard.is-field .inspector-stat-card:hover,
+.inspector-dashboard.is-field .inspector-request-card:hover {
+  border-color: var(--field-glass-border-strong);
+  box-shadow: var(--field-glow-blue);
+}
+
+.inspector-dashboard.is-field .inspector-content { width: min(1180px, 100%); }
+
+.inspector-dashboard.is-field .inspector-welcome h1 { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-welcome p { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-section-kicker { color: var(--field-emerald-soft); }
+.inspector-dashboard.is-field .inspector-kicker-dot { background: var(--field-emerald); }
+
+.inspector-dashboard.is-field .inspector-stat-icon,
+.inspector-dashboard.is-field .inspector-request-car-icon,
+.inspector-dashboard.is-field .inspector-side-card-icon {
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass-strong);
+  color: var(--field-blue-soft);
+}
+
+.inspector-dashboard.is-field .inspector-stat-label,
+.inspector-dashboard.is-field .inspector-stat-card > small,
+.inspector-dashboard.is-field .inspector-stat-card > strong > small { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-stat-card > strong { color: var(--field-text); }
+
+.inspector-dashboard.is-field .inspector-approved-badge {
+  min-height: 40px;
+  border: 1px solid rgb(16 185 129 / 38%);
+  background: rgb(16 185 129 / 12%);
+  color: var(--field-emerald-soft);
+}
+
+.inspector-dashboard.is-field .inspector-notice {
+  border: 1px solid rgb(59 130 246 / 30%);
+  border-radius: var(--field-radius-sm);
+  background: rgb(59 130 246 / 10%);
+}
+
+.inspector-dashboard.is-field .inspector-notice > span {
+  background: rgb(59 130 246 / 18%);
+  color: var(--field-blue-soft);
+}
+
+.inspector-dashboard.is-field .inspector-notice p { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-notice p strong { color: var(--field-text); }
+
+.inspector-dashboard.is-field .inspector-section-count {
+  border: 1px solid var(--field-glass-border);
+  background: var(--field-glass);
+  color: var(--field-text-muted);
+}
+
+.inspector-dashboard.is-field .inspector-empty-state > span {
+  background: var(--field-glass-strong);
+  color: var(--field-text-faint);
+}
+
+.inspector-dashboard.is-field .inspector-empty-state h3 { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-empty-state p { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-footer { color: var(--field-text-faint); }
+
+/* -------------------------------------------------------------- text + rows */
+
+.inspector-dashboard.is-field .inspector-request-number { color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-request-card h3,
+.inspector-dashboard.is-field .inspector-assigned-main h3,
+.inspector-dashboard.is-field .inspector-schedule-content > div > strong { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-request-card h3 span { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-request-details > div { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-request-details small { color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-request-details strong { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-request-address { color: var(--field-text-faint); }
+
+.inspector-dashboard.is-field .inspector-request-note {
+  border-radius: var(--field-radius-sm);
+  background: rgb(255 255 255 / 4%);
+  color: var(--field-text-muted);
+}
+
+.inspector-dashboard.is-field .inspector-request-note strong { color: var(--field-text); }
+
+.inspector-dashboard.is-field .inspector-request-status {
+  border: 1px solid rgb(245 158 11 / 34%);
+  background: rgb(245 158 11 / 12%);
+  color: #fcd34d;
+}
+
+.inspector-dashboard.is-field .inspector-schedule-item { border-top-color: var(--field-glass-border); }
+.inspector-dashboard.is-field .inspector-schedule-time strong { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-schedule-time small { color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-schedule-content p { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-schedule-marker { border-color: var(--field-ground); background: var(--field-blue); box-shadow: 0 0 0 1px rgb(59 130 246 / 45%); }
+.inspector-dashboard.is-field .inspector-schedule-item:not(:last-child) .inspector-schedule-marker::after { background: var(--field-glass-border); }
+.inspector-dashboard.is-field .inspector-check-row { border-top-color: var(--field-glass-border); color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-check-row > strong { color: var(--field-emerald-soft); }
+
+.inspector-dashboard.is-field .inspector-city-option {
+  min-height: var(--field-tap);
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-pill);
+  background: var(--field-glass);
+  color: var(--field-text-muted);
+}
+
+.inspector-dashboard.is-field .inspector-city-option:hover { border-color: var(--field-glass-border-strong); }
+
+.inspector-dashboard.is-field .inspector-city-option.is-selected {
+  border-color: rgb(16 185 129 / 48%);
+  background: rgb(16 185 129 / 14%);
+  color: var(--field-emerald-soft);
+}
+
+.inspector-dashboard.is-field .inspector-presence {
+  min-height: var(--field-tap);
+  border: 1px solid var(--field-glass-border);
+  background: var(--field-glass);
+}
+
+.inspector-dashboard.is-field .inspector-presence-indicator { background: var(--field-glass-strong); color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-presence.is-online .inspector-presence-indicator { background: rgb(16 185 129 / 18%); color: var(--field-emerald-soft); }
+.inspector-dashboard.is-field .inspector-presence small { color: var(--field-text-faint); }
+
+/* ---------------------------------------------------------------- controls */
+
+.inspector-dashboard.is-field .inspector-primary-link,
+.inspector-dashboard.is-field .inspector-secondary-link,
+.inspector-dashboard.is-field .inspector-save-button,
+.inspector-dashboard.is-field .inspector-offer-submit,
+.inspector-dashboard.is-field .inspector-upload-button,
+.inspector-dashboard.is-field .inspector-video-picker,
+.inspector-dashboard.is-field .inspector-copy-location,
+.inspector-dashboard.is-field .inspector-details-link,
+.inspector-dashboard.is-field .inspector-inline-link {
+  min-height: var(--field-tap);
+  border-radius: var(--field-radius-sm);
+  align-items: center;
+  justify-content: center;
+  padding-inline: 15px;
+}
+
+.inspector-dashboard.is-field .inspector-primary-link,
+.inspector-dashboard.is-field .inspector-save-button,
+.inspector-dashboard.is-field .inspector-offer-submit {
+  border: 1px solid rgb(16 185 129 / 40%);
+  background: linear-gradient(180deg, rgb(16 185 129 / 26%), rgb(16 185 129 / 14%));
+  color: #d7fbed;
+  font-weight: 700;
+}
+
+.inspector-dashboard.is-field .inspector-primary-link:hover:not(:disabled),
+.inspector-dashboard.is-field .inspector-save-button:hover:not(:disabled) {
+  box-shadow: var(--field-glow-emerald);
+}
+
+.inspector-dashboard.is-field .inspector-secondary-link,
+.inspector-dashboard.is-field .inspector-upload-button,
+.inspector-dashboard.is-field .inspector-video-picker,
+.inspector-dashboard.is-field .inspector-copy-location {
+  border: 1px solid var(--field-glass-border);
+  background: var(--field-glass);
+  color: var(--field-text);
+}
+
+.inspector-dashboard.is-field .inspector-details-link,
+.inspector-dashboard.is-field .inspector-inline-link { color: var(--field-blue-soft); }
+.inspector-dashboard.is-field .inspector-details-link:hover,
+.inspector-dashboard.is-field .inspector-inline-link:hover { color: #bfdbfe; }
+
+.inspector-dashboard.is-field .inspector-primary-link:disabled,
+.inspector-dashboard.is-field .inspector-secondary-link:disabled,
+.inspector-dashboard.is-field .inspector-save-button:disabled { opacity: .45; }
+
+.inspector-dashboard.is-field .inspector-upload-toolbar select,
+.inspector-dashboard.is-field .inspector-notes-field textarea,
+.inspector-dashboard.is-field .inspector-offer-form textarea,
+.inspector-dashboard.is-field .inspector-price-input input {
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: rgb(0 0 0 / 28%);
+  color: var(--field-text);
+}
+
+.inspector-dashboard.is-field .inspector-upload-toolbar select:focus-visible,
+.inspector-dashboard.is-field .inspector-notes-field textarea:focus-visible {
+  border-color: var(--field-emerald);
+  outline: 2px solid rgb(16 185 129 / 32%);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------------ stepper */
+
+.inspector-dashboard.is-field .inspector-step { color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-step.is-done { color: var(--field-text-muted); }
+
+.inspector-dashboard.is-field .inspector-step-marker {
+  border: 1px solid var(--field-glass-border);
+  background: var(--field-glass);
+  color: var(--field-text-muted);
+}
+
+.inspector-dashboard.is-field .inspector-step.is-done .inspector-step-marker {
+  border-color: rgb(16 185 129 / 45%);
+  background: rgb(16 185 129 / 16%);
+  color: var(--field-emerald-soft);
+}
+
+.inspector-dashboard.is-field .inspector-step.is-active .inspector-step-marker {
+  border-color: var(--field-emerald);
+  background: var(--field-emerald);
+  color: #04140d;
+  box-shadow: 0 0 0 4px rgb(16 185 129 / 18%);
+}
+
+.inspector-dashboard.is-field .inspector-progress-track { background: rgb(255 255 255 / 8%); }
+.inspector-dashboard.is-field .inspector-progress-track > span {
+  background: linear-gradient(90deg, var(--field-emerald), var(--field-blue));
+}
+
+/* --------------------------------------------------------------- checklist */
+
+.inspector-dashboard.is-field .inspector-checklist-section { border: 1px solid var(--field-glass-border); border-radius: var(--field-radius-sm); background: rgb(255 255 255 / 3%); }
+.inspector-dashboard.is-field .inspector-checklist-section summary { color: var(--field-text); }
+.inspector-dashboard.is-field .inspector-checklist-section summary > small { color: var(--field-text-faint); }
+.inspector-dashboard.is-field .inspector-checklist-item legend { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-checklist-disclaimer { color: var(--field-text-faint); }
+
+.inspector-dashboard.is-field .inspector-result-options label {
+  min-height: var(--field-tap);
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass);
+  color: var(--field-text-muted);
+}
+
+.inspector-dashboard.is-field .inspector-result-options label.is-selected {
+  border-color: rgb(16 185 129 / 48%);
+  background: rgb(16 185 129 / 14%);
+  color: var(--field-emerald-soft);
+  font-weight: 700;
+}
+
+/* -------------------------------------------------------------------- media */
+
+.inspector-dashboard.is-field .inspector-photo-item { border: 1px solid var(--field-glass-border); border-radius: var(--field-radius-sm); background: var(--field-glass); }
+.inspector-dashboard.is-field .inspector-photo-item figcaption { color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-photo-item figcaption button { min-height: 36px; }
+.inspector-dashboard.is-field .inspector-map-placeholder { border: 1px dashed var(--field-glass-border-strong); border-radius: var(--field-radius); background: rgb(0 0 0 / 22%); color: var(--field-text-muted); }
+.inspector-dashboard.is-field .inspector-map-caption { border: 1px solid var(--field-glass-border); background: rgb(11 15 23 / 85%); color: var(--field-text-muted); }
+
+/* ==========================================================================
+   FIELD-SPECIFIC COMPONENTS
+   Everything below is new to this surface. Prefix: `field-`
+   ========================================================================== */
+
+/* -------------------------------------------------------- ambient + ribbon */
+
+.field-mesh {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 30% at 18% 12%, rgb(16 185 129 / 12%), transparent 70%),
+    radial-gradient(42% 34% at 88% 18%, rgb(59 130 246 / 12%), transparent 70%),
+    radial-gradient(30% 26% at 55% 92%, rgb(167 139 250 / 8%), transparent 70%);
+  animation: field-drift 26s ease-in-out infinite alternate;
+}
+
+@keyframes field-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-1.6%, 1.4%, 0) scale(1.05); }
+}
+
+.field-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.field-chip {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-pill);
+  background: var(--field-glass);
+  padding: 5px 11px;
+  color: var(--field-text-muted);
+  font-size: var(--inspector-text-meta);
+  font-weight: 600;
+}
+
+.field-chip.is-ok { border-color: rgb(16 185 129 / 38%); background: rgb(16 185 129 / 12%); color: var(--field-emerald-soft); }
+.field-chip.is-warn { border-color: rgb(245 158 11 / 38%); background: rgb(245 158 11 / 12%); color: #fcd34d; }
+.field-chip.is-bad { border-color: rgb(244 63 94 / 40%); background: rgb(244 63 94 / 12%); color: #fda4af; }
+.field-chip.is-info { border-color: rgb(59 130 246 / 38%); background: rgb(59 130 246 / 12%); color: var(--field-blue-soft); }
+
+.field-chip-live::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+  animation: field-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes field-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(.8); }
+}
+
+/* ------------------------------------------------------------- zone filter */
+
+.field-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ------------------------------------------------------------------- map */
+
+.field-map {
+  position: relative;
+  display: grid;
+  min-height: 300px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius);
+  background:
+    linear-gradient(rgb(59 130 246 / 7%) 1px, transparent 1px) 0 0 / 100% 34px,
+    linear-gradient(90deg, rgb(59 130 246 / 7%) 1px, transparent 1px) 0 0 / 34px 100%,
+    radial-gradient(70% 60% at 50% 40%, rgb(16 185 129 / 8%), transparent 70%),
+    rgb(0 0 0 / 32%);
+}
+
+/* The plot area is a fixed-aspect box so a marker at 30% / 60% means the same
+   thing at every width. A percentage position inside a grid-centred flow would
+   otherwise drift with the container height. */
+.field-map-plot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 420px;
+}
+
+.field-map-marker {
+  position: absolute;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(16 185 129 / 55%);
+  border-radius: 50%;
+  background: rgb(11 15 23 / 88%);
+  color: var(--field-emerald-soft);
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.field-map-marker::after {
+  position: absolute;
+  inset: -7px;
+  border: 1px solid rgb(16 185 129 / 26%);
+  border-radius: 50%;
+  content: '';
+  animation: field-halo 2.6s ease-out infinite;
+}
+
+@keyframes field-halo {
+  0% { opacity: .9; transform: scale(.86); }
+  100% { opacity: 0; transform: scale(1.28); }
+}
+
+.field-map-marker.is-claimed {
+  border-color: rgb(59 130 246 / 55%);
+  color: var(--field-blue-soft);
+}
+
+.field-map-marker.is-claimed::after { border-color: rgb(59 130 246 / 26%); animation: none; }
+
+.field-map-marker:hover,
+.field-map-marker:focus-visible {
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: var(--field-glow-emerald);
+}
+
+.field-map-marker.is-claimed:hover { box-shadow: var(--field-glow-blue); }
+
+.field-map-popover {
+  position: absolute;
+  z-index: 3;
+  width: min(240px, 70vw);
+  transform: translate(-50%, calc(-100% - 34px));
+  border: 1px solid var(--field-glass-border-strong);
+  border-radius: var(--field-radius-sm);
+  background: rgb(11 15 23 / 96%);
+  padding: 10px 12px;
+  box-shadow: 0 20px 44px -18px rgb(0 0 0 / 95%);
+}
+
+.field-map-popover strong { display: block; color: var(--field-text); font-size: var(--inspector-text-body); }
+.field-map-popover span { display: block; margin-top: 3px; color: var(--field-text-muted); font-size: var(--inspector-text-meta); }
+.field-map-legend { position: absolute; right: 10px; bottom: 10px; display: grid; gap: 5px; }
+.field-map-note { position: absolute; left: 10px; bottom: 10px; max-width: 60%; color: var(--field-text-faint); font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+/* ------------------------------------------------------------ order cards */
+
+.field-order-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.field-order {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius);
+  background: var(--field-glass);
+  padding: 16px;
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+}
+
+.field-order.is-mine {
+  border-color: rgb(16 185 129 / 42%);
+  box-shadow: inset 0 0 0 1px rgb(16 185 129 / 12%);
+}
+
+.field-order-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.field-order-vehicle { display: flex; min-width: 0; align-items: center; gap: 11px; }
+.field-order-vehicle h3 { margin: 0; color: var(--field-text); font-size: 15px; font-weight: 700; }
+.field-order-vehicle p { margin: 4px 0 0; color: var(--field-text-faint); font-size: var(--inspector-text-meta); }
+
+.field-order-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass-strong);
+  color: var(--field-blue-soft);
+}
+
+.field-order-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; border-top: 1px solid var(--field-glass-border); padding-top: 12px; }
+.field-order-facts > div { display: flex; min-width: 0; align-items: flex-start; gap: 7px; color: var(--field-text-muted); }
+.field-order-facts > div > svg { flex: 0 0 auto; margin-top: 2px; }
+.field-order-facts small { display: block; color: var(--field-text-faint); font-size: var(--inspector-text-meta); }
+.field-order-facts strong { display: block; color: var(--field-text); font-size: var(--inspector-text-body); font-weight: 600; line-height: 1.6; }
+
+.field-order-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: auto; border-top: 1px solid var(--field-glass-border); padding-top: 12px; }
+.field-order-actions > * { flex: 1 1 auto; }
+
+.field-distance {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgb(59 130 246 / 32%);
+  border-radius: var(--field-radius-pill);
+  background: rgb(59 130 246 / 12%);
+  padding: 4px 10px;
+  color: var(--field-blue-soft);
+  font-size: var(--inspector-text-meta);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ verification */
+
+.field-verify { display: grid; gap: 12px; margin-top: 14px; }
+
+.field-shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: 11px; }
+
+.field-shot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow: hidden;
+  border: 1px dashed var(--field-glass-border-strong);
+  border-radius: var(--field-radius-sm);
+  background: rgb(0 0 0 / 24%);
+  padding: 12px;
+  text-align: center;
+}
+
+.field-shot.is-done {
+  border-style: solid;
+  border-color: rgb(16 185 129 / 45%);
+  background: rgb(16 185 129 / 9%);
+}
+
+.field-shot-order {
+  position: absolute;
+  top: 9px;
+  inset-inline-start: 9px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--field-glass-strong);
+  color: var(--field-text-muted);
+  font-size: var(--inspector-text-meta);
+  font-weight: 700;
+}
+
+.field-shot.is-done .field-shot-order { background: var(--field-emerald); color: #04140d; }
+.field-shot strong { color: var(--field-text); font-size: var(--inspector-text-body); }
+.field-shot small { color: var(--field-text-faint); font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+.field-shot-preview {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--field-radius-sm);
+  object-fit: cover;
+}
+
+/* Photo captured but not yet renderable (offline-queued, or its signed URL has
+   not arrived). Mirrors the preview's box so the grid does not reflow when the
+   real image swaps in. */
+.field-shot-preview-pending {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  border: 1px dashed var(--field-glass-border-strong);
+  background: rgb(59 130 246 / 8%);
+  color: var(--field-blue-soft);
+  font-size: var(--inspector-text-meta);
+  font-weight: 600;
+  text-align: center;
+}
+
+.field-shot-input { display: none; }
+
+.field-shot-target {
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  border-radius: var(--field-radius-sm);
+  background: rgb(255 255 255 / 4%);
+  color: var(--field-text-faint);
+  cursor: pointer;
+}
+
+.field-shot-target:hover { background: rgb(255 255 255 / 8%); color: var(--field-text-muted); }
+
+.field-plate-confirm {
+  display: flex;
+  min-height: var(--field-tap);
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.field-plate-confirm input { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--field-emerald); }
+.field-plate-confirm span { color: var(--field-text-muted); font-size: var(--inspector-text-body); }
+
+.field-odometer { display: grid; gap: 6px; max-width: 320px; }
+.field-odometer > label { color: var(--field-text-muted); font-size: var(--inspector-text-meta); font-weight: 600; }
+.field-odometer-row { display: flex; align-items: center; gap: 9px; }
+
+.field-odometer input {
+  min-height: var(--field-tap);
+  width: 100%;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: rgb(0 0 0 / 28%);
+  padding-inline: 13px;
+  color: var(--field-text);
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-align: center;
+}
+
+.field-odometer input:focus-visible { border-color: var(--field-emerald); outline: 2px solid rgb(16 185 129 / 32%); outline-offset: 1px; }
+.field-odometer-unit { color: var(--field-text-muted); font-size: var(--inspector-text-body); font-weight: 700; }
+
+/* ------------------------------------------------------------- audit trail */
+
+.field-trail { display: grid; gap: 0; margin-top: 12px; }
+
+.field-trail-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 12px;
+  border-top: 1px solid var(--field-glass-border);
+  padding: 12px 0;
+}
+
+.field-trail-row:first-child { border-top: 0; }
+.field-trail-rail { position: relative; display: grid; justify-items: center; }
+
+.field-trail-dot {
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  margin-top: 5px;
+  border: 2px solid var(--field-ground);
+  border-radius: 50%;
+  background: var(--field-blue);
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 45%);
+}
+
+.field-trail-row.is-chain-ok .field-trail-dot { background: var(--field-emerald); box-shadow: 0 0 0 1px rgb(16 185 129 / 45%); }
+.field-trail-row.is-chain-bad .field-trail-dot { background: var(--field-rose); box-shadow: 0 0 0 1px rgb(244 63 94 / 48%); }
+
+.field-trail-rail::after {
+  position: absolute;
+  top: 16px;
+  bottom: -12px;
+  width: 1px;
+  background: var(--field-glass-border);
+  content: '';
+}
+
+.field-trail-row:last-child .field-trail-rail::after { display: none; }
+.field-trail-body { min-width: 0; }
+.field-trail-body strong { display: block; color: var(--field-text); font-size: var(--inspector-text-body); }
+.field-trail-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; color: var(--field-text-faint); font-size: var(--inspector-text-meta); }
+.field-trail-meta svg { vertical-align: -2px; }
+.field-trail-hash { display: block; overflow: hidden; margin-top: 6px; color: var(--field-text-faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; letter-spacing: .02em; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- badges */
+
+.field-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 11px; margin-top: 14px; }
+
+.field-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius);
+  background: var(--field-glass);
+  padding: 14px;
+}
+
+.field-badge.is-earned {
+  border-color: rgb(16 185 129 / 40%);
+  background: linear-gradient(135deg, rgb(16 185 129 / 14%), rgb(16 185 129 / 4%));
+  box-shadow: 0 0 24px -10px rgb(16 185 129 / 40%);
+}
+
+.field-badge.is-locked { opacity: .5; }
+
+.field-badge-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass-strong);
+  color: var(--field-text-faint);
+}
+
+.field-badge.is-earned .field-badge-icon {
+  border-color: rgb(16 185 129 / 45%);
+  background: rgb(16 185 129 / 18%);
+  color: var(--field-emerald-soft);
+}
+
+.field-badge strong { display: block; color: var(--field-text); font-size: var(--inspector-text-body); }
+.field-badge small { display: block; margin-top: 3px; color: var(--field-text-muted); font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+/* -------------------------------------------------------------- analytics */
+
+.field-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 11px; margin-top: 14px; }
+
+.field-kpi {
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius);
+  background: var(--field-glass);
+  padding: 15px;
+  /* Frosted glass. The blur is what makes a translucent panel read as glass
+     rather than as a washed-out rectangle — without it a 5.5% white fill over a
+     dark ground just looks grey.
+
+     ⚠️ ORDER MATTERS. There is no `browserslist` in this project, so Lightning
+     CSS (Turbopack + `experimental.optimizeCss`) falls back to a wide target
+     list and applies its prefixing in *replace* mode: when it sees the standard
+     `backdrop-filter` it emits ONLY `-webkit-backdrop-filter` in the output
+     chunk and the standard property is lost. Firefox then gets no blur at all,
+     and a probe reading `element.style.backdropFilter` reports `none` even
+     though the blur is visible in Chrome. Declaring the prefixed property FIRST
+     and the standard one LAST leaves Lightning CSS nothing to replace, so both
+     survive into the bundle. Verified in the served chunk: the pair must appear
+     in this exact order. Do not "tidy" it back. */
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+.field-kpi > span { display: flex; align-items: center; gap: 7px; color: var(--field-text-muted); font-size: var(--inspector-text-meta); font-weight: 600; }
+.field-kpi > strong { display: block; margin-top: 9px; color: var(--field-text); font-size: 26px; font-weight: 800; line-height: 1.2; }
+.field-kpi > small { display: block; margin-top: 5px; color: var(--field-text-faint); font-size: var(--inspector-text-meta); line-height: 1.55; }
+
+.field-bars { display: grid; gap: 9px; margin-top: 14px; }
+
+.field-bar-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 11px; }
+.field-bar-row > span:first-child { color: var(--field-text-muted); font-size: var(--inspector-text-meta); }
+.field-bar-row > strong { color: var(--field-text); font-size: var(--inspector-text-meta); font-weight: 700; }
+
+.field-bar-track {
+  display: flex;
+  height: 26px;
+  overflow: hidden;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-pill);
+  background: rgb(0 0 0 / 30%);
+}
+
+.field-bar-completed { background: linear-gradient(90deg, var(--field-emerald), var(--field-emerald-soft)); transition: width .5s cubic-bezier(.16, .84, .34, 1); }
+.field-bar-cancelled { background: linear-gradient(90deg, var(--field-rose), #fb7185); transition: width .5s cubic-bezier(.16, .84, .34, 1); }
+
+.field-range-switch { display: inline-flex; gap: 5px; min-height: var(--field-tap); align-items: center; border: 1px solid var(--field-glass-border); border-radius: var(--field-radius-pill); background: var(--field-glass); padding: 4px; }
+.field-range-switch button {
+  /* 48px, not 38px: this is a switch an inspector taps with a gloved thumb in
+     daylight. The project's touch-target floor is 48px on the field surface. */
+  min-height: var(--field-tap);
+  min-width: 68px;
+  border: 0;
+  border-radius: var(--field-radius-pill);
+  background: transparent;
+  padding-inline: 16px;
+  color: var(--field-text-muted);
+  font-family: inherit;
+  font-size: var(--inspector-text-meta);
+  font-weight: 700;
+  cursor: pointer;
+}
+.field-range-switch button.is-current { background: rgb(16 185 129 / 18%); color: var(--field-emerald-soft); }
+
+/* ----------------------------------------------------------------- wallet */
+
+.field-wallet-hero {
+  border: 1px solid rgb(16 185 129 / 34%);
+  border-radius: var(--field-radius);
+  background: linear-gradient(140deg, rgb(16 185 129 / 16%), rgb(59 130 246 / 10%) 60%, transparent);
+  padding: 20px;
+}
+
+.field-wallet-hero > span { color: var(--field-text-muted); font-size: var(--inspector-text-meta); font-weight: 600; }
+.field-wallet-hero > strong { display: block; margin-top: 8px; color: var(--field-text); font-size: 34px; font-weight: 800; letter-spacing: -.01em; }
+.field-wallet-hero > strong small { font-size: 15px; font-weight: 600; color: var(--field-text-muted); }
+
+.field-wallet-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 11px; margin-top: 16px; }
+.field-wallet-split > div { border: 1px solid var(--field-glass-border); border-radius: var(--field-radius-sm); background: rgb(0 0 0 / 22%); padding: 12px; }
+.field-wallet-split span { display: block; color: var(--field-text-faint); font-size: var(--inspector-text-meta); }
+.field-wallet-split strong { display: block; margin-top: 5px; color: var(--field-text); font-size: 17px; font-weight: 700; }
+
+.field-ledger { display: grid; margin-top: 14px; }
+.field-ledger-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; border-top: 1px solid var(--field-glass-border); padding: 12px 0; }
+.field-ledger-row:first-child { border-top: 0; }
+.field-ledger-row strong { display: block; color: var(--field-text); font-size: var(--inspector-text-body); }
+.field-ledger-row small { display: block; margin-top: 3px; color: var(--field-text-faint); font-size: var(--inspector-text-meta); }
+.field-ledger-amount { color: var(--field-text); font-size: 15px; font-weight: 700; white-space: nowrap; }
+
+.field-status-tag { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--field-glass-border); border-radius: var(--field-radius-pill); padding: 3px 9px; font-size: 12px; font-weight: 600; }
+.field-status-tag.is-pending { border-color: rgb(245 158 11 / 38%); background: rgb(245 158 11 / 12%); color: #fcd34d; }
+.field-status-tag.is-available { border-color: rgb(16 185 129 / 38%); background: rgb(16 185 129 / 12%); color: var(--field-emerald-soft); }
+.field-status-tag.is-requested { border-color: rgb(59 130 246 / 38%); background: rgb(59 130 246 / 12%); color: var(--field-blue-soft); }
+.field-status-tag.is-paid { border-color: rgb(167 139 250 / 38%); background: rgb(167 139 250 / 12%); color: #ddd6fe; }
+
+/* --------------------------------------------------------------------- QR */
+
+.field-qr-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius);
+  background: rgb(0 0 0 / 26%);
+  padding: 20px;
+}
+
+/* A QR code is a raster of dark modules on light, and inverted QR codes are
+   not universally readable. The plate stays light-on-dark deliberately. */
+.field-qr-frame { display: grid; place-items: center; border-radius: var(--field-radius-sm); background: #f8fafc; padding: 12px; }
+.field-qr-frame svg { display: block; width: min(240px, 58vw); height: auto; }
+/* The QR card's link is a 48px tap target even though it renders as a URL line.
+   An inspector sharing a report at a showroom counter taps this, not a mouse
+   cursor on a 23px text run. */
+.field-qr-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--field-tap);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--field-glass-border);
+  margin-top: 10px;
+  padding-top: 8px;
+  color: var(--field-blue-soft);
+  font-size: var(--inspector-text-meta);
+  text-align: center;
+  text-decoration: none;
+}
+
+.field-qr-link:hover {
+  color: var(--field-emerald-soft);
+}
+
+/* ------------------------------------------------------------------ forms */
+
+.field-form { display: grid; gap: 12px; margin-top: 14px; }
+.field-form label { display: grid; gap: 6px; color: var(--field-text-muted); font-size: var(--inspector-text-meta); font-weight: 600; }
+
+.field-form input,
+.field-form select,
+.field-form textarea {
+  min-height: var(--field-tap);
+  width: 100%;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: rgb(0 0 0 / 28%);
+  padding: 11px 13px;
+  color: var(--field-text);
+  font-family: inherit;
+  font-size: var(--inspector-text-body);
+}
+
+.field-form textarea { min-height: 104px; line-height: 1.8; resize: vertical; }
+
+.field-form input:focus-visible,
+.field-form select:focus-visible,
+.field-form textarea:focus-visible {
+  border-color: var(--field-emerald);
+  outline: 2px solid rgb(16 185 129 / 32%);
+  outline-offset: 1px;
+}
+
+.field-form-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.field-form-actions > * { flex: 1 1 auto; }
+
+.field-reason-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: 9px; }
+
+.field-reason {
+  display: flex;
+  min-height: var(--field-tap);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass);
+  padding: 10px 12px;
+  color: var(--field-text-muted);
+  font-family: inherit;
+  font-size: var(--inspector-text-body);
+  text-align: start;
+  cursor: pointer;
+}
+
+.field-reason.is-selected { border-color: rgb(244 63 94 / 45%); background: rgb(244 63 94 / 12%); color: #fda4af; font-weight: 700; }
+
+.field-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid rgb(244 63 94 / 34%);
+  border-radius: var(--field-radius-sm);
+  background: rgb(244 63 94 / 10%);
+  padding: 12px 14px;
+  color: #fecdd3;
+  font-size: var(--inspector-text-meta);
+  line-height: 1.7;
+}
+
+.field-warning > svg { flex: 0 0 auto; margin-top: 1px; }
+
+/* ----------------------------------------------------------- ticket list */
+
+.field-tickets { display: grid; gap: 10px; margin-top: 14px; }
+
+.field-ticket {
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass);
+  padding: 14px;
+}
+
+.field-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.field-ticket strong { color: var(--field-text); font-size: var(--inspector-text-body); }
+.field-ticket p { margin: 8px 0 0; color: var(--field-text-muted); font-size: var(--inspector-text-meta); line-height: 1.75; }
+.field-ticket-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 9px; color: var(--field-text-faint); font-size: var(--inspector-text-meta); }
+
+/* --------------------------------------------------------------- toggles */
+
+.field-switch {
+  display: flex;
+  min-height: var(--field-tap);
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--field-glass-border);
+  border-radius: var(--field-radius-sm);
+  background: var(--field-glass);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.field-switch > span:first-child { display: grid; gap: 3px; min-width: 0; }
+.field-switch strong { color: var(--field-text); font-size: var(--inspector-text-body); }
+.field-switch small { color: var(--field-text-faint); font-size: var(--inspector-text-meta); line-height: 1.5; }
+
+.field-switch-track {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid var(--field-glass-border-strong);
+  border-radius: var(--field-radius-pill);
+  background: rgb(0 0 0 / 34%);
+  transition: background .2s ease, border-color .2s ease;
+}
+
+.field-switch-track::after {
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--field-text-faint);
+  transition: transform .2s cubic-bezier(.16, .84, .34, 1), background .2s ease;
+  content: '';
+}
+
+.field-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.field-switch input:checked + .field-switch-track { border-color: rgb(16 185 129 / 50%); background: rgb(16 185 129 / 22%); }
+/* RTL: the "on" position is the inline end, which is the left on an RTL page. */
+.field-switch input:checked + .field-switch-track::after { background: var(--field-emerald); transform: translateX(-22px); }
+[dir='ltr'] .field-switch input:checked + .field-switch-track::after { transform: translateX(22px); }
+.field-switch input:focus-visible + .field-switch-track { outline: 2px solid rgb(16 185 129 / 45%); outline-offset: 2px; }
+
+/* ------------------------------------------------------- sticky action bar */
+
+.field-action-bar {
+  position: sticky;
+  z-index: 6;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-top: 1px solid var(--field-glass-border);
+  background: rgb(11 15 23 / 88%);
+  margin-top: 18px;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.field-action-bar > * { flex: 1 1 160px; }
+
+/* -------------------------------------------------------------- offline */
+
+.field-offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid rgb(245 158 11 / 40%);
+  border-radius: var(--field-radius-sm);
+  background: rgb(245 158 11 / 12%);
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  color: #fcd34d;
+  font-size: var(--inspector-text-meta);
+  line-height: 1.6;
+}
+
+.field-offline-banner > svg { flex: 0 0 auto; }
+.field-offline-banner strong { color: #fde68a; }
+.field-offline-banner button { min-height: 38px; margin-inline-start: auto; border: 1px solid rgb(245 158 11 / 45%); border-radius: var(--field-radius-sm); background: rgb(245 158 11 / 16%); padding-inline: 13px; color: #fde68a; font-family: inherit; font-size: var(--inspector-text-meta); font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+.field-sync-list { display: grid; gap: 7px; margin-top: 10px; }
+.field-sync-row { display: flex; align-items: center; gap: 9px; color: var(--field-text-muted); font-size: var(--inspector-text-meta); }
+.field-sync-row code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--field-text-faint); }
+
+/* ------------------------------------------------------------ responsive */
+
+@media (max-width: 900px) {
+  .inspector-dashboard.is-field .inspector-dashboard-layout { display: block; }
+  .inspector-dashboard.is-field .inspector-sidebar { display: none; }
+  .inspector-dashboard.is-field .inspector-mobile-nav {
+    display: grid;
+    border-top: 1px solid var(--field-glass-border);
+    background: rgb(11 15 23 / 90%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+  }
+  .inspector-dashboard.is-field .inspector-mobile-nav a {
+    min-height: var(--field-tap);
+    color: var(--field-text-faint);
+    font-size: var(--inspector-text-meta);
+  }
+  .inspector-dashboard.is-field .inspector-mobile-nav a.is-current { color: var(--field-emerald-soft); }
+  .field-map-plot { aspect-ratio: 4 / 3; }
+}
+
+@media (max-width: 640px) {
+  .inspector-dashboard.is-field .inspector-content { padding-inline: 14px; }
+  .field-order-facts { grid-template-columns: minmax(0, 1fr); }
+  .field-map-legend { position: static; margin-top: 10px; }
+  .field-map-note { position: static; max-width: none; margin-top: 8px; }
+  .field-wallet-hero > strong { font-size: 28px; }
+  .field-action-bar > * { flex: 1 1 100%; }
+  .field-trail-row { grid-template-columns: 20px minmax(0, 1fr); gap: 10px; }
+}
+
+/* ------------------------------------------------------- battery saver ---- */
+/**
+ * Drop every compositing cost that a dark, blurred UI carries: the backdrop
+ * filters, the ambient animation, the glow shadows. Kept as an attribute on the
+ * root so the switch is a single re-render, not a class-name rebuild.
+ */
+[data-field-battery='on'] .field-mesh { animation: none; opacity: .5; }
+
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-stat-card,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-panel,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-side-card,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-requests-section,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-request-card,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-assigned-card,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-detail-card,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-empty-panel,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-topbar,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-sidebar,
+[data-field-battery='on'] .field-order {
+  background: var(--field-ground-2);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+[data-field-battery='on'] .field-map-marker::after,
+[data-field-battery='on'] .field-chip-live::before { animation: none; }
+
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-stat-card:hover,
+[data-field-battery='on'] .inspector-dashboard.is-field .inspector-request-card:hover,
+[data-field-battery='on'] .field-map-marker:hover { box-shadow: none; }
+
+/**
+ * A dark surface is also what you want when the screen is the only light
+ * source at dusk. `data-field-dark='off'` flips the whole palette back to the
+ * light desk surface for an inspector who prefers it in daylight.
+ */
+[data-field-dark='off'] .inspector-dashboard.is-field {
+  --field-ground: #f5f8fd;
+  --field-ground-2: #ffffff;
+  --field-ground-3: #eef3f9;
+  --field-glass: #ffffff;
+  --field-glass-strong: #f1f5fb;
+  --field-glass-border: #e2eaf4;
+  --field-glass-border-strong: #cbd8e5;
+  --field-text: #0f2444;
+  --field-text-muted: #5f7086;
+  --field-text-faint: #8592a1;
+  background-image: none;
+  color: var(--field-text);
+}
+
+[data-field-dark='off'] .field-mesh { display: none; }

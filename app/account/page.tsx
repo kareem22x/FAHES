@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { BadgeCheck, LayoutDashboard } from 'lucide-react'
-import AccountProfile from '@/components/account-profile'
+import AccountProfile from '@/components/modules/account/account-profile'
 import SiteHeader from '@/components/site-header'
 
 export const metadata = { title: 'حسابي' }

@@ -2,18 +2,10 @@ import { getSupabaseAdmin } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/database.types'
 import { expectedChecklistKeys, inspectionPhotoCategories, inspectionResultOptions } from '@/lib/inspection-report'
 import { randomId } from '@/lib/web-crypto'
+import { hasPdfSignature, inspectionMediaTypeForMime } from '@/lib/inspection-media'
 
 const mediaBucket = 'inspection-media'
 export const maxInspectionMediaBytes = 10 * 1024 * 1024
-
-const allowedMediaTypes = new Map([
-  ['image/jpeg', { kind: 'image' as const, extension: 'jpg' }],
-  ['image/png', { kind: 'image' as const, extension: 'png' }],
-  ['image/webp', { kind: 'image' as const, extension: 'webp' }],
-  ['image/heic', { kind: 'image' as const, extension: 'heic' }],
-  ['video/mp4', { kind: 'video' as const, extension: 'mp4' }],
-  ['video/quicktime', { kind: 'video' as const, extension: 'mov' }],
-])
 
 function throwIfError(error: { message: string } | null): void {
   if (error) throw new Error(`Supabase report operation failed: ${error.message}`)
@@ -130,6 +122,7 @@ export async function getInspectionReport(input: {
       type: item.media_type,
       mimeType: item.mime_type,
       category: item.category,
+      fileName: item.original_filename,
       createdAt: item.created_at,
       url: data.signedUrl,
     }
@@ -157,9 +150,13 @@ export async function uploadInspectionMedia(input: {
     return { error: 'closed' as const }
   }
 
-  const mediaType = allowedMediaTypes.get(input.file.type)
+  const mediaType = inspectionMediaTypeForMime(input.file.type)
   if (!mediaType || input.file.size <= 0 || input.file.size > maxInspectionMediaBytes) {
     return { error: 'invalid_file' as const }
+  }
+  if (mediaType.kind === 'document') {
+    const signature = new Uint8Array(await input.file.slice(0, 5).arrayBuffer())
+    if (!hasPdfSignature(signature)) return { error: 'invalid_file' as const }
   }
   if (!(inspectionPhotoCategories as readonly string[]).includes(input.category)) {
     return { error: 'invalid_category' as const }
@@ -182,6 +179,10 @@ export async function uploadInspectionMedia(input: {
       mime_type: input.file.type,
       file_size: input.file.size,
       category: input.category,
+      original_filename: input.file.name
+        .replace(/[\\/]/g, '_')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .slice(0, 120) || 'مرفق',
     })
     .select('id')
     .single()

@@ -5,7 +5,11 @@ import SiteHeader from '@/components/site-header'
 import ScrollProgress from '@/components/scroll-progress'
 import TiltFrame from '@/components/tilt-frame'
 import FaqAccordion from '@/components/faq-accordion'
-import { easternProvinceCities } from '@/lib/eastern-province'
+import CitiesSection from '@/components/cities-section'
+import CountUp from '@/components/count-up'
+import Advanced3DCard from '@/components/motion/advanced-3d-card'
+import FloatingParticles from '@/components/motion/particle-system'
+import { SUPPORTED_CITIES } from '@/lib/locations/saudi-cities'
 import {
   ArrowLeft,
   BadgeCheck,
@@ -54,11 +58,14 @@ const proofPoints = [
   { icon: Clock3, title: 'أنت في مكانك', text: 'تقريرك يصلك عن بُعد' },
 ]
 
-export default function Page() {
-  // Two copies of the list make the marquee loop seamlessly; the duplicate is
-  // hidden from assistive tech below.
-  const marqueeCities = [...easternProvinceCities, ...easternProvinceCities]
+const stats = [
+  { value: SUPPORTED_CITIES.length, suffix: '', label: 'مدن مدعومة', note: 'متاحة الآن في المنطقة الشرقية' },
+  { value: services.length, suffix: '', label: 'أنواع فحص', note: 'شامل، هيكل، ميكانيكي، حسب الطلب' },
+  { value: 3, suffix: '', label: 'خطوات فقط', note: 'من إرسال الطلب إلى التقرير' },
+  { value: 60, suffix: '', label: 'دقيقة', note: 'متوسط مدة الفحص الميداني' },
+]
 
+export default function Page() {
   return (
     <main className="site-shell">
       <ScrollProgress />
@@ -76,6 +83,7 @@ export default function Page() {
       <section className="site-hero">
         <div className="site-hero-aurora" aria-hidden="true" />
         <div className="site-hero-veil" aria-hidden="true" />
+        <FloatingParticles count={25} className="hero-particles" aria-hidden="true" />
 
         <div className="site-container site-hero-grid">
           <div className="site-hero-copy hero-stagger">
@@ -85,7 +93,7 @@ export default function Page() {
               لا يهم وين أنت. نرسل فاحصًا إلى موقع السيارة في مدن ومحافظات الشرقية، ونرسل لك تقريرًا واضحًا يساعدك تقرر قبل الشراء.
             </p>
             <div className="site-hero-actions">
-              <Link href="/requests/new" className="site-button site-button-light shine">اطلب فحص سيارتك <ArrowLeft size={18} /></Link>
+              <Link href="/requests/new" className="site-button site-button-light shine magnetic-button">اطلب فحص سيارتك <ArrowLeft size={18} /></Link>
               <Link href="/become-inspector" className="site-text-link">انضم كفاحص <ArrowLeft size={16} /></Link>
             </div>
             <div className="site-hero-proof">
@@ -96,7 +104,7 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="site-hero-art" aria-label="معاينة تقرير فحص سيارة">
+          <div className="site-hero-art" data-reveal="zoom" aria-label="معاينة تقرير فحص سيارة">
             <TiltFrame className="site-hero-frame">
               <div className="site-art-glow" />
               <div className="site-art-grid" />
@@ -154,20 +162,32 @@ export default function Page() {
         </div>
       </section>
 
+      <section className="site-stats" aria-label="فاحص بالأرقام">
+        <div className="site-container site-stats-grid stagger-on-view">
+          {stats.map((stat) => (
+            <div key={stat.label} className="site-stat">
+              <strong><CountUp to={stat.value} suffix={stat.suffix} /></strong>
+              <span className="site-stat-label">{stat.label}</span>
+              <small>{stat.note}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section id="how-it-works" className="site-section">
         <div className="site-container">
-          <div className="site-section-heading reveal">
+          <div className="site-section-heading" data-reveal="start">
             <div><span className="site-eyebrow">خطوات سهلة وواضحة</span><h2>من طلبك إلى تقريرك،<br /><span>كل شيء بمكانه.</span></h2></div>
             <p>أنت بعيد عن السيارة؟ نتولى الفحص في موقعها ونوصل لك النتيجة.</p>
           </div>
           <div className="site-steps-grid stagger-on-view">
             {steps.map((step, index) => (
-              <article key={step.number} className="site-step-card">
+              <Advanced3DCard key={step.number} className="site-step-card">
                 <div className="site-step-top"><span className="site-step-number">{step.number}</span><span className="site-step-icon">{[<MapPin key="pin" size={21} />, <BadgeCheck key="badge" size={21} />, <FileText key="file" size={21} />][index]}</span></div>
                 <h3>{step.title}</h3>
                 <p>{step.text}</p>
                 <span className="site-step-line" />
-              </article>
+              </Advanced3DCard>
             ))}
           </div>
         </div>
@@ -175,50 +195,34 @@ export default function Page() {
 
       <section id="services" className="site-services-section">
         <div className="site-container">
-          <div className="site-section-heading site-services-heading reveal">
+          <div className="site-section-heading site-services-heading" data-reveal="start">
             <div><span className="site-eyebrow">اختر اللي يناسبك</span><h2>فحص على قدّ <span>احتياجك.</span></h2></div>
-            <Link href="/requests/new" className="site-inline-link">كل خدمات الفحص <ArrowLeft size={16} /></Link>
+            <Link href="/requests/new" className="site-inline-link hover-nudge-parent">كل خدمات الفحص <ArrowLeft size={16} className="hover-nudge" /></Link>
           </div>
           <div className="site-services-grid stagger-on-view">
             {services.map(({ icon: Icon, title, text }, index) => (
-              <MotionCard key={title} className={`site-service-card site-service-${index + 1}`}>
+              <Advanced3DCard key={title} className={`site-service-card site-service-${index + 1}`}>
                 <span className="site-service-icon"><Icon size={22} /></span>
                 <span className="site-service-number">0{index + 1}</span>
                 <h3>{title}</h3><p>{text}</p>
                 <Link href="/requests/new" aria-label={`اطلب ${title}`}><ArrowLeft size={17} /></Link>
-              </MotionCard>
+              </Advanced3DCard>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="cities" className="site-cities-section">
-        <div className="site-container site-cities-inner">
-          <div className="site-cities-intro reveal"><span className="site-eyebrow site-eyebrow-light">تغطيتنا في المنطقة الشرقية</span><h2>سيارتك بأي مدينة؟<br /><span>نفحصها عنك.</span></h2><p>نغطي مدن ومحافظات الشرقية. اختر موقع السيارة عند إرسال طلبك.</p></div>
-
-          <div className="site-city-marquee reveal">
-            <div className="site-city-track">
-              {marqueeCities.map((city, index) => (
-                <span key={`${city}-${index}`} aria-hidden={index >= easternProvinceCities.length ? 'true' : undefined}>
-                  <MapPin size={15} />{city}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="site-cities-decoration" aria-hidden="true"><MapPin size={74} strokeWidth={0.8} /></div>
-        </div>
-      </section>
+      <CitiesSection />
 
       <section id="faq" className="site-section site-faq-section">
         <div className="site-container site-faq-grid">
-          <div className="site-faq-intro reveal"><span className="site-eyebrow">إجابات واضحة</span><h2>عندك سؤال؟<br /><span>حنا هنا.</span></h2><p>جمعنا لك أهم الإجابات عشان تبدأ وأنت مطمئن.</p><Link href="/requests/new" className="site-inline-link">ابدأ طلبك <ArrowLeft size={16} /></Link></div>
+          <div className="site-faq-intro" data-reveal="end"><span className="site-eyebrow">إجابات واضحة</span><h2>عندك سؤال؟<br /><span>حنا هنا.</span></h2><p>جمعنا لك أهم الإجابات عشان تبدأ وأنت مطمئن.</p><Link href="/requests/new" className="site-inline-link hover-nudge-parent">ابدأ طلبك <ArrowLeft size={16} className="hover-nudge" /></Link></div>
           <FaqAccordion items={faqs} />
         </div>
       </section>
 
       <section className="site-final-cta">
-        <div className="site-container site-final-cta-inner reveal">
+        <div className="site-container site-final-cta-inner" data-reveal="zoom">
           <span className="site-cta-icon"><CarFront size={25} /></span>
           <div><h2>أنت بعيد؟ إحنا نفحصها.</h2><p>اطلب فحص سيارتك في الشرقية واستلم تقريرك وين ما كنت.</p></div>
           <Link href="/requests/new" className="site-button site-button-light shine">اطلب فحص سيارتك <ArrowLeft size={17} /></Link>
@@ -227,12 +231,12 @@ export default function Page() {
 
       <footer className="site-footer">
         <div className="site-container">
-          <div className="site-footer-main">
+          <div className="site-footer-main" data-reveal="up">
             <div className="site-footer-brand"><Link href="/" className="site-brand"><BrandMark className="site-brand-mark" /><span>فاحص<span className="site-brand-period">.</span></span></Link><p>نفحص سيارتك في الشرقية، حتى لو كنت بمدينة ثانية.</p></div>
             <div className="site-footer-links"><Link href="/terms">الشروط والأحكام</Link><Link href="/privacy">الخصوصية</Link><Link href="/help">مركز المساعدة</Link><Link href="/become-inspector">كن فاحصًا</Link></div>
             <Link href="/requests/new" className="site-footer-cta">ابدأ طلب فحص <ArrowLeft size={15} /></Link>
           </div>
-          <div className="site-footer-bottom"><span>© 2026 فاحص. جميع الحقوق محفوظة.</span><span>خدمة فحص سيارات المنطقة الشرقية.</span></div>
+          <div className="site-footer-bottom" data-reveal="fade" data-reveal-delay="120"><span>© 2026 فاحص. جميع الحقوق محفوظة.</span><span>خدمة فحص سيارات المنطقة الشرقية.</span></div>
         </div>
       </footer>
     </main>

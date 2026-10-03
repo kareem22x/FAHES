@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>نظام التصميم — أمثلة حيّة | فاحص</title>
+  <meta name="description" content="أمثلة عملية على نظام CSS العام ونظام الانتقالات وscroll reveal بدون مكتبات." />
+
+  <link rel="stylesheet" href="global.css" />
+
+  <!-- Required safety net: without JS nothing would ever get `.is-revealed`,
+       so the whole page would stay at opacity:0. Always ship this snippet. -->
+  <noscript>
+    <style>
+      [data-reveal] { opacity: 1 !important; transform: none !important; }
+    </style>
+  </noscript>
+
+  <!-- Demo-only styling. Everything below reads from the tokens in global.css
+       so this page re-skins automatically when you change the brand. -->
+  <style>
+    .site-header {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: var(--z-header);
+      block-size: var(--header-h);
+      display: flex;
+      align-items: center;
+      background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+      backdrop-filter: saturate(180%) blur(12px);
+      border-block-end: 1px solid var(--color-border);
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-weight: var(--weight-bold);
+      font-size: var(--step-1);
+      color: var(--color-text);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .logo-mark {
+      display: grid;
+      place-items: center;
+      inline-size: 34px;
+      block-size: 34px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--brand-700), var(--brand-500));
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: var(--space-6);
+      font-size: var(--step--1);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
+    }
+    .nav-links a:hover { color: var(--color-brand); }
+
+    @media (max-width: 720px) {
+      .nav-links { display: none; }
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(1100px 480px at 85% -10%, var(--brand-200), transparent 60%),
+        radial-gradient(900px 420px at 10% 110%, var(--brand-100), transparent 62%),
+        var(--color-bg);
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset-block-start: -120px;
+      inset-inline-start: -80px;
+      inline-size: 320px;
+      block-size: 320px;
+      border-radius: var(--radius-circle);
+      background: var(--brand-200);
+      opacity: 0.45;
+      filter: blur(2px);
+      z-index: var(--z-base);
+    }
+
+    .hero-inner { position: relative; z-index: var(--z-raised); }
+
+    .stat-value {
+      font-size: var(--step-4);
+      font-weight: var(--weight-black);
+      color: var(--brand-700);
+      line-height: 1.1;
+    }
+
+    .feature-icon {
+      display: grid;
+      place-items: center;
+      inline-size: 44px;
+      block-size: 44px;
+      border-radius: var(--radius-sm);
+      background: var(--color-brand-soft);
+      color: var(--brand-700);
+      font-size: 20px;
+    }
+
+    /* Small labelled tile used in the "directions" gallery */
+    .tile {
+      display: grid;
+      place-items: center;
+      min-block-size: 108px;
+      padding: var(--space-4);
+      font-size: var(--step--1);
+      font-weight: var(--weight-semibold);
+      color: var(--brand-800);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+    }
+
+    .swatch {
+      block-size: 62px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+    }
+
+    .replay-bar {
+      position: fixed;
+      inset-block-end: var(--space-6);
+      inset-inline-start: var(--space-6);
+      z-index: var(--z-toast);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      box-shadow: var(--shadow-lg);
+      font-size: var(--step--1);
+    }
+
+    .demo-code {
+      display: block;
+      padding: var(--space-4);
+      background: var(--ink-900);
+      color: #cfe0ff;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      line-height: 1.9;
+      direction: ltr;
+      text-align: left;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .footer { background: var(--color-surface-inverse); color: #cbd8ec; }
+    .footer a { color: #cbd8ec; }
+    .footer a:hover { color: #fff; }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">تخطَّ إلى المحتوى الرئيسي</a>
+
+  <!-- =====================================================================
+       Header — sticky, glassy, no JS
+       ================================================================== -->
+  <header class="site-header">
+    <div class="container flex items-center justify-between gap-6">
+      <a class="logo" href="#main">
+        <span class="logo-mark" aria-hidden="true">✓</span>
+        <span>فاحص</span>
+      </a>
+
+      <nav class="nav-links" aria-label="التنقل الرئيسي">
+        <a href="#buttons">الأزرار</a>
+        <a href="#features">المزايا</a>
+        <a href="#directions">الاتجاهات</a>
+        <a href="#utilities">الأدوات</a>
+      </nav>
+
+      <a class="btn btn-sm btn-primary" href="#directions">ابدأ الآن</a>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ===================================================================
+         1) Hero — staggered reveal
+         =================================================================== -->
+    <section class="hero section">
+      <div class="container hero-inner">
+        <div class="grid grid-auto-lg items-center" data-reveal-stagger="120">
+          <div class="stack stack-lg" data-reveal="start">
+            <span class="badge" data-reveal="fade">نظام تصميم موحّد</span>
+            <h1 data-reveal="up">
+              أساس بصري واحد
+              <span class="text-brand">لكل صفحات الموقع</span>
+            </h1>
+            <p class="text-lg text-muted max-w-prose" data-reveal="up">
+              متغيّرات، إعادة ضبط حديثة، أدوات مساعدة، ونظام انتقالات موحّد —
+              مع ظهور عند التمرير يعتمد على IntersectionObserver وحده، بلا أي مكتبة خارجية.
+            </p>
+            <div class="cluster" data-reveal="up">
+              <a class="btn btn-lg btn-primary hover-lift" href="#features">
+                استعرض المزايا
+              </a>
+              <a class="btn btn-lg btn-secondary hover-lift" href="#utilities">
+                الأدوات المساعدة
+              </a>
+            </div>
+          </div>
+
+          <div class="card" data-reveal="zoom">
+            <span class="eyebrow">قاعدة واحدة</span>
+            <h3>الحركة = transform + opacity فقط</h3>
+            <p class="text-muted">
+              لا نلمس أبدًا <code>width</code> أو <code>height</code> أو <code>top/left</code>
+              أثناء الحركة، فلا تحدث إعادة تخطيط (reflow) ولا تهتزّ الصفحة.
+            </p>
+            <hr class="divider" />
+            <div class="cluster gap-2">
+              <span class="badge badge-success">GPU-accelerated</span>
+              <span class="badge badge-neutral">0 dependencies</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         2) Stats — stagger inside a card grid
+         =================================================================== -->
+    <section class="section-tight">
+      <div class="container">
+        <div class="grid-auto-sm" data-reveal-stagger="90">
+          <div class="card text-center" data-reveal="up">
+            <span class="stat-value">700ms</span>
+            <span class="text-muted">مدة الظهور</span>
+          </div>
+          <div class="card text-center" data-reveal="up">
+            <span class="stat-value">3</span>
+            <span class="text-muted">ملفات فقط</span>
+          </div>
+          <div class="card text-center" data-reveal="up">
+            <span class="stat-value">60fps</span>
+            <span class="text-muted">transform + opacity فقط</span>
+          </div>
+          <div class="card text-center" data-reveal="up">
+            <span class="stat-value">RTL</span>
+            <span class="text-muted">خصائص منطقية</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         3) Buttons & badges
+         =================================================================== -->
+    <section class="section" id="buttons">
+      <div class="container">
+        <div class="stack stack-lg" data-reveal-stagger="100">
+          <div class="stack" data-reveal="up">
+            <span class="eyebrow">المكوّنات</span>
+            <h2>الأزرار والشارات</h2>
+            <p class="text-muted max-w-prose">
+              كل زر يحمل انتقالًا موحّدًا: رفع خفيف عند المرور، وانضغاط بسيط عند الضغط.
+            </p>
+          </div>
+
+          <div class="card" data-reveal="up">
+            <div class="cluster gap-3">
+              <button class="btn btn-primary" type="button">أساسي</button>
+              <button class="btn btn-secondary" type="button">ثانوي</button>
+              <button class="btn btn-ghost" type="button">شفّاف</button>
+              <button class="btn btn-primary" type="button" disabled>معطّل</button>
+            </div>
+
+            <hr class="divider" />
+
+            <div class="cluster gap-3">
+              <button class="btn btn-lg btn-primary" type="button">حجم كبير</button>
+              <button class="btn btn-sm btn-secondary" type="button">حجم صغير</button>
+              <button class="btn btn-icon btn-secondary" type="button" aria-label="إضافة">＋</button>
+            </div>
+
+            <hr class="divider" />
+
+            <div class="cluster gap-2">
+              <span class="badge">افتراضي</span>
+              <span class="badge badge-success">ناجح</span>
+              <span class="badge badge-warning">تحذير</span>
+              <span class="badge badge-error">خطأ</span>
+              <span class="badge badge-neutral">محايد</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         4) Feature cards — interactive hover + stagger
+         =================================================================== -->
+    <section class="section band" id="features">
+      <div class="container">
+        <div class="stack stack-lg">
+          <div class="stack" data-reveal="up">
+            <span class="eyebrow">الأساس</span>
+            <h2>ثلاث طبقات، ترتيب واضح</h2>
+          </div>
+
+          <div class="grid-auto" data-reveal-stagger="110">
+            <article class="card card-interactive" data-reveal="up">
+              <span class="feature-icon" aria-hidden="true">◈</span>
+              <h4>المتغيّرات</h4>
+              <p class="text-muted clamp-3">
+                لون، مقاس، مسافة، نصف قطر، ظل، ومدة — كلها في مكان واحد.
+                غيّر متغيّرًا واحدًا فيتغيّر الموقع كله.
+              </p>
+            </article>
+
+            <article class="card card-interactive" data-reveal="up">
+              <span class="feature-icon" aria-hidden="true">▤</span>
+              <h4>إعادة الضبط</h4>
+              <p class="text-muted clamp-3">
+                Reset حديث يوحّد السلوك بين المتصفحات: الصناديق، الوسائط،
+                النماذج، والعناوين.
+              </p>
+            </article>
+
+            <article class="card card-interactive" data-reveal="up">
+              <span class="feature-icon" aria-hidden="true">⟐</span>
+              <h4>الأدوات المساعدة</h4>
+              <p class="text-muted clamp-3">
+                حاويات، شبكات تلقائية، مسافات منطقية، ونصوص — بأسماء قصيرة
+                ومتّسقة.
+              </p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         5) Direction gallery — every reveal variant
+         =================================================================== -->
+    <section class="section" id="directions">
+      <div class="container">
+        <div class="stack stack-lg">
+          <div class="stack" data-reveal="up">
+            <span class="eyebrow">scroll reveal</span>
+            <h2>اتجاهات الظهور</h2>
+            <p class="text-muted max-w-prose">
+              مرّر لأسفل ثم اضغط «أعد التشغيل» في الشريط أسفل الشاشة لمشاهدتها مرة أخرى.
+            </p>
+          </div>
+
+          <div class="grid-auto-sm" data-reveal-stagger="80">
+            <div class="tile" data-reveal="up">up ↑</div>
+            <div class="tile" data-reveal="down">down ↓</div>
+            <div class="tile" data-reveal="start">start ⇥</div>
+            <div class="tile" data-reveal="end">end ⇤</div>
+            <div class="tile" data-reveal="zoom">zoom ⊕</div>
+            <div class="tile" data-reveal="fade">fade ◌</div>
+          </div>
+
+          <div class="card" data-reveal="up">
+            <h4>الاستخدام</h4>
+            <code class="demo-code">&lt;div data-reveal="up"&gt;…&lt;/div&gt;
+&lt;div data-reveal="zoom" data-reveal-delay="200"&gt;…&lt;/div&gt;
+&lt;ul data-reveal-stagger="90"&gt;
+  &lt;li data-reveal="up"&gt;عنصر ١&lt;/li&gt;
+  &lt;li data-reveal="up"&gt;عنصر ٢&lt;/li&gt;
+&lt;/ul&gt;</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         6) Utilities + transitions
+         =================================================================== -->
+    <section class="section band" id="utilities">
+      <div class="container">
+        <div class="grid grid-auto-lg gap-8">
+          <div class="stack stack-lg" data-reveal="start">
+            <div class="stack">
+              <span class="eyebrow">الأدوات</span>
+              <h2>شبكة تلقائية بلا استعلامات وسائط</h2>
+              <p class="text-muted">
+                <code>grid-auto</code> يعيد ترتيب الأعمدة تلقائيًا حسب عرض الحاوية،
+                مع حدّ أدنى آمن للهواتف.
+              </p>
+            </div>
+            <div class="grid-auto-sm">
+              <div class="surface p-4 text-center">عنصر</div>
+              <div class="surface p-4 text-center">عنصر</div>
+              <div class="surface p-4 text-center">عنصر</div>
+              <div class="surface p-4 text-center">عنصر</div>
+            </div>
+          </div>
+
+          <div class="stack stack-lg" data-reveal="end">
+            <div class="stack">
+              <span class="eyebrow">الانتقالات</span>
+              <h2>وصفات جاهزة</h2>
+              <p class="text-muted">مرّر المؤشر فوق البطاقات.</p>
+            </div>
+            <div class="grid-auto-sm">
+              <div class="card hover-lift text-center">hover-lift</div>
+              <div class="card hover-scale text-center">hover-scale</div>
+              <div class="card hover-glow text-center">hover-glow</div>
+              <div class="card hover-fade text-center">hover-fade</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack stack-lg mt-12" data-reveal-stagger="60">
+          <div class="stack" data-reveal="up">
+            <span class="eyebrow">الهوية</span>
+            <h2>سلّم الألوان</h2>
+          </div>
+          <div class="grid-auto-sm">
+            <div class="stack-sm"><div class="swatch" style="background: var(--brand-900)"></div><span class="text-xs text-muted">brand-900</span></div>
+            <div class="stack-sm"><div class="swatch" style="background: var(--brand-700)"></div><span class="text-xs text-muted">brand-700</span></div>
+            <div class="stack-sm"><div class="swatch" style="background: var(--brand-600)"></div><span class="text-xs text-muted">brand-600</span></div>
+            <div class="stack-sm"><div class="swatch" style="background: var(--brand-400)"></div><span class="text-xs text-muted">brand-400</span></div>
+            <div class="stack-sm"><div class="swatch" style="background: var(--brand-200)"></div><span class="text-xs text-muted">brand-200</span></div>
+            <div class="stack-sm"><div class="swatch" style="background: var(--mint-600)"></div><span class="text-xs text-muted">success</span></div>
+            <div class="stack-sm"><div class="swatch" style="background: var(--amber-600)"></div><span class="text-xs text-muted">warning</span></div>
+            <div class="stack-sm"><div class="swatch" style="background: var(--rose-600)"></div><span class="text-xs text-muted">error</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         7) Closing CTA
+         =================================================================== -->
+    <section class="section">
+      <div class="container">
+        <div class="card text-center stack stack-lg p-10" data-reveal="zoom">
+          <h2>جاهز للدمج في مشروعك</h2>
+          <p class="text-muted mx-auto max-w-prose">
+            الملفات الثلاثة مستقلّة تمامًا. انسخها كما هي، أو ادمج الطبقات
+            التي تحتاجها فقط.
+          </p>
+          <div class="cluster justify-center">
+            <a class="btn btn-lg btn-primary" href="README.md">اقرأ الدليل</a>
+            <a class="btn btn-lg btn-secondary" href="#main">أعلى الصفحة</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer section-tight">
+    <div class="container flex flex-wrap items-center justify-between gap-4">
+      <span>© 2026 فاحص — نظام تصميم موحّد.</span>
+      <nav class="flex gap-6 text-xs" aria-label="روابط التذييل">
+        <a href="#buttons">الأزرار</a>
+        <a href="#features">المزايا</a>
+        <a href="#directions">الاتجاهات</a>
+      </nav>
+    </div>
+  </footer>
+
+  <!-- Floating replay control — demonstrates Reveal.reset() -->
+  <div class="replay-bar">
+    <span class="text-muted">عرض الظهور</span>
+    <button class="btn btn-sm btn-primary" type="button" id="replay">أعد التشغيل</button>
+  </div>
+
+  <script src="animations.js"></script>
+  <script>
+    // The library auto-inits. This is only for the demo button.
+    document.getElementById('replay').addEventListener('click', function () {
+      window.Reveal.reset();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+</body>
+</html>

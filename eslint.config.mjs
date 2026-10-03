@@ -9,6 +9,7 @@ export default defineConfig([
     'build/**',
     'node_modules/**',
     'deepseek-harness/**',
+    '.shots*/**',
     'next-env.d.ts',
   ]),
 ])

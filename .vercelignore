@@ -1,0 +1,18 @@
+# Keep unrelated local checkouts, browser captures, and scratch output out of deployments.
+deepseek-harness/
+.shots/
+.shots-*/
+.shots*/
+design-backup/
+.opencode/
+.freebuff/
+tmp-*.png
+dev-server.log
+middleware.ts.backup
+*.tsbuildinfo
+
+# WorkBuddy AI workspace data (memory, skills — not app code)
+.workbuddy-ai/
+
+# Environment files are configured in the Vercel project, never uploaded from disk.
+.env*

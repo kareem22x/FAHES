@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { SignOutButton } from '@clerk/nextjs'
 import { auth as clerkAuth } from '@clerk/nextjs/server'
-import { dashboardPath, getSession, type AppSession } from '@/lib/auth'
+import { getSession, postAuthPath, type AppSession } from '@/lib/auth'
 import { SupabaseConfigurationError, SupabaseMigrationRequiredError } from '@/lib/supabase/server'
 
 export default async function AuthCompletePage() {
@@ -87,8 +87,16 @@ export default async function AuthCompletePage() {
     )
   }
 
-  if (session.role === 'admin' || session.role === 'admin_pending') {
-    redirect(dashboardPath(session.role))
-  }
-  redirect('/account')
+  // Role-aware landing.
+  //
+  // `getSession()` has already resolved the role from the stored profile — an
+  // approved inspector application is what turns a customer into an inspector —
+  // so this page only has to honour that decision. Sign-in and sign-up both
+  // funnel here via `forceRedirectUrl`, which makes this the single place a
+  // post-authentication destination is decided for a normal sign-in.
+  //
+  // (Someone who was bounced off a protected page keeps their original target:
+  // `proxy.ts` stores it as `redirect_url` and `/sign-in` restores it through
+  // `safeReturnPath`, so that path never reaches this branching.)
+  redirect(postAuthPath(session))
 }

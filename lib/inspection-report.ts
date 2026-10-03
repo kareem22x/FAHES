@@ -1,5 +1,26 @@
 export const inspectionResultOptions = ['سليم', 'ملاحظة', 'متضرر', 'مرشوش', 'مستبدل', 'غير معروف'] as const
-export const inspectionPhotoCategories = ['صور خارجية', 'صور داخلية', 'المحرك', 'الشاص', 'الإطارات'] as const
+
+/**
+ * Photo categories, in two groups.
+ *
+ * The first five are the report body categories an inspector picks from when
+ * documenting a section. The last four are the *pre-inspection* shots that the
+ * field workflow makes mandatory before the checklist even unlocks — they are
+ * separate because they answer a different question: not "what is the condition
+ * of this car" but "was this inspector actually standing in front of it".
+ *
+ * Both groups live in one list because the storage column has a single CHECK
+ * constraint; splitting them into two types would mean the upload route needed
+ * two different validations for the same column.
+ */
+export const inspectionReportPhotoCategories = ['صور خارجية', 'صور داخلية', 'المحرك', 'الشاص', 'الإطارات'] as const
+
+export const inspectionVerificationPhotoCategories = ['المركبة كاملة', 'لوحة المعرض', 'تقرير الفحص', 'لوحة العدادات'] as const
+
+export const inspectionPhotoCategories = [
+  ...inspectionReportPhotoCategories,
+  ...inspectionVerificationPhotoCategories,
+] as const
 
 export const inspectionSections = [
   { id: 'exterior', title: 'الهيكل الخارجي', items: [
@@ -56,6 +77,77 @@ export const inspectionSections = [
 
 export type InspectionResult = typeof inspectionResultOptions[number]
 export type InspectionChecklistKey = `${typeof inspectionSections[number]['id']}:${string}`
+
+export type InspectionHealthScore = {
+  score: number | null
+  assessedItems: number
+  excluded: {
+    painted: number
+    replaced: number
+    unknown: number
+  }
+}
+
+export type InspectionSectionHealth = {
+  id: string
+  title: string
+  score: number | null
+  assessedItems: number
+}
+
+export function computeInspectionHealthScore(checklist: Record<string, string>): InspectionHealthScore {
+  let points = 0
+  let assessedItems = 0
+  const excluded = { painted: 0, replaced: 0, unknown: 0 }
+
+  for (const result of Object.values(checklist)) {
+    switch (result) {
+      case 'سليم':
+        points += 100
+        assessedItems += 1
+        break
+      case 'ملاحظة':
+        points += 50
+        assessedItems += 1
+        break
+      case 'متضرر':
+        assessedItems += 1
+        break
+      case 'مرشوش':
+        excluded.painted += 1
+        break
+      case 'مستبدل':
+        excluded.replaced += 1
+        break
+      case 'غير معروف':
+        excluded.unknown += 1
+        break
+    }
+  }
+
+  return {
+    score: assessedItems === 0 ? null : Math.round(points / assessedItems),
+    assessedItems,
+    excluded,
+  }
+}
+
+export function computeInspectionSectionHealth(checklist: Record<string, string>): InspectionSectionHealth[] {
+  return inspectionSections.map((section) => {
+    const results: Record<string, string> = {}
+    for (const item of section.items) {
+      const key = `${section.id}:${item.id}`
+      if (typeof checklist[key] === 'string') results[key] = checklist[key]
+    }
+    const health = computeInspectionHealthScore(results)
+    return {
+      id: section.id,
+      title: section.title,
+      score: health.score,
+      assessedItems: health.assessedItems,
+    }
+  })
+}
 
 export const expectedChecklistKeys = inspectionSections.flatMap((section) =>
   section.items.map((item) => `${section.id}:${item.id}`),

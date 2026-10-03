@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { resolveInspectorSession } from '@/lib/field/access'
 import { enforceApiRateLimit } from '@/lib/api-rate-limit'
 import { assertSameOrigin } from '@/lib/origin'
 import { advanceInspectionStatus } from '@/lib/inspection-report-store'
@@ -13,8 +13,8 @@ export async function POST(
   const originError = assertSameOrigin(request)
   if (originError) return originError
 
-  const session = await getSession()
-  if (!session || session.role !== 'inspector') {
+  const session = await resolveInspectorSession()
+  if (!session) {
     return NextResponse.json({ error: 'هذه العملية للفاحص المعتمد فقط' }, { status: 401 })
   }
   const rateLimitResponse = await enforceApiRateLimit(request, 'inspection-status', session.sub, {

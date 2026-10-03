@@ -1,16 +1,33 @@
 import { auth as clerkAuth, currentUser as clerkCurrentUser } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { ADMIN_ELEVATION_COOKIE, signAdminElevation, verifyAdminElevation } from '@/lib/admin-elevation'
+import {
+  ADMIN_ELEVATION_COOKIE,
+  INSPECTOR_VIEW_COOKIE,
+  signAdminElevation,
+  signInspectorView,
+  verifyAdminElevation,
+  verifyInspectorView,
+} from '@/lib/admin-elevation'
 import { isValidSaudiMobile, normalizePhone } from '@/lib/phone'
-import type { Role } from '@/lib/types'
-import { getUserByClerkId, getUserById, isAdminPhone, upsertUserFromClerk } from '@/lib/user-store'
+import type { Role } from '@/types/domain'
+import { dashboardPath } from '@/lib/post-auth-path'
+import { getUserByClerkId, getUserById, isPlatformAdmin, isPlatformOwner, upsertUserFromClerk } from '@/lib/user-store'
 
 export type AppSession = {
   sub: string
   phone: string | null
   role: Role
   clerkSessionId: string
+  clerkUserId: string
+  /**
+   * True only for a platform owner who has switched into inspector view mode.
+   *
+   * It is *not* a role and carries no privileges of its own — `isInspectorSession()`
+   * in `lib/field/access.ts` still re-checks `isPlatformOwner()` on the live
+   * identity, so this flag can never lift a non-owner into the inspector APIs.
+   */
+  inspectorView: boolean
 }
 
 const adminElevationCookieOptions = {
@@ -44,9 +61,18 @@ export async function getSession(): Promise<AppSession | null> {
   }
 
   const jar = await cookies()
-  const isAdmin = isAdminPhone(user.phone)
-  const elevated = isAdmin && await verifyAdminElevation(
+  const identity = { phone: user.phone, clerkUserId: clerkSession.userId }
+  const isAdmin = isPlatformAdmin(identity)
+  const isOwner = isPlatformOwner(identity)
+  // Owners are permanently elevated: they never see the /admin/gate prompt.
+  const elevated = isAdmin && (isOwner || await verifyAdminElevation(
     jar.get(ADMIN_ELEVATION_COOKIE)?.value,
+    clerkSession.sessionId,
+  ))
+  // Inspector view mode is owner-only. A non-owner is refused here, before the
+  // cookie is even verified, so a stolen or forged cookie is inert.
+  const inspectorView = isOwner && await verifyInspectorView(
+    jar.get(INSPECTOR_VIEW_COOKIE)?.value,
     clerkSession.sessionId,
   )
   const role: Role = isAdmin
@@ -58,7 +84,30 @@ export async function getSession(): Promise<AppSession | null> {
     phone: user.phone,
     role,
     clerkSessionId: clerkSession.sessionId,
+    clerkUserId: clerkSession.userId,
+    inspectorView,
   }
+}
+
+/** Enters inspector view mode. Owner-only; enforced again in `getSession()`. */
+export async function setInspectorViewCookie(sessionId: string) {
+  const jar = await cookies()
+  jar.set({
+    name: INSPECTOR_VIEW_COOKIE,
+    value: await signInspectorView(sessionId),
+    ...adminElevationCookieOptions,
+    maxAge: 30 * 24 * 60 * 60,
+  })
+}
+
+export async function clearInspectorViewCookie() {
+  const jar = await cookies()
+  jar.set({
+    name: INSPECTOR_VIEW_COOKIE,
+    value: '',
+    ...adminElevationCookieOptions,
+    maxAge: 0,
+  })
 }
 
 export async function setAdminElevationCookie(sessionId: string) {
@@ -80,6 +129,12 @@ export async function clearSessionCookie() {
     maxAge: 0,
   })
   jar.set({
+    name: INSPECTOR_VIEW_COOKIE,
+    value: '',
+    ...adminElevationCookieOptions,
+    maxAge: 0,
+  })
+  jar.set({
     name: 'fahes_session',
     value: '',
     ...adminElevationCookieOptions,
@@ -95,16 +150,30 @@ export async function requireSession() {
 
 export async function requireRoles(roles: Role[]) {
   const session = await requireSession()
-  if (!roles.includes(session.role)) redirect(dashboardPath(session.role))
-  return session
+  if (roles.includes(session.role)) return session
+  // Owners are allowed into every area of the product (customer + inspector + admin).
+  if (isPlatformOwner({ phone: session.phone, clerkUserId: session.clerkUserId })) return session
+  redirect(dashboardPath(session))
 }
 
-export function dashboardPath(role: Role) {
-  if (role === 'admin') return '/admin'
-  if (role === 'admin_pending') return '/admin/gate'
-  if (role === 'inspector') return '/inspector/dashboard'
-  return '/dashboard'
-}
+/**
+ * Role → console mapping, the post-authentication destination, and the
+ * inspector-view exit destination.
+ *
+ * Defined in `lib/post-auth-path.ts` so all three stay unit-testable without
+ * importing Clerk or `next/headers`; re-exported here so callers keep using the
+ * one auth entry point. Each takes the session itself (or any `{ role,
+ * inspectorView }` bag) rather than a bare role, so the owner's dual-role
+ * toggle is honoured without the caller having to know about it.
+ */
+export { dashboardPath, postAuthPath, inspectorExitPath } from '@/lib/post-auth-path'
+
+/**
+ * Sanitises a post-authentication destination. Defined in
+ * `lib/safe-return-path.ts` so it stays importable — and unit-testable —
+ * without dragging Clerk and `next/headers` into the node test environment.
+ */
+export { safeReturnPath, DEFAULT_POST_AUTH_PATH } from '@/lib/safe-return-path'
 
 export async function currentUser() {
   const session = await getSession()

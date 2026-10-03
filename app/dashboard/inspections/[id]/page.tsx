@@ -3,9 +3,9 @@ import { notFound } from 'next/navigation'
 import {
   ArrowRight,
   CarFront,
+  FileBadge,
   FileText,
   Gauge,
-  ImageIcon,
   MapPin,
   Palette,
   ShieldCheck,
@@ -15,8 +15,12 @@ import { requireRoles } from '@/lib/auth'
 import { getCustomerRequests } from '@/lib/customer-data'
 import { formatArabicDate, formatArabicNumber } from '@/lib/inspection-status'
 import { getInspectionReport } from '@/lib/inspection-report-store'
-import { inspectionSections } from '@/lib/inspection-report'
+import { computeInspectionHealthScore, computeInspectionSectionHealth, inspectionSections } from '@/lib/inspection-report'
 import type { Json } from '@/lib/supabase/database.types'
+import PrintReportButton from '@/components/modules/reports/print-report-button'
+import ExportReportPdfButton from '@/components/modules/reports/export-report-pdf-button'
+import InspectionHealthVisualization from '@/components/modules/reports/inspection-health-visualization'
+import ReportMediaGallery from '@/components/modules/reports/report-media-gallery'
 
 export const metadata = { title: 'تقرير الفحص' }
 
@@ -34,6 +38,14 @@ function Info({ icon: Icon, label, value }: { icon: typeof CarFront; label: stri
   )
 }
 
+function resultTone(result: string): string {
+  if (result === 'سليم') return 'is-good'
+  if (result === 'ملاحظة') return 'is-note'
+  if (result === 'متضرر') return 'is-damaged'
+  if (result === 'غير معروف') return 'is-unknown'
+  return 'is-history'
+}
+
 export default async function CustomerInspectionReportPage({
   params,
 }: {
@@ -49,6 +61,12 @@ export default async function CustomerInspectionReportPage({
   if (!inspection || inspection.status !== 'completed' || !report) notFound()
 
   const checklist = checklistRecord(report.checklist)
+  const checklistResults: Record<string, string> = {}
+  for (const [key, value] of Object.entries(checklist)) {
+    if (typeof value === 'string') checklistResults[key] = value
+  }
+  const health = computeInspectionHealthScore(checklistResults)
+  const sectionHealth = computeInspectionSectionHealth(checklistResults)
   const totalItems = inspectionSections.reduce((sum, section) => sum + section.items.length, 0)
   const recordedItems = inspectionSections.reduce(
     (sum, section) => sum + section.items.filter((item) => typeof checklist[`${section.id}:${item.id}`] === 'string').length,
@@ -56,7 +74,7 @@ export default async function CustomerInspectionReportPage({
   )
 
   return (
-    <div className="app-page">
+    <div id="inspection-report-content" className="app-page app-printable-report">
       <section className="app-page-head">
         <div>
           <span className="app-eyebrow"><ShieldCheck size={14} /> تقرير خاص بطلبك</span>
@@ -66,8 +84,14 @@ export default async function CustomerInspectionReportPage({
             {' '}وقت الإرسال {report.submittedAt ? formatArabicDate(report.submittedAt) : '—'}
           </p>
         </div>
-        <Link href="/dashboard/reports" className="btn btn-ghost"><ArrowRight size={16} /> كل التقارير</Link>
+        <div className="app-report-actions" data-html2canvas-ignore="true">
+          <ExportReportPdfButton inspectionId={inspection.id} />
+          <PrintReportButton />
+          <Link href="/dashboard/reports" className="btn btn-ghost"><ArrowRight size={16} /> كل التقارير</Link>
+        </div>
       </section>
+
+      <InspectionHealthVisualization health={health} sections={sectionHealth} />
 
       <section className="app-panel">
         <header className="app-panel-head">
@@ -106,11 +130,11 @@ export default async function CustomerInspectionReportPage({
                 <div className="app-checklist-items">
                   {section.items.map((item) => {
                     const value = checklist[`${section.id}:${item.id}`]
-                    const recorded = typeof value === 'string'
+                    const result = typeof value === 'string' ? value : null
                     return (
-                      <div key={item.id} className={`app-checklist-item ${recorded ? 'is-recorded' : ''}`}>
+                      <div key={item.id} className={`app-checklist-item ${result ? 'is-recorded' : ''}`}>
                         <span>{item.label}</span>
-                        <strong>{recorded ? (value as string) : 'غير مسجل'}</strong>
+                        <strong className={result ? `app-result-badge ${resultTone(result)}` : 'app-result-badge is-empty'}>{result ?? 'غير مسجل'}</strong>
                       </div>
                     )
                   })}
@@ -129,24 +153,10 @@ export default async function CustomerInspectionReportPage({
 
         <aside className="app-aside">
           <section className="app-panel">
-            <span className="app-panel-icon"><ImageIcon size={20} /></span>
-            <h2>صور الفحص</h2>
-            <p className="app-panel-note">روابط خاصة مؤقتة تنتهي صلاحيتها بعد دقائق لحماية ملفات طلبك.</p>
-            {report.media.length === 0 ? (
-              <p className="app-panel-note">لم يرفق الفاحص ملفات لهذا التقرير.</p>
-            ) : (
-              <div className="app-media-grid">
-                {report.media.map((file) => (
-                  <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="app-media-item">
-                    {file.type === 'image'
-                      // eslint-disable-next-line @next/next/no-img-element -- short-lived Supabase signed URL, not a static asset.
-                      ? <img src={file.url} alt={file.category} />
-                      : <video src={file.url} controls preload="metadata" />}
-                    <span>{file.category}</span>
-                  </a>
-                ))}
-              </div>
-            )}
+            <span className="app-panel-icon"><FileBadge size={20} /></span>
+            <h2>مرفقات الفحص</h2>
+            <p className="app-panel-note">صور وفيديو وملفات PDF خاصة بروابط مؤقتة، لا تشاركها خارج حسابك.</p>
+            <ReportMediaGallery media={report.media} />
           </section>
 
           <section className="app-panel is-soft">

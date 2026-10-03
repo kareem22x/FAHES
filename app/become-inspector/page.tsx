@@ -2,7 +2,7 @@ import Link from 'next/link'
 import BrandMark from '@/components/brand-mark'
 import SiteHeader from '@/components/site-header'
 import { ArrowLeft, BadgeCheck, CheckCircle2, ClipboardList, MapPin, ShieldCheck } from 'lucide-react'
-import { InspectorApplicationForm } from '@/components/inspector-application-form'
+import { InspectorApplicationForm } from '@/components/modules/inspector/application-form'
 import '../public-pages.css'
 
 const navigation = [
@@ -20,7 +20,7 @@ export default function BecomeInspectorPage() {
 
       <section className="bi-hero">
         <div className="site-container bi-hero-grid">
-          <div>
+          <div className="hero-stagger">
             <span className="site-eyebrow"><BadgeCheck size={15} /> انضم إلى شبكة الفاحصين</span>
             <h1>حوّل خبرتك إلى<br /><span>فرص ودخل.</span></h1>
             <p className="bi-lead">كن جزءًا من شبكة فاحصي السيارات الموثوقين في المنطقة الشرقية، وساعد المشترين على اتخاذ قرار أفضل.</p>
@@ -32,7 +32,7 @@ export default function BecomeInspectorPage() {
 
           <aside className="bi-panel">
             <span className="bi-panel-kicker"><ShieldCheck size={15} /> لماذا فاحص؟</span>
-            <ul className="bi-benefits">
+            <ul className="bi-benefits stagger-on-view">
               {benefits.map((benefit) => <li key={benefit}><CheckCircle2 size={17} />{benefit}</li>)}
             </ul>
             <div className="bi-facts">
@@ -43,7 +43,7 @@ export default function BecomeInspectorPage() {
         </div>
       </section>
 
-      <section className="bi-application">
+      <section className="bi-application reveal">
         <div className="site-container">
           <InspectorApplicationForm />
           <p className="bi-footnote">سيتم مراجعة بياناتك قبل تفعيل الحساب واستقبال الطلبات.</p>

@@ -21,9 +21,9 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/logout-button'
-import { InspectorOfferForm } from '@/components/inspector-offer-form'
-import { InspectorProfileSettings } from '@/components/inspector-profile-settings'
-import { easternProvinceCities } from '@/lib/eastern-province'
+import { InspectorOfferForm } from '@/components/modules/inspector/offer-form'
+import { InspectorProfileSettings } from '@/components/modules/inspector/profile-settings'
+import { SUPPORTED_CITIES } from '@/lib/locations/saudi-cities'
 import { requireRoles } from '@/lib/auth'
 import {
   listAssignedInspectionsForInspector,
@@ -193,7 +193,7 @@ export default async function InspectorDashboardPage() {
               <InspectorProfileSettings
                 cities={selectedCities}
                 isOnline={isOnline}
-                availableCities={easternProvinceCities}
+                availableCities={SUPPORTED_CITIES}
               />
 
               <aside id="verification" className="inspector-side-card">

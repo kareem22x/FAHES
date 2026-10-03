@@ -3,11 +3,44 @@
 @import '@fontsource/alexandria/arabic-600.css';
 @import '@fontsource/alexandria/arabic-700.css';
 @import '@fontsource/alexandria/arabic-800.css';
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
 
-/* The unrelated deepseek-harness checkout inside this folder must not feed the
-   utility scanner; without this Tailwind emits a large amount of dead CSS. */
-@source not '../deepseek-harness';
+/* ─────────────────────────────────────────────────────────────────────────────
+   Explicit source registration — do NOT switch back to automatic detection.
+
+   Tailwind v4, when it auto-detects sources, walks the *entire project tree*
+   and tokenises candidate class names out of every file it can decode: source
+   files, markdown, agent notes, build artefacts, even binary files with an
+   ASCII metadata sidecar. Anything whose shape resembles an arbitrary-value
+   utility becomes a real candidate and is emitted as real CSS.
+
+   That matters most for the arbitrary mask/background form that carries a
+   `url(<thing>)` value: the value is written verbatim into the rule, and
+   Turbopack then treats `<thing>` as a module specifier and tries to resolve
+   it. A value that is not a real file — a placeholder, a truncated fragment,
+   or bytes lifted out of a binary — aborts the whole stylesheet with
+
+     ⨯ ./app/globals.css … Module not found: Can't resolve '…'
+
+   and every page 500s. The file named in the error is the CSS entry point, not
+   the true origin, so the message sends you hunting in the wrong place.
+
+   `@source not '…'` does NOT fix this. It was tried and measured: a file whose
+   only content is a bare Tailwind import — with every subtree excluded — still
+   emits the phantom candidate. Only disabling automatic detection does.
+
+   So: `source(none)` above, and the real code roots registered explicitly
+   below. Paths resolve relative to THIS file (app/globals.css), hence `../`.
+
+   When new directories of class-bearing code are added, register them here.
+   Docs, scratch and tooling directories are deliberately absent — leave them
+   out, and never spell out an arbitrary-value class name in prose in any file
+   that lives inside the project tree. */
+@source '../app';
+@source '../components';
+@source '../lib';
+@source '../types';
+@source '../data';
 
 :root {
   /* ===== Single source of truth for the whole product =====================
@@ -16,11 +49,11 @@
      workspace and admin screens all read from these. */
 
   /* Brand */
-  --color-primary: #0a1f44;
-  --color-primary-light: #123a6b;
-  --color-secondary: #0a5cc0;
-  --color-accent: #0d74e3;
-  --color-accent-light: #7bb6ff;
+  --color-primary: #0F172A;
+  --color-primary-light: #1E3A8A;
+  --color-secondary: #2563EB;
+  --color-accent: #2563EB;
+  --color-accent-light: #93C5FD;
   --color-success: #0f7a55;
   --color-warning: #b0741b;
   --color-error: #bf3b2c;
@@ -34,19 +67,19 @@
   --color-border-light: #eef3f9;
 
   /* Ink + brand ramps */
-  --ink-900: #061530;
-  --ink-800: #0a1f44;
-  --ink-700: #123a6b;
-  --ink-600: #1d4b80;
-  --ink-500: #2f5f95;
-  --brand-700: #084a9c;
-  --brand-600: #0a5cc0;
-  --brand-500: #0d74e3;
-  --brand-400: #3d92f5;
-  --brand-300: #7bb6ff;
-  --brand-200: #b6d8ff;
-  --brand-100: #dcecff;
-  --brand-50: #eef6ff;
+  --ink-900: #020617;
+  --ink-800: #0F172A;
+  --ink-700: #1E3A8A;
+  --ink-600: #1D4ED8;
+  --ink-500: #2563EB;
+  --brand-700: #1D4ED8;
+  --brand-600: #2563EB;
+  --brand-500: #2563EB;
+  --brand-400: #3B82F6;
+  --brand-300: #60A5FA;
+  --brand-200: #93C5FD;
+  --brand-100: #DBEAFE;
+  --brand-50: #EFF6FF;
   --mint-600: #0f7a55;
   --mint-100: #ddf3e9;
   --amber-600: #b0741b;
@@ -104,6 +137,13 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 5.5rem;
   -webkit-text-size-adjust: 100%;
+  /* Horizontal-overflow guard. `clip` (not `hidden`) is deliberate: it blocks
+     the scrollbar without creating a scroll container, so `position: sticky`
+     headers inside the page keep working. */
+  overflow-x: clip;
+  /* Reserve the vertical scrollbar so pages that toggle between short and long
+     content do not shift the whole layout by ~15px. */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -114,6 +154,9 @@ body {
   font-size: var(--text-base);
   line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+  /* Never let a single wide child (table, map, plate) widen the viewport. */
+  max-width: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 800; letter-spacing: -.012em; line-height: var(--leading-tight); }
@@ -161,7 +204,7 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
     box-shadow var(--dur) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
-.btn:hover { transform: translateY(-2px); }
+.btn:hover { transform: translateY(-2px) scale(1.015); }
 .btn:active { transform: translateY(0) scale(.985); }
 .btn:disabled { transform: none; cursor: not-allowed; opacity: .55; }
 .btn svg { flex: 0 0 auto; }
@@ -187,24 +230,310 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 @keyframes sweep { from { transform: translateX(-115%); } to { transform: translateX(115%); } }
 @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
-.animate-floaty { animation: floaty 6s ease-in-out infinite; }
+/* Advanced 3D & Visual Effects */
+@keyframes float3d {
+  0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
+  25% { transform: translateY(-8px) rotateX(2deg) rotateY(-2deg); }
+  50% { transform: translateY(-15px) rotateX(0deg) rotateY(0deg); }
+  75% { transform: translateY(-8px) rotateX(-2deg) rotateY(2deg); }
+}
 
-/* Children arrive one after another — put .stagger on the container. */
-.stagger > * { animation: slideUp .65s var(--ease-out) both; }
-.stagger > *:nth-child(1) { animation-delay: .03s; }
-.stagger > *:nth-child(2) { animation-delay: .09s; }
-.stagger > *:nth-child(3) { animation-delay: .15s; }
-.stagger > *:nth-child(4) { animation-delay: .21s; }
-.stagger > *:nth-child(5) { animation-delay: .27s; }
-.stagger > *:nth-child(6) { animation-delay: .33s; }
-.stagger > *:nth-child(7) { animation-delay: .39s; }
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes morphing {
+  0%, 100% {
+    background-position: 0% 50%, 100% 50%, 50% 100%;
+  }
+  33% {
+    background-position: 50% 0%, 50% 100%, 100% 50%;
+  }
+  66% {
+    background-position: 100% 50%, 0% 50%, 50% 0%;
+  }
+}
+
+/* Strong pulse animation for visibility */
+@keyframes strongPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px 10px rgba(37, 99, 235, 0.3);
+  }
+}
+
+/* Bounce animation */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Rotate animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px rgb(37 99 235 / 0.3), 0 0 40px rgb(37 99 235 / 0.2); }
+  50% { box-shadow: 0 0 30px rgb(37 99 235 / 0.5), 0 0 60px rgb(37 99 235 / 0.3); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes particleFloat {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
+}
+
+@keyframes shimmer3d {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes rotate3d {
+  0% { transform: perspective(1000px) rotateY(0deg); }
+  100% { transform: perspective(1000px) rotateY(360deg); }
+}
+
+@keyframes bounce3d {
+  0%, 100% { transform: perspective(1000px) translateY(0) rotateX(0deg); }
+  50% { transform: perspective(1000px) translateY(-20px) rotateX(10deg); }
+}
+
+@keyframes waveGlow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+.animate-floaty { animation: floaty 6s ease-in-out infinite; }
+.animate-float3d { animation: float3d 8s ease-in-out infinite; }
+.animate-glow-pulse { animation: glowPulse 3s ease-in-out infinite; }
+.animate-gradient-shift { 
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite; 
+}
+.animate-particle { animation: particleFloat 15s linear infinite; }
+.animate-shimmer-3d {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer3d 2s infinite;
+}
+.animate-rotate-3d { animation: rotate3d 20s linear infinite; }
+.animate-bounce-3d { animation: bounce3d 2s ease-in-out infinite; }
+.animate-wave-glow { animation: waveGlow 4s ease-in-out infinite; }
+
+/*
+  Children arrive one after another — put .stagger on the container.
+
+  The live definition is in `app/refresh.css` (`.stagger > *, .js
+  .stagger-on-view.is-visible > * { animation: riseIn ... backwards }`), which
+  wins on source order for the same selectors. This copy used to declare
+  `slideUp ... both`, and a finished `fill-mode: both` animation keeps applying
+  its final keyframe — including `transform` — for ever, which silently killed
+  every hover lift on the children. Kept `backwards` here too so the trap cannot
+  come back if the refresh.css rule is ever moved or removed.
+*/
+.stagger > * { animation: slideUp .68s cubic-bezier(.16, .84, .34, 1) backwards; }
+.stagger > *:nth-child(1) { animation-delay: .04s; }
+.stagger > *:nth-child(2) { animation-delay: .11s; }
+.stagger > *:nth-child(3) { animation-delay: .18s; }
+.stagger > *:nth-child(4) { animation-delay: .25s; }
+.stagger > *:nth-child(5) { animation-delay: .32s; }
+.stagger > *:nth-child(6) { animation-delay: .39s; }
+.stagger > *:nth-child(7) { animation-delay: .46s; }
 .stagger > *:nth-child(8) { animation-delay: .45s; }
 .stagger > *:nth-child(9) { animation-delay: .51s; }
 .stagger > *:nth-child(10) { animation-delay: .57s; }
 
+/* 3D Card Effects */
+.card-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  transition: transform 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out);
+}
+
+.card-3d:hover {
+  transform: translateY(-8px) rotateX(5deg) rotateY(-5deg);
+  box-shadow: 0 25px 50px rgb(10 31 68 / 15%);
+}
+
+.card-3d-reverse:hover {
+  transform: translateY(-8px) rotateX(-5deg) rotateY(5deg);
+}
+
+/* Glassmorphism Effects */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-gradient {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Glow Effects */
+.glow-blue {
+  box-shadow: 0 0 20px rgb(37 99 235 / 0.4), 0 0 40px rgb(37 99 235 / 0.2);
+}
+
+.glow-blue-hover:hover {
+  box-shadow: 0 0 30px rgb(37 99 235 / 0.6), 0 0 60px rgb(37 99 235 / 0.3);
+}
+
+.glow-green {
+  box-shadow: 0 0 20px rgb(15 122 85 / 0.4), 0 0 40px rgb(15 122 85 / 0.2);
+}
+
+.glow-text {
+  text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+}
+
+/* Gradient Borders */
+.gradient-border {
+  position: relative;
+  background: #fff;
+  border-radius: var(--radius-lg);
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700), var(--brand-500));
+  z-index: -1;
+  animation: gradientShift 4s ease infinite;
+  background-size: 200% 200%;
+}
+
+/* Particle Background */
+.particle-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.particle-bg::before,
+.particle-bg::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--brand-300);
+  border-radius: 50%;
+  animation: particleFloat 10s linear infinite;
+}
+
+.particle-bg::before {
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.particle-bg::after {
+  left: 30%;
+  animation-delay: 3s;
+}
+
+/* 3D Button Effects */
+.btn-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.btn-3d::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  border-radius: inherit;
+  transform: translateZ(-10px);
+  filter: brightness(0.8);
+}
+
+.btn-3d:hover {
+  transform: translateY(-4px) translateZ(10px);
+}
+
+.btn-3d:active {
+  transform: translateY(0) translateZ(0);
+}
+
+/*
+  `.stagger-on-view` used to be defined here as a transition, and again in
+  `app/refresh.css` as a `riseIn` animation. The animation always won (animation
+  declarations outrank normal ones), so this block was dead — except for its
+  `opacity: 0`, which was *not* gated on the `js` class and therefore hid every
+  staggered list for ever when JavaScript was unavailable.
+
+  The single source of truth now lives in `app/refresh.css` § Scroll reveal.
+*/
+
+/* Advanced Motion Components */
+.advanced-3d-card {
+  position: relative;
+  transition: box-shadow 0.3s var(--ease-out);
+}
+
+.advanced-3d-card:hover {
+  box-shadow: 0 25px 50px rgb(10 31 68 / 15%);
+}
+
+.kinetic-typography,
+.kinetic-words {
+  display: inline-block;
+}
+
+.magnetic-button {
+  position: relative;
+  z-index: 1;
+}
+
+.ripple-button {
+  position: relative;
+  overflow: hidden;
+}
+
 /* Scroll reveal — content stays readable without JavaScript. */
 .reveal { opacity: 1; }
-.js .reveal { opacity: 0; transform: translateY(28px); transition: opacity .75s var(--ease-out), transform .75s var(--ease-out); }
+.js .reveal { opacity: 0; transform: translateY(30px); transition: opacity .78s cubic-bezier(.16, .84, .34, 1), transform .64s cubic-bezier(.16, .84, .34, 1); }
 .js .reveal.is-visible { opacity: 1; transform: translateY(0); }
 .js .reveal[data-delay="1"] { transition-delay: .1s; }
 .js .reveal[data-delay="2"] { transition-delay: .2s; }
@@ -222,16 +551,6 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   content: '';
 }
 .shine:hover::after { animation: sweep .75s var(--ease-out); }
-
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
-  }
-  .js .reveal { opacity: 1; transform: none; }
-}
 
 .site-shell {
   overflow: hidden;
@@ -268,22 +587,32 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .site-nav a:hover, .site-login:hover { color: var(--site-copper); }
 .site-nav a:hover::after { transform: scaleX(1); }
 .site-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 22px; }
-.site-button { display: inline-flex; min-height: 50px; align-items: center; justify-content: center; gap: 12px; border: 1px solid transparent; border-radius: 8px; background: #096fd4; padding: 0 21px; color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 4px 12px rgb(20 56 106 / 12%); transition: transform .2s, background .2s, box-shadow .2s; }
-.site-button svg { transition: transform .2s; }
-.site-button:hover { transform: translateY(-2px); background: #0756ad; box-shadow: 0 9px 20px rgb(20 56 106 / 18%); }
-.site-button:hover svg { transform: translateX(-3px); }
+.site-button { display: inline-flex; min-height: 50px; align-items: center; justify-content: center; gap: 12px; border: 1px solid transparent; border-radius: 8px; background: #096fd4; padding: 0 21px; color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 4px 12px rgb(20 56 106 / 12%); transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; position: relative; overflow: hidden; }
+.site-button svg { transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.site-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.3), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+.site-button:hover::before { transform: translateX(100%); }
+.site-button:hover { transform: translateY(-6px) scale(1.05); background: linear-gradient(135deg, #0756ad, #2563eb); box-shadow: 0 15px 35px rgb(20 56 106 / 25%), 0 0 50px rgb(37 99 235 / 0.4); }
+.site-button:hover svg { transform: translateX(-5px) scale(1.1); }
+.site-button:active { transform: translateY(-3px) scale(0.98); }
 .site-button-small { min-height: 42px; gap: 9px; border-radius: 8px; padding-inline: 16px; font-size: 12px; }
 
-.site-hero { position: relative; isolation: isolate; overflow: hidden; background: radial-gradient(ellipse at 76% 40%, rgb(19 108 214 / 40%), transparent 40%), linear-gradient(112deg, #061632 0%, #0b3270 57%, #075bc1 100%); color: #fff; }
-.site-hero::before { position: absolute; z-index: -1; top: -430px; left: -210px; width: 780px; height: 780px; border: 1px solid rgb(255 255 255 / 7%); border-radius: 50%; content: ''; }
-.site-hero::after { position: absolute; z-index: -1; top: -340px; left: -125px; width: 610px; height: 610px; border: 1px solid rgb(255 255 255 / 6%); border-radius: 50%; content: ''; }
-.site-hero-grid { position: relative; display: grid; min-height: 590px; grid-template-columns: 1fr 1fr; align-items: center; gap: 5%; padding-block: 62px 70px; }
+.site-hero { position: relative; isolation: isolate; overflow: hidden; background: radial-gradient(ellipse at 76% 40%, rgb(19 108 214 / 40%), transparent 40%), linear-gradient(112deg, #061632 0%, #0b3270 57%, #075bc1 100%); color: #fff; animation: morphing 20s ease-in-out infinite; }
+.site-hero::before { position: absolute; z-index: -1; top: -430px; left: -210px; width: 780px; height: 780px; border: 2px solid rgb(255 255 255 / 10%); border-radius: 50%; content: ''; animation: rotate3d 30s linear infinite, glowPulse 4s ease-in-out infinite; box-shadow: 0 0 50px rgb(37 99 235 / 0.2); }
+.site-hero::after { position: absolute; z-index: -1; top: -340px; left: -125px; width: 610px; height: 610px; border: 2px solid rgb(255 255 255 / 8%); border-radius: 50%; content: ''; animation: rotate3d 25s linear infinite reverse, glowPulse 3s ease-in-out infinite; box-shadow: 0 0 40px rgb(37 99 235 / 0.15); }
+.site-hero-grid { position: relative; display: grid; min-height: 590px; grid-template-columns: 1fr 1fr; align-items: center; gap: 5%; padding-block: 62px 70px; transform-style: preserve-3d; perspective: 1000px; }
 .site-hero-copy { position: relative; z-index: 1; padding-block: 18px; }
 .site-eyebrow { display: inline-flex; align-items: center; gap: 9px; color: #0b68c7; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
 .site-eyebrow-light { color: #d4e8ff; }
 .site-eyebrow-light .site-live-dot { background: #82c7ff; }
-.site-hero h1 { margin: 25px 0 0; font-size: clamp(48px, 5.3vw, 68px); font-weight: 800; letter-spacing: 0; line-height: 1.45; }
-.site-hero h1 span { color: #68b7ff; }
+.site-hero h1 { margin: 25px 0 0; font-size: clamp(48px, 5.3vw, 68px); font-weight: 800; letter-spacing: 0; line-height: 1.45; animation: fadeInUp 1s cubic-bezier(0.22, 1, 0.36, 1); }
+.site-hero h1 span { color: #68b7ff; background: linear-gradient(135deg, #68b7ff, #93c5fd, #60a5fa, #93c5fd, #68b7ff); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: gradientShift 3s ease infinite, glowPulse 2s ease-in-out infinite; display: inline-block; }
 .site-hero-description { max-width: 455px; margin: 19px 0 0; color: rgb(255 255 255 / 81%); font-size: 14px; line-height: 2.1; }
 .site-hero-actions { display: flex; align-items: center; gap: 29px; margin-top: 30px; }
 .site-button-light { min-height: 52px; border-color: #c7e6ff; background: #c7e6ff; color: #0b1f46; box-shadow: 0 7px 18px rgb(8 26 21 / 15%); }
@@ -303,9 +632,21 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .site-hero-proof .site-rating span { color: rgb(255 255 255 / 65%); }
 
 .site-hero-art { position: relative; display: grid; min-height: 465px; place-items: center; perspective: 1000px; }
-.site-art-glow { position: absolute; top: 49%; left: 50%; width: 430px; height: 430px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgb(114 185 255 / 24%), rgb(70 140 220 / 0%) 70%); }
-.site-art-grid { position: absolute; inset: 25px 1px; opacity: .13; background-image: linear-gradient(rgb(255 255 255 / 12%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 12%) 1px, transparent 1px); background-size: 46px 46px; mask-image: radial-gradient(ellipse, black 12%, transparent 72%); }
-.site-report-card { position: relative; z-index: 1; width: min(100%, 410px); overflow: hidden; border: 1px solid rgb(255 255 255 / 76%); border-radius: 13px; background: #fff; box-shadow: 0 28px 75px rgb(6 24 18 / 36%), 0 3px 10px rgb(6 24 18 / 14%); color: var(--site-ink); transition: transform .35s, box-shadow .35s; }
+.site-art-glow { position: absolute; top: 49%; left: 50%; width: 430px; height: 430px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgb(114 185 255 / 24%), rgb(70 140 220 / 0%) 70%); animation: glowPulse 4s ease-in-out infinite; }
+.site-art-grid { position: absolute; inset: 25px 1px; opacity: .13; background-image: linear-gradient(rgb(255 255 255 / 12%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 12%) 1px, transparent 1px); background-size: 46px 46px; mask-image: radial-gradient(ellipse, black 12%, transparent 72%); animation: shimmer3d 20s linear infinite; }
+.site-report-card { position: relative; z-index: 1; width: min(100%, 410px); overflow: hidden; border: 1px solid rgb(255 255 255 / 76%); border-radius: 13px; background: #fff; box-shadow: 0 28px 75px rgb(6 24 18 / 36%), 0 3px 10px rgb(6 24 18 / 14%); color: var(--site-ink); transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; animation: float3d 6s ease-in-out infinite; }
+.site-report-card:hover { transform: translateY(-15px) rotateX(10deg) rotateY(-10deg) scale(1.05); box-shadow: 0 40px 100px rgb(6 24 18 / 50%), 0 0 60px rgb(37 99 235 / 0.3); border-color: rgba(255, 255, 255, 0.9); }
+.site-report-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.5s;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.site-report-card:hover::after { opacity: 1; }
 .site-report-head { display: flex; align-items: center; justify-content: space-between; padding: 19px 21px 15px; }
 .site-report-head > div { display: grid; gap: 6px; }
 .site-report-kicker { color: #8a928d; font-size: 10px; }
@@ -352,14 +693,57 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .site-art-caption { position: absolute; right: 50%; bottom: -6px; display: inline-flex; align-items: center; gap: 7px; transform: translateX(50%); color: rgb(255 255 255 / 72%); font-size: 11px; white-space: nowrap; }
 .site-hero-curve { position: absolute; right: 0; bottom: -1px; left: 0; height: 20px; border-radius: 50% 50% 0 0 / 100% 100% 0 0; background: var(--site-paper); }
 
+/* Parallax Background Layers */
+.site-hero-aurora {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 20% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(96, 165, 250, 0.08) 0%, transparent 60%);
+  animation: gradientShift 15s ease infinite;
+  background-size: 200% 200%;
+}
+
+.site-hero-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(6, 22, 50, 0.3) 50%,
+    rgba(6, 22, 50, 0.6) 100%
+  );
+  pointer-events: none;
+}
+
+/* Floating Particles - now handled by FloatingParticles component */
+.hero-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .site-trust-strip { border-bottom: 1px solid var(--site-line); background: #fff; }
 .site-trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); padding-block: 23px; }
-.site-trust-grid > div { display: flex; align-items: center; justify-content: center; gap: 11px; padding-inline: 16px; }
+.site-trust-grid > div { display: flex; align-items: center; justify-content: center; gap: 11px; padding-inline: 16px; transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; cursor: pointer; }
+.site-trust-grid > div:hover { transform: translateY(-8px) scale(1.08) rotateX(5deg); background: linear-gradient(135deg, #f8fbff, #eff6ff); box-shadow: 0 15px 35px rgb(37 99 235 / 0.15); }
 .site-trust-grid > div + div { border-inline-start: 1px solid var(--site-line); }
-.site-trust-icon { display: grid; width: 39px; height: 39px; flex: 0 0 auto; place-items: center; border: 1px solid #e3ecf5; border-radius: 10px; background: #eef4fb; color: #315c86; }
+.site-trust-icon { display: grid; width: 39px; height: 39px; flex: 0 0 auto; place-items: center; border: 1px solid #e3ecf5; border-radius: 10px; background: #eef4fb; color: #315c86; transition: all 0.5s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.site-trust-grid > div:hover .site-trust-icon { transform: rotateY(360deg) scale(1.15); background: linear-gradient(135deg, #dbeafe, #bfdbfe); box-shadow: 0 10px 25px rgb(37 99 235 / 0.3); color: #1d4ed8; }
 .site-trust-grid > div > span:last-child { display: grid; gap: 4px; }
 .site-trust-grid strong { font-size: 11px; }
 .site-trust-grid small { color: #647169; font-size: 11px; }
+
+.site-stats { padding-block: 70px 88px; background: linear-gradient(180deg, #fff 0%, #f5f8fc 100%); }
+.site-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.site-stat { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 19px 14px; border-radius: 12px; transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; cursor: pointer; border: 2px solid transparent; }
+.site-stat:hover { transform: translateY(-12px) scale(1.1) rotateX(5deg); box-shadow: 0 20px 45px rgb(15 122 85 / 0.2), 0 0 30px rgb(15 122 85 / 0.15); background: #fff; border-color: rgba(15, 122, 85, 0.3); }
+.site-stat > strong { font-size: clamp(32px, 4vw, 42px); font-weight: 800; color: var(--site-green); line-height: 1.4; transition: all 0.4s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.site-stat:hover > strong { transform: scale(1.2); text-shadow: 0 0 30px rgb(15 122 85 / 0.5), 0 0 60px rgb(15 122 85 / 0.3); color: #0d9488; }
+.site-stat-label { margin-top: 8px; color: #65768d; font-size: 11px; font-weight: 600; }
+.site-stat small { margin-top: 4px; color: #8592a1; font-size: 10px; line-height: 1.8; }
 
 .site-section { padding-block: 94px; }
 .site-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 35px; margin-bottom: 43px; }
@@ -367,8 +751,18 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .site-section-heading h2 span, .site-faq-intro h2 span { color: #0b65bd; }
 .site-section-heading > p { max-width: 280px; margin: 0 0 8px; color: #647169; font-size: 13px; line-height: 1.9; }
 .site-steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px; }
-.site-step-card { position: relative; min-height: 210px; overflow: hidden; border: 1px solid var(--site-line); border-radius: 9px; background: linear-gradient(145deg, #fff, #fdfcf9); padding: 23px 24px; transition: border-color .2s, transform .2s, box-shadow .2s; }
-.site-step-card:hover { transform: translateY(-3px); border-color: #c8d9eb; box-shadow: 0 16px 32px rgb(24 55 96 / 7%); }
+.site-step-card { position: relative; min-height: 210px; overflow: hidden; border: 1px solid var(--site-line); border-radius: 9px; background: linear-gradient(145deg, #fff, #fdfcf9); padding: 23px 24px; transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; cursor: pointer; }
+.site-step-card:hover { transform: translateY(-12px) rotateX(8deg) rotateY(-8deg) scale(1.02); border-color: #2563eb; box-shadow: 0 25px 50px rgb(37 99 235 / 0.2), 0 0 30px rgb(37 99 235 / 0.1); }
+.site-step-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), transparent);
+  opacity: 0;
+  transition: opacity 0.4s;
+  border-radius: inherit;
+}
+.site-step-card:hover::before { opacity: 1; }
 .site-step-top { display: flex; align-items: center; justify-content: space-between; }
 .site-step-number { color: #2b72b9; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
 .site-step-icon { display: grid; width: 39px; height: 39px; place-items: center; border-radius: 10px; background: #edf4fc; color: #355e88; }
@@ -384,8 +778,20 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .site-inline-link svg, .site-footer-cta svg { transition: transform .2s; }
 .site-inline-link:hover svg, .site-footer-cta:hover svg { transform: translateX(-3px); }
 .site-services-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.site-service-card { position: relative; min-height: 208px; border: 1px solid #e4ebf2; border-radius: 9px; background: rgb(255 255 255 / 92%); padding: 21px 19px; transition: transform .2s, border-color .2s, box-shadow .2s; }
-.site-service-card:hover { transform: translateY(-3px); border-color: #cbd9e7; box-shadow: 0 15px 30px rgb(24 55 96 / 8%); }
+.site-service-card { position: relative; min-height: 208px; border: 1px solid #e4ebf2; border-radius: 9px; background: rgb(255 255 255 / 92%); padding: 21px 19px; transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; cursor: pointer; }
+.site-service-card:hover { transform: translateY(-15px) rotateX(10deg) rotateY(-10deg) scale(1.05); border-color: #2563eb; box-shadow: 0 30px 60px rgb(37 99 235 / 0.25), 0 0 40px rgb(37 99 235 / 0.15); background: #fff; }
+.site-service-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent);
+  opacity: 0;
+  transition: opacity 0.4s;
+  border-radius: inherit;
+  z-index: 0;
+}
+.site-service-card:hover::before { opacity: 1; }
+.site-service-card > * { position: relative; z-index: 1; }
 .site-service-icon { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid #e2ebf4; border-radius: 10px; background: #edf4fc; color: #315c86; }
 .site-service-number { position: absolute; top: 24px; inset-inline-end: 20px; color: #a2aaa4; font-size: 10px; font-weight: 700; }
 .site-service-card h3 { margin: 22px 0 7px; font-size: 14px; }
@@ -394,13 +800,25 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .site-service-card > a:hover { background: var(--site-green); color: #fff; }
 
 .site-cities-section { position: relative; overflow: hidden; background: radial-gradient(ellipse at 82% 50%, rgb(19 108 214 / 24%), transparent 44%), linear-gradient(115deg, #061632, #0b1f46); color: #fff; }
-.site-cities-inner { position: relative; display: grid; min-height: 300px; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 70px; padding-block: 60px; }
+.site-cities-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(37, 99, 235, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.1) 0%, transparent 40%);
+  animation: gradientShift 20s ease infinite;
+  background-size: 200% 200%;
+}
+.site-cities-inner { position: relative; display: grid; min-height: 300px; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 70px; padding-block: 60px; transform-style: preserve-3d; }
 .site-cities-inner h2 { margin: 13px 0 9px; font-size: 32px; font-weight: 800; letter-spacing: -.7px; line-height: 1.5; }
 .site-cities-inner h2 span { color: #82c7ff; }
 .site-cities-inner > div:first-child p { margin: 0; color: rgb(255 255 255 / 77%); font-size: 12px; line-height: 1.9; }
 .site-city-list { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.site-city-list span { display: inline-flex; min-height: 39px; align-items: center; justify-content: flex-start; gap: 7px; border: 1px solid rgb(255 255 255 / 20%); border-radius: 7px; background: rgb(255 255 255 / 6%); padding: 8px 10px; color: rgb(255 255 255 / 90%); font-size: 11px; transition: background .2s, border-color .2s, transform .2s; }
-.site-city-list span:hover { transform: translateY(-2px); border-color: rgb(255 255 255 / 42%); background: rgb(255 255 255 / 11%); }
+.site-city-list span { display: inline-flex; min-height: 39px; align-items: center; justify-content: flex-start; gap: 7px; border: 1px solid rgb(255 255 255 / 20%); border-radius: 7px; background: rgb(255 255 255 / 6%); padding: 8px 10px; color: rgb(255 255 255 / 90%); font-size: 11px; transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; cursor: pointer; }
+.site-city-list span:hover { transform: translateY(-8px) rotateX(8deg) scale(1.1); border-color: #60a5fa; background: linear-gradient(135deg, rgb(255 255 255 / 15%), rgb(96 165 250 / 0.2)); box-shadow: 0 15px 35px rgb(96 165 250 / 0.3), 0 0 25px rgb(96 165 250 / 0.2); color: #fff; }
+.site-city-list span svg { transition: all 0.4s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.site-city-list span:hover svg { transform: scale(1.3) rotate(15deg); color: #60a5fa; }
 .site-city-list svg { color: #82c7ff; }
 .site-cities-decoration { position: absolute; right: 45%; bottom: -23px; display: grid; width: 168px; height: 168px; place-items: center; border: 1px solid rgb(255 255 255 / 6%); border-radius: 50%; color: rgb(255 255 255 / 8%); }
 
@@ -417,9 +835,17 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .site-faq-list details[open] summary svg { transform: rotate(180deg); }
 .site-faq-list details p { max-width: 580px; margin: -1px 0 19px; color: #647169; font-size: 12px; line-height: 2; }
 
-.site-final-cta { border-block: 1px solid #e4ebf2; background: linear-gradient(105deg, #eef4fc, #f7f9fc); }
-.site-final-cta-inner { display: flex; min-height: 142px; align-items: center; gap: 19px; }
-.site-cta-icon { display: grid; width: 51px; height: 51px; flex: 0 0 auto; place-items: center; border: 1px solid rgb(255 255 255 / 15%); border-radius: 12px; background: linear-gradient(145deg, #0878e8, #0b1f46); color: #fff; box-shadow: 0 6px 15px rgb(21 58 50 / 12%); }
+.site-final-cta { border-block: 1px solid #e4ebf2; background: linear-gradient(105deg, #eef4fc, #f7f9fc); position: relative; overflow: hidden; }
+.site-final-cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(37, 99, 235, 0.05), transparent 70%);
+  animation: glowPulse 4s ease-in-out infinite;
+}
+.site-final-cta-inner { display: flex; min-height: 142px; align-items: center; gap: 19px; position: relative; z-index: 1; }
+.site-cta-icon { display: grid; width: 51px; height: 51px; flex: 0 0 auto; place-items: center; border: 1px solid rgb(255 255 255 / 15%); border-radius: 12px; background: linear-gradient(145deg, #0878e8, #0b1f46); color: #fff; box-shadow: 0 6px 15px rgb(21 58 50 / 12%); transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out); }
+.site-cta-icon:hover { transform: rotateY(180deg) scale(1.1); box-shadow: 0 10px 25px rgb(37 99 235 / 0.3); }
 .site-final-cta-inner > div { margin-inline-end: auto; }
 .site-final-cta h2 { margin: 0 0 6px; font-size: 18px; }
 .site-final-cta p { margin: 0; color: var(--site-muted); font-size: 11px; }
@@ -879,6 +1305,285 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   .inspector-empty-panel .inspector-feature-status { margin-inline-start: auto; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+/* ==========================================================================
+   AUTO-RESPONSIVE LAYOUT LAYER
+   --------------------------------------------------------------------------
+   One vocabulary shared by every shell (landing, customer dashboard,
+   inspector workspace, admin console). Breakpoint ladder mirrors Tailwind:
+
+     base  <640px   phones            single column, full width, stacked
+     sm    ≥640px   large phones      two-up where it helps
+     md    ≥768px   tablets           side rails appear
+     lg    ≥1024px  laptops           persistent sidebar, split layouts
+     xl    ≥1280px  desktops          dense KPI rows, wide toolbars
+     2xl   ≥1536px  ultra-wide        measure is capped, never stretched
+
+   Cascade policy — IMPORTANT:
+   These rules are UNLAYERED, and per the CSS cascade an unlayered rule
+   outranks *every* rule inside a layer, regardless of specificity. Tailwind
+   v4 emits its utilities inside `@layer utilities`, so a class defined here
+   beats a Tailwind utility on the same element even when the utility has
+   higher specificity, and even though these blocks use `:where()`.
+
+   Consequences, by design:
+   - `.rc-gutter` / `.rc-shell-pad` own `padding-inline` on their element, and
+     `.rc-scroll-x` owns `overflow-x`. Do not also put `px-*` / `overflow-*`
+     Tailwind utilities on the same element and expect them to win — pass a
+     className that changes the class itself, or use the `!` suffix.
+   - Nothing here may declare a property that a caller is expected to override
+     with a Tailwind utility. That is why `.rc-container` sets `width` but
+     deliberately NOT `max-width`: the size presets in `ResponsiveContainer`
+     are Tailwind `max-w-*` utilities and must stay in charge.
+   ========================================================================== */
+
+:root {
+  /* Fluid page gutter: 16px on a 360px phone, 40px on a wide desktop. */
+  --rc-gutter: clamp(1rem, 3.4vw, 2.5rem);
+  /* Touch-safe minimum. 44px is the iOS/Android accessibility floor. */
+  --rc-tap: 44px;
+  /* Content measure cap for ultra-wide displays. */
+  --rc-measure: 72ch;
 }
+
+/* --- 1. Overflow guards -------------------------------------------------- */
+
+:where(img, video, canvas, iframe, embed, object) {
+  max-width: 100%;
+}
+
+/* Never let an unbreakable token (VIN, plate, URL, long Arabic compound)
+   widen its parent. */
+:where(p, li, dd, dt, td, th, h1, h2, h3, h4, h5, h6, span, a, label, strong, small) {
+  overflow-wrap: break-word;
+}
+
+/* The one true horizontal-scroll surface: wide data tables, code, plate rows.
+   `min-width: 0` on the child is what actually lets a flex/grid parent shrink
+   below its content size — the single most common cause of phantom overflow. */
+:where(.rc-scroll-x) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(13 116 227 / 35%) transparent;
+}
+
+:where(.rc-scroll-x)::-webkit-scrollbar { height: 8px; }
+:where(.rc-scroll-x)::-webkit-scrollbar-track { background: rgb(13 116 227 / 8%); border-radius: 999px; }
+:where(.rc-scroll-x)::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(13 116 227 / 45%), rgb(13 116 227 / 25%));
+}
+:where(.rc-scroll-x)::-webkit-scrollbar-thumb:hover { background: rgb(13 116 227 / 60%); }
+
+/* Dark console variant — the admin shell renders on neutral-950. */
+:where(.rc-scroll-x-dark) { scrollbar-color: rgb(255 255 255 / 22%) transparent; }
+:where(.rc-scroll-x-dark)::-webkit-scrollbar-track { background: rgb(255 255 255 / 6%); }
+:where(.rc-scroll-x-dark)::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, rgb(56 189 248 / 45%), rgb(56 189 248 / 22%));
+}
+:where(.rc-scroll-x-dark)::-webkit-scrollbar-thumb:hover { background: rgb(56 189 248 / 60%); }
+
+/* Flex/grid children that must be allowed to shrink below their content. */
+:where(.rc-min-0) { min-width: 0; min-height: 0; }
+
+/* --- 2. Containers ------------------------------------------------------- */
+
+:where(.rc-container) {
+  /* 100% rather than 100vw: `vw` includes the scrollbar and is the classic
+     source of a 15px horizontal overflow on desktop. No `max-width` here — the
+     caller's `max-w-*` utility owns the cap (see the cascade policy above). */
+  width: 100%;
+}
+
+:where(.rc-centered) { margin-inline: auto; }
+
+:where(.rc-gutter) {
+  /* Physical padding, on purpose: safe-area insets are physical values, so a
+     logical `padding-inline` would map them to the wrong edge under RTL. */
+  padding-left: max(var(--rc-gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--rc-gutter), env(safe-area-inset-right, 0px));
+}
+
+/* Extra breathing room once there is room for it. */
+@media (min-width: 1024px) {
+  :where(.rc-gutter-lg) {
+    padding-left: max(clamp(2rem, 4vw, 4rem), env(safe-area-inset-left, 0px));
+    padding-right: max(clamp(2rem, 4vw, 4rem), env(safe-area-inset-right, 0px));
+  }
+}
+
+/* --- 3. Auto-fitting grids ---------------------------------------------- */
+
+/* Columns collapse on their own from available width, so a card never drops
+   below `--rc-auto-min` (default 260px). No breakpoint ladder required. */
+:where(.rc-auto-grid) {
+  display: grid;
+  gap: var(--rc-auto-gap, 1rem);
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--rc-auto-min, 260px), 100%), 1fr));
+}
+
+/* Explicit ladder for cases where the design needs an exact count. */
+:where(.rc-grid) { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 640px) { :where(.rc-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { :where(.rc-grid) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1280px) { :where(.rc-grid-4) { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* --- 4. Split layout (rail + content) ------------------------------------ */
+
+/* Stacked on phones/tablets, side-by-side from `lg`. Used by the workshops
+   map, the inspector request detail and any "list + detail" surface. */
+:where(.rc-split) {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 1024px) {
+  :where(.rc-split) {
+    grid-template-columns: var(--rc-split-rail, minmax(0, 360px)) minmax(0, 1fr);
+  }
+}
+
+/* --- 5. Touch ergonomics ------------------------------------------------- */
+
+/* Guarantees the 44×44 minimum on interactive controls without changing the
+   visual box: the extra hit area is absorbed by centring + padding. */
+:where(.rc-tap) {
+  min-height: var(--rc-tap);
+  min-width: var(--rc-tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Full-width tap targets on phones, intrinsic width from `sm` up. */
+:where(.rc-tap-block) { width: 100%; }
+@media (min-width: 640px) { :where(.rc-tap-block) { width: auto; } }
+
+/* Critical actions must never be squeezed by a long sibling label. */
+:where(.rc-noshrink) { flex-shrink: 0; }
+
+/* --- 6. Safe-area helpers ------------------------------------------------ */
+
+:where(.rc-safe-top) { padding-top: env(safe-area-inset-top, 0px); }
+:where(.rc-safe-bottom) { padding-bottom: env(safe-area-inset-bottom, 0px); }
+:where(.rc-safe-x) {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+/* Sticky bottom bars (inspector mobile nav) must clear the home indicator. */
+:where(.rc-safe-bar) {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* App-shell horizontal padding that also folds in the safe area. Used by the
+   admin header/content pair so the sticky bar and the content share one rhythm
+   without the negative-margin trick. Steps with the Tailwind ladder. */
+:where(.rc-shell-pad) {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 640px) {
+  :where(.rc-shell-pad) {
+    padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+  }
+}
+@media (min-width: 1280px) {
+  :where(.rc-shell-pad) {
+    padding-left: max(2rem, env(safe-area-inset-left, 0px));
+    padding-right: max(2rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Public shell (`.site-container` sizes by width, not padding) and the two
+   dashboard content columns get the same safe-area treatment. Guarded by
+   @supports so browsers without env() keep the original geometry exactly. */
+@supports (padding: env(safe-area-inset-left)) {
+  .site-container {
+    width: min(1160px, calc(100% - 64px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  }
+  .app-content {
+    padding-left: max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-left, 0px));
+    padding-right: max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-right, 0px));
+  }
+  .inspector-content {
+    padding-left: max(clamp(20px, 4vw, 50px), env(safe-area-inset-left, 0px));
+    padding-right: max(clamp(20px, 4vw, 50px), env(safe-area-inset-right, 0px));
+  }
+  @media (max-width: 900px) {
+    .site-container {
+      width: min(calc(100% - 44px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 740px);
+    }
+  }
+  @media (max-width: 680px) {
+    .site-container {
+      width: calc(100% - 36px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    }
+  }
+}
+
+/* --- 7. Fluid type ------------------------------------------------------- */
+
+/* clamp(min, preferred, max) — the min is never below the 12px floor this
+   product enforces, so nothing becomes unreadable on a 320px screen. */
+:where(.rc-text-xs) { font-size: clamp(12px, 0.55vw + 10.4px, 12.5px); }
+:where(.rc-text-sm) { font-size: clamp(12.5px, 0.4vw + 11.4px, 13.5px); }
+:where(.rc-text-base) { font-size: clamp(13.5px, 0.45vw + 12.3px, 14.5px); }
+:where(.rc-text-lg) { font-size: clamp(15px, 1.1vw + 12.2px, 18px); }
+:where(.rc-text-xl) { font-size: clamp(17px, 1.8vw + 12.4px, 22px); }
+:where(.rc-text-2xl) { font-size: clamp(20px, 3vw + 12.6px, 27px); }
+:where(.rc-text-3xl) { font-size: clamp(24px, 4.6vw + 11.6px, 34px); }
+:where(.rc-text-4xl) { font-size: clamp(28px, 6.4vw + 10.2px, 44px); }
+
+/* Measure cap so body copy does not run the full width of a 2560px monitor. */
+:where(.rc-measure) { max-width: var(--rc-measure); }
+
+/* --- 8. Visibility helpers (mobile-first) -------------------------------- */
+
+:where(.rc-only-mobile) { display: initial; }
+@media (min-width: 1024px) { :where(.rc-only-mobile) { display: none; } }
+:where(.rc-only-desktop) { display: none; }
+@media (min-width: 1024px) { :where(.rc-only-desktop) { display: initial; } }
+
+/* --- 9. Motion safety ---------------------------------------------------- */
+
+/*
+  تعطيل حاجز `prefers-reduced-motion` — بطلب صريح من مالك المنتج.
+
+  كان هذا الحاجز يوقف كل حركة في الموقع عند تفعيل «تقليل الحركة» في نظام
+  التشغيل: يضبط `transition-duration` و`animation-duration` على `0.01ms`
+  مع `!important`. القياس الفعلي أظهر `transitionDuration: 1e-05s` على عناصر
+  الظهور ⇒ كل الحركات تُنفَّذ في جزء من عشر ألف من الثانية = غير مرئية.
+
+  EFFECT: animations now run at full strength for every visitor, regardless of
+  the OS "reduce motion" setting. This is a deliberate product decision, not an
+  oversight — see the note at the bottom of this block for how to restore it.
+
+  ⚠️ أثر جانبي مقصود: هذا يقصي مستخدمي «تقليل الحركة» (متطلب WCAG 2.2.3).
+  إن أردت استعادة الحاجز لاحقًا، أزل التعليق عن الكتلة المحفوظة أسفله
+  وعُد إلى `MotionConfig reducedMotion="user"` في `components/motion-provider.tsx`.
+
+  بدلًا من الإلغاء الكامل، القيمة الوسطى المتاحة إن أردتها يومًا: أبقِ الحاجز
+  لكن خفّض الأثر بدل إلغائه (مثلًا `animation-duration: 0.2s` وليس `0.01ms`)
+  فيبقى الاحترام ظاهرًا مع حركة مرئية.
+*/
+/* @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+} */
+
+/* --- 10. Orientation: give landscape phones back their vertical space ---- */
+
+@media (max-height: 480px) and (orientation: landscape) {
+  :where(.rc-compact-landscape) { padding-block: 0.75rem; }
+}
+

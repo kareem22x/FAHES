@@ -1,12 +1,33 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { SignIn } from '@clerk/nextjs'
+import { auth as clerkAuth } from '@clerk/nextjs/server'
 import { ShieldCheck } from 'lucide-react'
 import BrandMark from '@/components/brand-mark'
 import { clerkAppearance } from '@/lib/clerk-appearance'
+import { safeReturnPath } from '@/lib/safe-return-path'
 
 export const metadata = { title: 'تسجيل الدخول' }
 
-export default function SignInPage() {
+export default async function SignInPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ 'sign-in'?: string[] }>
+  searchParams: Promise<{ redirect_url?: string }>
+}) {
+  const [{ 'sign-in': segments }, { redirect_url }] = await Promise.all([params, searchParams])
+
+  // A visitor who already has a session must never sit on this page: Clerk would
+  // bounce them to the fallback redirect and the site header links back here,
+  // producing an unbreakable loop. Only the bare entry point is guarded — Clerk
+  // serves its own sub-steps (`/sign-in/factor-one`, …) and those must render
+  // untouched.
+  if (!segments?.length) {
+    const { userId } = await clerkAuth()
+    if (userId) redirect(safeReturnPath(redirect_url))
+  }
+
   return (
     <main dir="rtl" className="auth-shell">
       <aside className="auth-aside">

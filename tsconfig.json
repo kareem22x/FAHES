@@ -35,6 +35,8 @@
     "out",
     "build",
     "deepseek-harness",
-    "deepseek-harness/**"
+    "deepseek-harness/**",
+    "design-backup",
+    "design-backup/**"
   ]
 }

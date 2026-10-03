@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Menu, X } from 'lucide-react'
 import BrandMark from '@/components/brand-mark'
-import { AccountMenu, AccountMenuInline } from '@/components/account-menu'
+import { AccountMenu, AccountMenuInline } from '@/components/modules/account/account-menu'
 
 export type HeaderNavItem = { href: string; label: string }
 

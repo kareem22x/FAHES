@@ -1,0 +1,634 @@
+/* ============================================================================
+   design-system.css — طبقة الدمج مع تطبيق فاحص (Next.js)
+   ----------------------------------------------------------------------------
+   هذه الطبقة **إضافية بالكامل** ولا تُعيد تعريف أي شيء موجود في
+   `globals.css` / `refresh.css` / `motion.css`. كل اسم هنا مُنَطّق:
+
+     --ds-*     رموز (tokens)
+     u-*        أدوات مساعدة (utilities)
+     t-*        انتقالات (transitions)
+     hover-*    وصفات تفاعل
+     data-reveal  ظهور عند التمرير
+
+   لماذا لا يوجد Reset عالمي هنا؟
+     الموقع القائم يملك بالفعل أساسًا بصريًا مكتملًا (`.site-shell`, خطوط,
+     مقاسات). إضافة Reset عالمي مثل `* { margin: 0 }` كانت ستكسر التصميم.
+     لذلك نُوفّر Reset **اختياريًا** عبر الصنف `.ds-reset` للأقسام الجديدة فقط.
+
+   الأقسام:
+     01. الرموز (tokens)
+     02. Reset اختياري (.ds-reset)
+     03. عناصر التخطيط (u-*)
+     04. أدوات المسافات
+     05. أدوات النصوص
+     06. أدوات flex/grid
+     07. نظام الانتقالات
+     08. الظهور عند التمرير ([data-reveal])
+     09. الوصولية
+     10. الطباعة
+     11. انتقالات مطبَّقة على مكوّنات الموقع
+     12. وصفات إضافية
+   ========================================================================== */
+
+
+/* ==========================================================================
+   01. الرموز — كل قيمة تُشير إلى رمز موجود في globals.css مع قيمة احتياطية
+   ========================================================================== */
+
+:root {
+  /* الحركه */
+  --ds-ease-out: var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+  --ds-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ds-ease-spring: var(--ease-spring, cubic-bezier(0.34, 1.4, 0.48, 1));
+
+  --ds-dur-instant: 80ms;
+  --ds-dur-fast: var(--dur-fast, 140ms);
+  --ds-dur: var(--dur, 240ms);
+  --ds-dur-slow: var(--dur-slow, 420ms);
+  --ds-dur-reveal: 820ms;
+
+  /*
+    منحنى الظهور عند التمرير — مخصّص، مختلف عن `--ds-ease-out` العام عمدًا.
+
+    `--ds-ease-out` هو `cubic-bezier(.22, 1, .36, 1)` (ease-out-expo): يقطع
+    ~60% من المسافة في أول 15% من الزمن، فيبدو الدخول «قفزة» ثم ثباتًا — محسوس
+    وسريع. لم يكن مناسبًا لظهور بطيء عند التمرير.
+
+    المنحنى التالي يوزّع السرعة على مدى أطول: بداية هادئة، تسارع لطيف، ثم
+    هبوط ناعم طويل (`cubic-bezier(.16, .84, .34, 1)`). الفرق مقيس: عند 50%
+    من الزمن يقطع ~78% بدل ~93% ⇒ انتقال مرئي لا انزلاق مفاجئ.
+    قابل للتجاوز لكل عنصر عبر `--ds-reveal-ease`.
+  */
+  --ds-reveal-ease: cubic-bezier(0.16, 0.84, 0.34, 1);
+
+  /* ظهور عند التمرير — قابلة للتجاوز لكل عنصر */
+  --ds-reveal-distance: 34px;
+  --ds-reveal-scale: 0.965;
+  --ds-reveal-delay: 0ms;
+
+  /* مسافات */
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.25rem;
+  --ds-space-6: 1.5rem;
+  --ds-space-8: 2rem;
+  --ds-space-10: 2.5rem;
+  --ds-space-12: 3rem;
+  --ds-space-16: 4rem;
+
+  /* أنصاف الأقطار */
+  --ds-radius-xs: var(--radius-xs, 8px);
+  --ds-radius-sm: var(--radius-sm, 10px);
+  --ds-radius-md: var(--radius-md, 14px);
+  --ds-radius-lg: var(--radius-lg, 20px);
+  --ds-radius-pill: var(--radius-pill, 999px);
+
+  /* ألوان دلالية */
+  --ds-brand: var(--brand-600, #2563eb);
+  --ds-brand-strong: var(--brand-700, #1d4ed8);
+  --ds-brand-soft: var(--brand-100, #eff6ff);
+  --ds-ink: var(--color-text, #0f2444);
+  --ds-muted: var(--color-text-muted, #5f7086);
+  --ds-line: var(--color-border, #e2eaf4);
+  --ds-surface: var(--color-surface, #fff);
+
+  /* ظلال */
+  --ds-shadow-sm: var(--shadow-sm, 0 4px 12px rgb(10 31 68 / 6%));
+  --ds-shadow-md: var(--shadow-md, 0 10px 28px rgb(10 31 68 / 8%));
+  --ds-shadow-lg: var(--shadow-lg, 0 22px 54px rgb(10 31 68 / 12%));
+  --ds-shadow-brand: var(--shadow-brand, 0 12px 30px rgb(37 99 235 / 24%));
+
+  /* حاوية */
+  --ds-container-max: 1200px;
+  --ds-container-pad: clamp(1rem, 4vw, 2.5rem);
+}
+
+
+/* ==========================================================================
+   02. Reset اختياري — يُطبَّق فقط داخل .ds-reset
+   ========================================================================== */
+
+.ds-reset *,
+.ds-reset *::before,
+.ds-reset *::after {
+  box-sizing: border-box;
+}
+
+.ds-reset :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd) {
+  margin: 0;
+}
+
+.ds-reset :where(ul, ol)[role='list'] {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-reset :where(img, picture, video, canvas, svg) {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+.ds-reset :where(input, button, textarea, select) {
+  font: inherit;
+  color: inherit;
+}
+
+.ds-reset :where(h1, h2, h3, h4) {
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.ds-reset :where(p) {
+  text-wrap: pretty;
+}
+
+.ds-reset :where([hidden]) {
+  display: none !important;
+}
+
+
+/* ==========================================================================
+   03. عناصر التخطيط
+   ========================================================================== */
+
+.u-container {
+  inline-size: 100%;
+  max-inline-size: var(--ds-container-max);
+  margin-inline: auto;
+  padding-inline: var(--ds-container-pad);
+}
+
+.u-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+
+.u-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-4);
+}
+
+.u-grid-auto {
+  display: grid;
+  gap: var(--ds-space-6);
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+}
+
+.u-grid-auto-sm {
+  display: grid;
+  gap: var(--ds-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+
+
+/* ==========================================================================
+   04. أدوات المسافات (محاور منطقية — آمنة مع RTL)
+   ========================================================================== */
+
+.u-mt-2 { margin-block-start: var(--ds-space-2); }
+.u-mt-4 { margin-block-start: var(--ds-space-4); }
+.u-mt-6 { margin-block-start: var(--ds-space-6); }
+.u-mt-8 { margin-block-start: var(--ds-space-8); }
+.u-mt-12 { margin-block-start: var(--ds-space-12); }
+
+.u-mb-2 { margin-block-end: var(--ds-space-2); }
+.u-mb-4 { margin-block-end: var(--ds-space-4); }
+.u-mb-6 { margin-block-end: var(--ds-space-6); }
+.u-mb-8 { margin-block-end: var(--ds-space-8); }
+
+.u-mx-auto { margin-inline: auto; }
+.u-my-6 { margin-block: var(--ds-space-6); }
+.u-my-8 { margin-block: var(--ds-space-8); }
+
+.u-p-4 { padding: var(--ds-space-4); }
+.u-p-6 { padding: var(--ds-space-6); }
+.u-p-8 { padding: var(--ds-space-8); }
+.u-px-4 { padding-inline: var(--ds-space-4); }
+.u-px-6 { padding-inline: var(--ds-space-6); }
+.u-py-4 { padding-block: var(--ds-space-4); }
+.u-py-6 { padding-block: var(--ds-space-6); }
+.u-py-8 { padding-block: var(--ds-space-8); }
+.u-py-12 { padding-block: var(--ds-space-12); }
+
+.u-gap-2 { gap: var(--ds-space-2); }
+.u-gap-3 { gap: var(--ds-space-3); }
+.u-gap-4 { gap: var(--ds-space-4); }
+.u-gap-6 { gap: var(--ds-space-6); }
+.u-gap-8 { gap: var(--ds-space-8); }
+
+
+/* ==========================================================================
+   05. أدوات النصوص
+   ========================================================================== */
+
+.u-text-start { text-align: start; }
+.u-text-center { text-align: center; }
+.u-text-end { text-align: end; }
+
+.u-text-muted { color: var(--ds-muted); }
+.u-text-brand { color: var(--ds-brand); }
+
+.u-font-medium { font-weight: 500; }
+.u-font-semibold { font-weight: 600; }
+.u-font-bold { font-weight: 700; }
+
+.u-balance { text-wrap: balance; }
+.u-pretty { text-wrap: pretty; }
+
+.u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-max-prose { max-inline-size: 62ch; }
+
+
+/* ==========================================================================
+   06. أدوات flex / grid
+   ========================================================================== */
+
+.u-flex { display: flex; }
+.u-inline-flex { display: inline-flex; }
+.u-grid { display: grid; }
+.u-block { display: block; }
+.u-hidden { display: none; }
+
+.u-flex-col { flex-direction: column; }
+.u-flex-wrap { flex-wrap: wrap; }
+.u-flex-1 { flex: 1 1 0%; }
+
+.u-items-center { align-items: center; }
+.u-items-start { align-items: flex-start; }
+.u-justify-between { justify-content: space-between; }
+.u-justify-center { justify-content: center; }
+
+.u-w-full { inline-size: 100%; }
+.u-relative { position: relative; }
+
+
+/* ==========================================================================
+   07. نظام الانتقالات
+   --------------------------------------------------------------------------
+   كل انتقال يقصر على `transform` و `opacity` (مع الألوان عند الحاجة)،
+   وكلها تشترك في نفس منحنى الحركة حتى يبدو الموقع كقطعة واحدة.
+   ========================================================================== */
+
+.t-none { transition: none; }
+
+.t-transform { transition: transform var(--ds-dur) var(--ds-ease-out); }
+.t-opacity { transition: opacity var(--ds-dur) var(--ds-ease-out); }
+.t-shadow { transition: box-shadow var(--ds-dur) var(--ds-ease-out); }
+
+.t-motion {
+  transition:
+    transform var(--ds-dur) var(--ds-ease-out),
+    opacity var(--ds-dur) var(--ds-ease-out);
+}
+
+.t-colors {
+  transition:
+    color var(--ds-dur-fast) var(--ds-ease-out),
+    background-color var(--ds-dur-fast) var(--ds-ease-out),
+    border-color var(--ds-dur-fast) var(--ds-ease-out);
+}
+
+/* وصفات جاهزة */
+.hover-lift {
+  transition:
+    transform var(--ds-dur) var(--ds-ease-out),
+    box-shadow var(--ds-dur) var(--ds-ease-out);
+}
+.hover-lift:hover {
+  transform: translate3d(0, -4px, 0);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.hover-scale {
+  transition: transform var(--ds-dur) var(--ds-ease-spring);
+}
+.hover-scale:hover {
+  transform: scale(1.03);
+}
+
+.hover-glow {
+  transition:
+    box-shadow var(--ds-dur) var(--ds-ease-out),
+    border-color var(--ds-dur) var(--ds-ease-out);
+}
+.hover-glow:hover {
+  box-shadow: var(--ds-shadow-brand);
+  border-color: var(--brand-300, #93c5fd);
+}
+
+.hover-fade {
+  transition: opacity var(--ds-dur-fast) var(--ds-ease-out);
+}
+.hover-fade:hover { opacity: 0.82; }
+
+/* سهم ينزاح نحو نهاية السطر عند المرور (يدعم RTL) */
+.hover-nudge {
+  display: inline-block;
+  transition: transform var(--ds-dur) var(--ds-ease-out);
+}
+.hover-nudge-parent:hover .hover-nudge {
+  transform: translateX(4px);
+}
+[dir='rtl'] .hover-nudge-parent:hover .hover-nudge {
+  transform: translateX(-4px);
+}
+
+.press:active { transform: scale(0.97); }
+
+
+/* ==========================================================================
+   08. الظهور عند التمرير
+   --------------------------------------------------------------------------
+   الحالة المخفيّة مُقيَّدة بـ `html.ds-js` — وهو صنف يُضاف من سكربت مضمّن
+   قبل رسم الصفحة. بذلك:
+     · لا يوجد وميض (flash) عند التحميل.
+     · إذا كان JavaScript معطّلًا لا يُضاف الصنف وتبقى كل العناصر ظاهرة.
+   ========================================================================== */
+
+html.ds-js [data-reveal] {
+  opacity: 0;
+  will-change: opacity, transform;
+  /*
+    `--reveal-delay` is written inline by the engine (`animations.js`) from the
+    `data-reveal-delay` / `data-reveal-stagger` attributes; `--ds-reveal-delay`
+    is the design-system default (0ms). Both are honoured, in that order —
+    reading only `--ds-reveal-delay` silently made every declared delay a no-op.
+
+    The two properties are given *different durations on purpose*: opacity runs
+    the full length, transform finishes ~18% earlier. When they share one
+    duration the element arrives and fades out of lockstep, which reads as a
+    single abrupt "pop". Letting the slide settle slightly before the fade
+    completes is the main reason the entrance feels liquid rather than snappy.
+  */
+  transition:
+    opacity var(--ds-reveal-dur, var(--ds-dur-reveal)) var(--ds-reveal-ease) var(--reveal-delay, var(--ds-reveal-delay)),
+    transform calc(var(--ds-reveal-dur, var(--ds-dur-reveal)) * 0.82) var(--ds-reveal-ease) var(--reveal-delay, var(--ds-reveal-delay));
+}
+
+/* الاتجاهات */
+html.ds-js [data-reveal='up'] {
+  transform: translate3d(0, var(--ds-reveal-distance), 0);
+}
+html.ds-js [data-reveal='down'] {
+  transform: translate3d(0, calc(var(--ds-reveal-distance) * -1), 0);
+}
+html.ds-js [data-reveal='left'] {
+  transform: translate3d(calc(var(--ds-reveal-distance) * -1), 0, 0);
+}
+html.ds-js [data-reveal='right'] {
+  transform: translate3d(var(--ds-reveal-distance), 0, 0);
+}
+
+/* اتجاهات منطقية: start تعني «من جهة بداية القراءة» */
+html.ds-js [data-reveal='start'] {
+  transform: translate3d(calc(var(--ds-reveal-distance) * -1), 0, 0);
+}
+html.ds-js [dir='rtl'] [data-reveal='start'] {
+  transform: translate3d(var(--ds-reveal-distance), 0, 0);
+}
+html.ds-js [data-reveal='end'] {
+  transform: translate3d(var(--ds-reveal-distance), 0, 0);
+}
+html.ds-js [dir='rtl'] [data-reveal='end'] {
+  transform: translate3d(calc(var(--ds-reveal-distance) * -1), 0, 0);
+}
+
+html.ds-js [data-reveal='zoom'] {
+  transform: scale(var(--ds-reveal-scale));
+}
+html.ds-js [data-reveal='zoom-in'] {
+  transform: scale(1.06);
+}
+html.ds-js [data-reveal='fade'] {
+  transform: none;
+}
+
+/* الحالة النهائية — تُكتب بعد كل ما سبق لتتغلّب عليه */
+html.ds-js [data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+
+/* ==========================================================================
+   09. الوصولية
+   ========================================================================== */
+
+.u-sr-only {
+  position: absolute !important;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* ==========================================================================
+   10. الطباعة
+   ========================================================================== */
+
+@media print {
+  html.ds-js [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+
+/* ==========================================================================
+   11. انتقالات مطبَّقة على مكوّنات الموقع
+   --------------------------------------------------------------------------
+   كل قاعدة هنا **تُضيف** انتقالًا غائبًا فقط، ولا تُلغي أي شيء قائم.
+   استُخدم `:where()` لتصفير الخصوصية عمدًا: إذا كان العنصر يملك انتقالًا
+   في globals.css / refresh.css فإن قاعدة الموقع تفوز — فنحن نكمّل الناقص فقط.
+   ========================================================================== */
+
+/* --- 11.1 الترويسة: كان تغيير الخلفية والظل عند التمرير يحدث فجأة --------- */
+:where(.site-header) {
+  transition:
+    background-color var(--ds-dur) var(--ds-ease-out),
+    box-shadow var(--ds-dur) var(--ds-ease-out),
+    backdrop-filter var(--ds-dur) var(--ds-ease-out);
+}
+
+/* --- 11.2 زر قائمة الجوال ------------------------------------------------ */
+:where(.site-menu-toggle) {
+  transition:
+    transform var(--ds-dur-fast) var(--ds-ease-out),
+    border-color var(--ds-dur-fast) var(--ds-ease-out),
+    background-color var(--ds-dur-fast) var(--ds-ease-out),
+    color var(--ds-dur-fast) var(--ds-ease-out);
+}
+.site-menu-toggle:active { transform: scale(0.94); }
+
+:where(.site-mobile-nav nav > a) {
+  transition:
+    background-color var(--ds-dur-fast) var(--ds-ease-out),
+    color var(--ds-dur-fast) var(--ds-ease-out);
+}
+
+/* دخول ناعم للوحة الجوال عند فتحها (opacity + transform فقط)
+   `backwards` لا `both`: الحركة المنتهية بـ`both` تُبقي إطارها الأخير مُطبَّقًا
+   للأبد، و`ds-panel-in` ينتهي عند `transform: translate3d(0,0,0)` — أي مصفوفة
+   محايدة تحتلّ خانة `transform` نهائيًا وتمنع أي تحويم أو `transform` يكتبه JS
+   على اللوحة. مع `backwards` يتحرّر `transform` فور انتهاء الحركة. */
+.site-mobile-nav.is-open {
+  animation: ds-panel-in var(--ds-dur-slow) var(--ds-ease-out) backwards;
+}
+
+@keyframes ds-panel-in {
+  from { opacity: 0; transform: translate3d(0, -10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* --- 11.3 شعار الموقع ---------------------------------------------------- */
+:where(.site-brand-mark) {
+  transition: transform var(--ds-dur) var(--ds-ease-spring);
+}
+.site-brand:hover .site-brand-mark { transform: scale(1.07) rotate(-3deg); }
+
+/* --- 11.4 الشريط العلوي -------------------------------------------------- */
+:where(.site-topline-inner > a) {
+  transition:
+    color var(--ds-dur-fast) var(--ds-ease-out),
+    opacity var(--ds-dur-fast) var(--ds-ease-out);
+}
+:where(.site-topline-inner > a svg) {
+  transition: transform var(--ds-dur) var(--ds-ease-out);
+}
+.site-topline-inner > a:hover svg { transform: translateX(-3px); }
+
+/* --- 11.5 الروابط النصية ------------------------------------------------- */
+:where(.site-inline-link) {
+  transition:
+    color var(--ds-dur-fast) var(--ds-ease-out),
+    opacity var(--ds-dur-fast) var(--ds-ease-out);
+}
+:where(.site-text-link svg) {
+  transition: transform var(--ds-dur) var(--ds-ease-out);
+}
+.site-text-link:hover svg { transform: translateX(-3px); }
+
+:where(.site-footer-cta) {
+  transition:
+    color var(--ds-dur-fast) var(--ds-ease-out),
+    opacity var(--ds-dur-fast) var(--ds-ease-out);
+}
+
+/* --- 11.6 روابط التذييل: كانت يتغيّر لونها فجأة --------------------------- */
+:where(.site-footer-links a) {
+  transition:
+    color var(--ds-dur-fast) var(--ds-ease-out),
+    transform var(--ds-dur-fast) var(--ds-ease-out);
+}
+.site-footer-links a:hover { transform: translateY(-1px); }
+
+/* --- 11.7 (محذوف) شرائح المدن في الشريط المتحرك ------------------------
+   `.site-city-track` كان شريطًا متحركًا بأسماء المدن، وقد استُبدل بالقسم
+   `components/cities-section.tsx`. القاعدة كانت ميتة (لا شيء يستخدم الصنف)
+   فحُذفت. */
+
+/* --- 11.8 (محذوف) أزرار معرض المدن --------------------------------------
+   كانت هذه القاعدة تخصّ `.city-gallery-button`، وقد استُبدل المعرض بمكوّن
+   `components/cities-section.tsx` الذي يبني أزراره بأدوات Tailwind مباشرةً.
+   لا تُعِد إضافة قواعد غير مُطبَّقة في layer لأصناف هذا المعرض: القواعد غير
+   المُطبَّقة تتقدّم على كل أدوات Tailwind فتُبطل تنسيق المكوّن بصمت. */
+
+/* --- 11.9 مؤشّر «مباشر»: نبضة خفيفة (opacity + transform فقط) ------------ */
+.site-live-dot {
+  animation: ds-live-pulse 2.6s var(--ds-ease-in-out) infinite;
+}
+
+@keyframes ds-live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.82); }
+}
+
+/* --- 11.10 حلقة التركيز: انتقال ناعم ------------------------------------ */
+:where(:focus-visible) {
+  transition:
+    outline-color var(--ds-dur-fast) var(--ds-ease-out),
+    box-shadow var(--ds-dur-fast) var(--ds-ease-out);
+}
+
+
+/* ==========================================================================
+   12. وصفات إضافية
+   ========================================================================== */
+
+.t-bg {
+  transition:
+    background-color var(--ds-dur) var(--ds-ease-out),
+    border-color var(--ds-dur) var(--ds-ease-out);
+}
+
+/* خط سفلي ينمو من جهة بداية القراءة (RTL-aware) */
+.hover-underline {
+  position: relative;
+}
+.hover-underline::after {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -3px;
+  block-size: 2px;
+  border-radius: var(--ds-radius-pill);
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right; /* RTL: تنمو من اليمين */
+  content: '';
+  transition: transform var(--ds-dur) var(--ds-ease-out);
+}
+.hover-underline:hover::after,
+.hover-underline:focus-visible::after {
+  transform: scaleX(1);
+}
+
+
+/* ==========================================================================
+   13. عارض الصور — yet-another-react-lightbox
+   --------------------------------------------------------------------------
+   أنماط المكتبة نفسها تُبطل انتقال البوابة ونبض التحميل عند تفعيل «تقليل
+   الحركة». نُعيد هنا **القيم الأصلية نفسها** التي تستخدمها المكتبة في حالتها
+   الطبيعية، بلا أي شرط — فيبقى فتح/إغلاق العارض وحركة مؤشر التحميل طبيعيين.
+
+   `!important` لأن أنماط المكتبة تُستورد بعد هذا الملف في `app/layout.tsx`.
+   ملاحظة: نستخدم الخصائص المفردة (animation-name/duration/...) لا المختصر،
+   حتى لا نمسح تأخيرات كل خط من خطوط المؤشّر.
+   ========================================================================== */
+
+.yarl__portal {
+  transition: opacity var(--yarl__fade_animation_duration, 0.25s)
+    var(--yarl__fade_animation_timing_function, ease) !important;
+}
+
+.yarl__slide_loading {
+  animation-name: yarl__delayed_fadein !important;
+  animation-duration: 1s !important;
+  animation-timing-function: linear !important;
+}
+
+.yarl__slide_loading line {
+  animation-name: yarl__stroke_opacity !important;
+  animation-duration: 1s !important;
+  animation-timing-function: linear !important;
+  animation-iteration-count: infinite !important;
+}
+
+

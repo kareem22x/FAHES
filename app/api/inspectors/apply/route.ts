@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { assertSameOrigin } from '@/lib/origin'
-import { easternProvinceCities } from '@/lib/eastern-province'
-import { inspectorAvailabilities, inspectorSpecialties, type InspectorApplicationInput } from '@/lib/types'
+import { SUPPORTED_CITIES, isOperationalCity } from '@/lib/locations/saudi-cities'
+import { inspectorAvailabilities, inspectorSpecialties, type InspectorApplicationInput } from '@/types/domain'
 import { SupabaseInspectorApplicationsMigrationRequiredError } from '@/lib/supabase/server'
 import { getUserById, submitInspectorApplication } from '@/lib/user-store'
 
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
   const { experienceYears, cities, specialties, qualification, availability, hasEquipment, notes } = input
   if (
     typeof experienceYears !== 'number' || !Number.isInteger(experienceYears) || experienceYears < 0 || experienceYears > 60 ||
-    !Array.isArray(cities) || cities.length < 1 || cities.length > easternProvinceCities.length ||
-    !cities.every((city): city is string => typeof city === 'string' && easternProvinceCities.includes(city)) ||
+    !Array.isArray(cities) || cities.length < 1 || cities.length > SUPPORTED_CITIES.length ||
+    !cities.every((city): city is string => typeof city === 'string' && isOperationalCity(city)) ||
     new Set(cities).size !== cities.length ||
     !Array.isArray(specialties) || specialties.length < 1 || specialties.length > inspectorSpecialties.length ||
     !specialties.every((specialty): specialty is string => typeof specialty === 'string' && inspectorSpecialties.includes(specialty as (typeof inspectorSpecialties)[number])) ||

@@ -3,6 +3,8 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
+const REVEAL_SELECTOR = '.reveal, .stagger-on-view'
+
 /**
  * Progressive-enhancement scroll effects:
  *
@@ -18,32 +20,64 @@ export default function ScrollReveal() {
   useEffect(() => {
     document.documentElement.classList.add('js')
 
-    const targets = document.querySelectorAll<HTMLElement>('.reveal:not(.is-visible), .stagger-on-view:not(.is-visible)')
-    let observer: IntersectionObserver | undefined
-
     if (typeof IntersectionObserver === 'undefined') {
-      targets.forEach((element) => element.classList.add('is-visible'))
-    } else if (targets.length > 0) {
-      observer = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting) continue
-            entry.target.classList.add('is-visible')
-            observer?.unobserve(entry.target)
-          }
-        },
-        { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
-      )
-      targets.forEach((element) => observer.observe(element))
+      document.documentElement.classList.remove('js')
+      return
     }
 
-    return () => observer?.disconnect()
+    const observed = new Set<Element>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          entry.target.classList.add('is-visible')
+          observer.unobserve(entry.target)
+          observed.delete(entry.target)
+        }
+      },
+      // Matches the trigger geometry in `public/css-system/animations.js` so the
+      // two reveal systems move in step: begin while the element is still just
+      // below the fold (positive bottom margin), and fire on the first
+      // intersecting pixel rather than waiting for a fraction of it. A positive
+      // threshold makes short elements sit at the fold doing nothing.
+      { rootMargin: '0px 0px 8% 0px', threshold: 0 },
+    )
+
+    const observeWithin = (root: Element | Document) => {
+      const targets: Element[] = []
+      if (root instanceof Element && root.matches(REVEAL_SELECTOR)) targets.push(root)
+      targets.push(...root.querySelectorAll(REVEAL_SELECTOR))
+      for (const target of targets) {
+        if (observed.has(target) || target.classList.contains('is-visible')) continue
+        observed.add(target)
+        observer.observe(target)
+      }
+    }
+
+    observeWithin(document)
+
+    // The App Router mounts the incoming page *after* this effect fires —
+    // `AnimatePresence` in PageTransition holds the outgoing tree for its exit
+    // first — so a one-shot query would miss every reveal on the next page and
+    // leave it stuck at opacity 0. Watching the DOM catches freshly mounted
+    // subtrees (client-rendered lists too) no matter when they arrive.
+    const mutations = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) observeWithin(node as Element)
+        }
+      }
+    })
+    mutations.observe(document.body, { childList: true, subtree: true })
+
+    return () => {
+      mutations.disconnect()
+      observer.disconnect()
+      observed.clear()
+    }
   }, [pathname])
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (reduced.matches) return
-
     const elements = document.querySelectorAll<HTMLElement>('[data-parallax]')
     if (elements.length === 0) return
 

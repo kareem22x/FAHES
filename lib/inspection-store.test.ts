@@ -11,7 +11,7 @@ vi.mock('@/lib/supabase/server', () => ({
   getSupabaseAdmin: mocks.getSupabaseAdmin,
 }))
 
-import { acceptInspectionOffer, submitInspectionOffer } from '@/lib/inspection-store'
+import { acceptInspectionOffer, listOpenInspectionsForInspector, submitInspectionOffer } from '@/lib/inspection-store'
 
 const input = {
   inspectionId: 'FH-2026-ABC12345',
@@ -114,5 +114,112 @@ describe('Supabase inspection operations', () => {
       customerId: '0d3c6d7b-a141-41a4-9264-ef79ab7b9faa',
     })).resolves.toEqual({ error: 'forbidden' })
     expect(mocks.from).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * الرجوع لسبب الفشل — لا لكونه فشلًا فقط.
+ *
+ * الشكوى الأصلية كانت «الطلب لم يعد متاحًا» تظهر لطلب متاح فعلًا. السبب أن كل
+ * النتائج غير الناجحة كانت تُسوَّى إلى نصّ واحد، فلم يستطع المستخدم ولا نحن
+ * التمييز بين «سبقك فاحص» و«خارج مدنك» و«سبق أن قدّمت». هذه الاختبارات تثبّت
+ * أن السبب يعبر من القاعدة إلى طبقة Node سليمًا.
+ */
+describe('offer failure reasons reach the caller intact', () => {
+  beforeEach(() => {
+    mocks.rpc.mockReset()
+    mocks.from.mockReset()
+    mocks.getSupabaseAdmin.mockReturnValue({ rpc: mocks.rpc, from: mocks.from })
+  })
+
+  it('passes the real inspection status back when the request already left the open state', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: { status: 'closed', inspectionStatus: 'assigned' },
+      error: null,
+    })
+
+    await expect(submitInspectionOffer(input)).resolves.toEqual({
+      error: 'closed',
+      inspectionStatus: 'assigned',
+    })
+  })
+
+  it('keeps «closed» distinct from «not_found»', async () => {
+    mocks.rpc.mockResolvedValue({ data: { status: 'not_found' }, error: null })
+
+    const result = await submitInspectionOffer(input)
+    expect(result).toMatchObject({ error: 'not_found' })
+    expect(result).not.toMatchObject({ error: 'closed' })
+  })
+
+  it('reports an out-of-coverage request as forbidden rather than as unavailable', async () => {
+    mocks.rpc.mockResolvedValue({ data: { status: 'forbidden' }, error: null })
+
+    await expect(submitInspectionOffer(input)).resolves.toEqual({ error: 'forbidden' })
+  })
+
+  it('never collapses an unknown outcome into a success', async () => {
+    mocks.rpc.mockResolvedValue({ data: { status: 'ok' }, error: null })
+
+    await expect(submitInspectionOffer(input)).resolves.toEqual({
+      error: 'ok',
+      inspectionStatus: undefined,
+    })
+  })
+})
+
+/**
+ * المدن مصدرها القاعدة لا الذاكرة.
+ *
+ * كان الاستعلام يمرّر `cities` القادمة من الكائن المحمّل في الجلسة، فتختلف عن
+ * القاعدة إن غيّر الفاحص مدنه في تبويب آخر. الدالة الجديدة تقرأ المدن من
+ * القاعدة داخل الاستعلام نفسه؛ التوقيع يبقى يحمل `cities` للمسار الاحتياطي
+ * وحده. هذا الاختبار يثبّت أن النداء الأساسي لا يعتمد عليها.
+ */
+describe('eligible inspections are filtered in the database', () => {
+  beforeEach(() => {
+    mocks.rpc.mockReset()
+    mocks.from.mockReset()
+    mocks.getSupabaseAdmin.mockReturnValue({ rpc: mocks.rpc, from: mocks.from })
+  })
+
+  it('prefers the database function and does not scan the table when it exists', async () => {
+    mocks.rpc.mockResolvedValue({ data: [], error: null })
+
+    await listOpenInspectionsForInspector(input.inspectorId, ['مدينة-قديمة-في-الذاكرة'])
+
+    expect(mocks.rpc).toHaveBeenCalledWith('list_eligible_inspections', {
+      p_inspector_id: input.inspectorId,
+      p_limit: 200,
+    })
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the scoped query when the migration is not applied yet', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'Could not find the function public.list_eligible_inspections' },
+    })
+    const query = { select: vi.fn(), eq: vi.fn(), in: vi.fn(), neq: vi.fn(), order: vi.fn(), limit: vi.fn() }
+    for (const key of ['select', 'eq', 'in', 'neq', 'order', 'limit'] as const) {
+      query[key].mockReturnValue(query)
+    }
+    query.limit.mockResolvedValue({ data: [], error: null })
+    mocks.from.mockReturnValue(query)
+
+    await expect(listOpenInspectionsForInspector(input.inspectorId, ['الدمام'])).resolves.toEqual([])
+    expect(mocks.from).toHaveBeenCalledWith('inspections')
+    expect(query.in).toHaveBeenCalledWith('city', ['الدمام'])
+  })
+
+  it('does not swallow a genuine database failure', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { code: '57014', message: 'canceling statement due to statement timeout' },
+    })
+
+    await expect(listOpenInspectionsForInspector(input.inspectorId, ['الدمام'])).rejects.toThrow(
+      /statement timeout/,
+    )
   })
 })

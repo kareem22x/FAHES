@@ -11,6 +11,19 @@
    chunk turns the rule that follows it into an unreachable selector.
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   Shell.
+   `.app-shell` becomes a flex ROW above 1160px — that is the dashboard
+   layout, where `.app-sidebar` sits *beside* `.app-main`. This page puts the
+   public `<header>` there instead, so the two ended up side by side: the
+   header was squeezed into ~400px on the right and `.app-main` was starved of
+   the rest of the viewport (1024px of 1425px), which pushed the whole form off
+   centre. Force a column so the header spans the full width above the content.
+   Higher specificity than the `@media (max-width: 1160px)` rule, so it wins at
+   every width.
+   -------------------------------------------------------------------------- */
+.app-shell.is-stacked { display: flex; flex-direction: column; }
+
 .wiz-main { width: min(820px, 100%); margin-inline: auto; }
 
 /* --- Page head (a touch tighter than the dashboard default) --------------- */
@@ -23,7 +36,7 @@
 
 .wiz-steps-panel { width: min(820px, 100%); margin-inline: auto; padding: 1.05rem 1.2rem 1.15rem; }
 .wiz-steps-panel .app-panel-head { align-items: center; margin-bottom: .9rem; }
-.wiz-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.wiz-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; margin: 0; padding: 0; list-style: none; }
 .wiz-step {
   display: flex;
   min-height: 62px;
@@ -75,6 +88,11 @@
 .wiz-hint { border-radius: var(--radius-pill); background: #f3f6fa; padding: .12rem .5rem; color: #7e8da0; font-size: var(--text-2xs); font-weight: 600; }
 .wiz-field input, .wiz-field select, .wiz-field textarea { width: 100%; }
 
+/* The plate is a fixed-aspect object sitting in a field that is wider than its
+   cap, so left alone it hugs the inline-start edge with dead space beside it.
+   Centre the whole component (plate + its two auxiliary fields) instead. */
+.wiz-plate { justify-self: center; }
+
 /* --- Choice cards (inspection type) -------------------------------------- */
 
 .wiz-choices { display: grid; gap: .7rem; }
@@ -109,6 +127,14 @@
 .wiz-review-row dt svg { flex: 0 0 auto; color: var(--brand-500); }
 .wiz-review-row dd { margin: 0; color: var(--ink-800); font-size: var(--text-base); font-weight: 700; line-height: 1.75; }
 .wiz-review-note { margin: 0; color: var(--ink-700); font-size: var(--text-base); line-height: 1.9; }
+.wiz-consent { display: flex; align-items: flex-start; gap: .75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff; padding: 1rem; color: var(--ink-700); font-size: var(--text-sm); line-height: 1.9; cursor: pointer; }
+.wiz-consent input { width: 19px; height: 19px; flex: 0 0 auto; margin: .2rem 0 0; accent-color: var(--brand-600); }
+.wiz-consent strong { display: block; margin-bottom: .2rem; color: var(--ink-800); }
+.wiz-terms-link { margin: -.55rem 0 0; padding-inline-start: 2.8rem; font-size: var(--text-2xs); }
+.wiz-terms-link a { color: var(--brand-700); font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
+.wiz-note.is-payment-preview { border-color: #f3dfb6; background: #fffbeb; }
+.wiz-note.is-payment-preview .wiz-note-icon { color: #a16207; }
+.wiz-note.is-payment-preview p { color: #713f12; }
 
 /* --- Wizard footer + responsive ------------------------------------------ */
 
@@ -126,7 +152,16 @@
   .wiz-steps-panel { border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0 0 .4rem; }
   .wiz-steps-panel .app-panel-head { margin-bottom: .7rem; }
   .wiz-steps-panel .app-panel-head p { display: none; }
-  .wiz-steps { display: flex; justify-content: center; gap: .4rem; overflow-x: auto; padding-bottom: .2rem; scrollbar-width: none; }
+  /*
+   * `safe center`, not plain `center`: with `overflow-x: auto` a centred flex
+   * row that overflows pushes its leading item past the *unscrollable* start
+   * edge, so on a 320px phone the current step's label was clipped with no way
+   * to scroll back to it. `safe` falls back to `flex-start` exactly when the
+   * content overflows, and keeps centring when it fits.
+   * Browsers without `safe` support drop the whole declaration and inherit
+   * `normal` (→ flex-start) from the base rule — still scroll-safe.
+   */
+  .wiz-steps { display: flex; justify-content: safe center; gap: .4rem; overflow-x: auto; padding-bottom: .2rem; scrollbar-width: none; }
   .wiz-steps::-webkit-scrollbar { display: none; }
   .wiz-step { min-height: 0; max-width: none; flex: 0 0 auto; flex-direction: column; gap: .35rem; background: transparent; padding: .25rem; text-align: center; }
   .wiz-step-text strong { font-size: var(--text-2xs); }

@@ -14,6 +14,21 @@ __v0_jsx-dev-runtime.ts
 # Kept out of lint/typecheck/Tailwind scans and out of version control.
 deepseek-harness/
 .shots*/
+.opencode/
+dev-server.log
+dev-run.log
+dev-server-live.log
+tsconfig.baseline.tsbuildinfo
+
+# WorkBuddy AI workspace data (memory, skills — not app code)
+.workbuddy-ai/
+
+# Other local artifacts
+.freebuff/
+backwards
+design-backup/
+supabase/.temp/
+middleware.ts.backup
 
 # Common ignores
 node_modules
@@ -22,3 +37,15 @@ data/
 *.tsbuildinfo
 .DS_Store
 .clerk/
+
+# 🚨 Local probe/scratch files. These routinely carry live credentials
+# (Supabase keys, tokens) written by ad-hoc verification scripts — one was
+# created on 2026-10-03 with a real secret key inside. Never commit them.
+.tmp-*
+tmp-*
+scripts/probe-*.mjs
+cdp-profile/
+.cdp-profile/
+
+.vercel
+.env*

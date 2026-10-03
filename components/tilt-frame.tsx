@@ -6,8 +6,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
  * Pointer-driven 3D tilt for the hero illustration. Children wrapped in
  * `.tilt-layer` drift on their own depth, which reads as a soft parallax.
  *
- * Only active for fine pointers when the visitor has not asked for reduced
- * motion, so touch devices and reduced-motion users get a static card.
+ * Only active for fine pointers, so touch devices get a static card.
  */
 export default function TiltFrame({
   children,
@@ -22,16 +21,11 @@ export default function TiltFrame({
   const [enabled, setEnabled] = useState(false)
 
   useEffect(() => {
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
     const pointer = window.matchMedia('(hover: hover) and (pointer: fine)')
-    const sync = () => setEnabled(!motion.matches && pointer.matches)
+    const sync = () => setEnabled(pointer.matches)
     sync()
-    motion.addEventListener('change', sync)
     pointer.addEventListener('change', sync)
-    return () => {
-      motion.removeEventListener('change', sync)
-      pointer.removeEventListener('change', sync)
-    }
+    return () => pointer.removeEventListener('change', sync)
   }, [])
 
   const onPointerMove = useCallback(

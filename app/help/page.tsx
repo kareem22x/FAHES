@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import BrandMark from '@/components/brand-mark'
 import SiteHeader from '@/components/site-header'
-import { easternProvinceCities } from '@/lib/eastern-province'
+import { COMING_SOON_CITIES, SUPPORTED_CITIES } from '@/lib/locations/saudi-cities'
 import {
   ArrowLeft,
   BadgeCheck,
@@ -56,7 +56,7 @@ export default function HelpPage() {
           <p>كل ما تحتاجه للبدء: خطوات طلب الفحص، إجابات الأسئلة المتكررة، والمدن المشمولة في المنطقة الشرقية.</p>
           <div className="pub-meta">
             <span className="pub-chip"><ClipboardList size={14} /> خطوات الطلب بالتفصيل</span>
-            <span className="pub-chip"><MapPin size={14} /> {easternProvinceCities.length} مدينة ومحافظة</span>
+            <span className="pub-chip"><MapPin size={14} /> {SUPPORTED_CITIES.length} مدن متاحة الآن</span>
             <span className="pub-chip"><Wallet size={14} /> الدفع الإلكتروني غير مفعّل حاليًا</span>
           </div>
         </div>
@@ -102,9 +102,17 @@ export default function HelpPage() {
           <div className="reveal">
             <span className="site-eyebrow site-eyebrow-light">تغطيتنا في المنطقة الشرقية</span>
             <h2>وش المدن المشمولة؟<br /><span>نفحصها عنك.</span></h2>
-            <p>نغطي مدن ومحافظات الشرقية التالية. اختر موقع السيارة عند إرسال طلبك.</p>
+            <p>نغطي حالياً {SUPPORTED_CITIES.length} مدن في المنطقة الشرقية. اختر موقع السيارة عند إرسال طلبك.</p>
           </div>
-          <div className="site-city-list stagger-on-view">{easternProvinceCities.map((city) => <span key={city}><MapPin size={15} />{city}</span>)}</div>
+          {/*
+            Split rather than one flat list: the covered cities are the answer to
+            the question, the rest are a roadmap. Showing them at equal weight
+            would imply we serve cities the booking form rejects.
+          */}
+          <div className="site-city-list stagger-on-view">
+            {SUPPORTED_CITIES.map((city) => <span key={city}><MapPin size={15} />{city}</span>)}
+          </div>
+          <p className="site-cities-disclaimer">مدن قادمة قريباً: {COMING_SOON_CITIES.join('، ')}.</p>
           <div className="site-cities-decoration" aria-hidden="true"><MapPin size={74} strokeWidth={0.8} /></div>
         </div>
       </section>
