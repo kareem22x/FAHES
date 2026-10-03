@@ -203,11 +203,11 @@ export function CommandPaletteTrigger() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event('admin:command-palette'))}
-      className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-neutral-100 sm:flex"
+      className="hidden items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-3 py-1.5 text-[11px] text-[#64748b] transition-colors hover:border-[#bfdbfe] hover:bg-[#eff6ff] hover:text-[#2563eb] sm:flex"
     >
       <Search className="size-3" />
       بحث سريع
-      <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-neutral-500">Ctrl K</kbd>
+      <kbd className="rounded border border-[#e2e8f0] bg-[#f8fafc] px-1.5 py-0.5 text-[10px] text-[#94a3b8]">Ctrl K</kbd>
     </button>
   )
 }

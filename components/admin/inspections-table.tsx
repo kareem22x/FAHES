@@ -3,7 +3,7 @@
 import { useActionState, useState } from 'react'
 import { Check, Flag, MessageSquarePlus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { GlassBadge, GlassButton } from '@/components/admin/ui/glass'
+import { GlassBadge } from '@/components/admin/ui/glass'
 import { DataTable, type Column } from '@/components/admin/ui/data-table'
 import { addInspectionNoteAction, cancelInspectionAction, reviewInspectionAction } from '@/lib/admin/actions'
 import { reviewDecisionLabels, reviewDecisionTone, type ReviewDecision } from '@/lib/admin/labels'
@@ -53,10 +53,8 @@ function RowActions({ row }: { row: InspectionRow }) {
           disabled={reviewPending}
           title="اعتماد"
           className={cn(
-            'rounded-md border px-1.5 py-1 transition-colors disabled:opacity-50',
-            row.decision === 'approved'
-              ? 'border-emerald-400/40 bg-emerald-400/20 text-emerald-200'
-              : 'border-white/10 bg-white/5 text-neutral-400 hover:bg-emerald-400/10 hover:text-emerald-300',
+            'admin-row-action',
+            row.decision === 'approved' && 'is-good',
           )}
         >
           <Check className="size-3" />
@@ -68,10 +66,8 @@ function RowActions({ row }: { row: InspectionRow }) {
           disabled={reviewPending}
           title="رفض"
           className={cn(
-            'rounded-md border px-1.5 py-1 transition-colors disabled:opacity-50',
-            row.decision === 'rejected'
-              ? 'border-rose-400/40 bg-rose-400/20 text-rose-200'
-              : 'border-white/10 bg-white/5 text-neutral-400 hover:bg-rose-400/10 hover:text-rose-300',
+            'admin-row-action',
+            row.decision === 'rejected' && 'is-bad',
           )}
         >
           <X className="size-3" />
@@ -83,10 +79,8 @@ function RowActions({ row }: { row: InspectionRow }) {
           disabled={reviewPending}
           title="تعليم للمراجعة"
           className={cn(
-            'rounded-md border px-1.5 py-1 transition-colors disabled:opacity-50',
-            row.decision === 'flagged'
-              ? 'border-amber-400/40 bg-amber-400/20 text-amber-200'
-              : 'border-white/10 bg-white/5 text-neutral-400 hover:bg-amber-400/10 hover:text-amber-300',
+            'admin-row-action',
+            row.decision === 'flagged' && 'is-warn',
           )}
         >
           <Flag className="size-3" />
@@ -97,7 +91,7 @@ function RowActions({ row }: { row: InspectionRow }) {
         <button
           type="button"
           onClick={() => setNoteOpen((current) => !current)}
-          className="inline-flex items-center gap-1 text-[10px] text-neutral-500 hover:text-neutral-300"
+          className="inline-flex items-center gap-1 text-[10px] text-[#64748b] hover:text-[#0f172a]"
         >
           <MessageSquarePlus className="size-3" /> ملاحظة
         </button>
@@ -108,14 +102,14 @@ function RowActions({ row }: { row: InspectionRow }) {
               <button
                 type="submit"
                 disabled={cancelPending}
-                className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-medium text-rose-200 disabled:opacity-50"
+                className="admin-btn admin-btn-sm admin-btn-danger"
               >
                 {cancelPending ? '…' : 'تأكيد الإلغاء'}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmCancel(false)}
-                className="text-[10px] text-neutral-500 hover:text-neutral-300"
+                className="text-[10px] text-[#64748b] hover:text-[#0f172a]"
               >
                 تراجع
               </button>
@@ -124,7 +118,7 @@ function RowActions({ row }: { row: InspectionRow }) {
             <button
               type="button"
               onClick={() => setConfirmCancel(true)}
-              className="text-[10px] text-rose-400/70 hover:text-rose-300"
+              className="text-[10px] text-[#e11d48] hover:text-[#be123c]"
             >
               إلغاء الطلب
             </button>
@@ -138,15 +132,19 @@ function RowActions({ row }: { row: InspectionRow }) {
             name="note"
             defaultValue={row.note}
             placeholder="ملاحظة إدارية…"
-            className="w-40 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-sky-400/50"
+            className="admin-search-input w-40"
           />
-          <GlassButton size="sm" type="submit" disabled={notePending}>
+          <button className="admin-btn admin-btn-sm admin-btn-solid" type="submit" disabled={notePending}>
             حفظ
-          </GlassButton>
+          </button>
         </form>
       )}
 
-      {message && <span className={cn('text-[10px]', message.ok ? 'text-emerald-400' : 'text-rose-400')}>{message.message}</span>}
+      {message && (
+        <span className={cn('text-[10px]', message.ok ? 'text-[#15803d]' : 'text-[#e11d48]')}>
+          {message.message}
+        </span>
+      )}
     </div>
   )
 }
@@ -161,10 +159,10 @@ export function InspectionsTable({ rows }: { rows: InspectionRow[] }) {
       exportValue: (row) => row.id,
       render: (row) => (
         <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium text-neutral-100">
-            {row.vehicle} <span className="text-[10px] font-normal text-neutral-500">{row.year}</span>
+          <span className="truncate font-medium text-[#0f172a]">
+            {row.vehicle} <span className="text-[10px] font-normal text-[#64748b]">{row.year}</span>
           </span>
-          <span dir="ltr" className="truncate text-right text-[10px] text-neutral-600">
+          <span dir="ltr" className="truncate text-right text-[10px] text-[#94a3b8]">
             {row.id}
           </span>
         </div>
@@ -175,7 +173,7 @@ export function InspectionsTable({ rows }: { rows: InspectionRow[] }) {
       header: 'العميل',
       sortValue: (row) => row.customerName,
       exportValue: (row) => row.customerName,
-      render: (row) => <span className="text-neutral-300">{row.customerName}</span>,
+      render: (row) => <span className="text-[#334155]">{row.customerName}</span>,
     },
     {
       key: 'city',
@@ -183,9 +181,9 @@ export function InspectionsTable({ rows }: { rows: InspectionRow[] }) {
       sortValue: (row) => row.city,
       exportValue: (row) => `${row.city} - ${row.district}`,
       render: (row) => (
-        <span className="text-neutral-400">
+        <span className="text-[#475569]">
           {row.city}
-          <span className="block text-[10px] text-neutral-600">{row.district}</span>
+          <span className="block text-[10px] text-[#94a3b8]">{row.district}</span>
         </span>
       ),
     },
@@ -194,7 +192,7 @@ export function InspectionsTable({ rows }: { rows: InspectionRow[] }) {
       header: 'الفاحص',
       sortValue: (row) => row.inspectorName ?? '',
       exportValue: (row) => row.inspectorName ?? '',
-      render: (row) => <span className="text-neutral-400">{row.inspectorName ?? '—'}</span>,
+      render: (row) => <span className="text-[#475569]">{row.inspectorName ?? '—'}</span>,
     },
     {
       key: 'status',
@@ -210,11 +208,11 @@ export function InspectionsTable({ rows }: { rows: InspectionRow[] }) {
       sortValue: (row) => row.offersCount,
       exportValue: (row) => row.offersCount,
       render: (row) => (
-        <span className="text-neutral-300">
+        <span className="text-[#334155]">
           {formatArabicNumber(row.offersCount)}
-          {row.pendingOffers > 0 && <span className="mr-1 text-[10px] text-amber-400">({row.pendingOffers})</span>}
+          {row.pendingOffers > 0 && <span className="mr-1 text-[10px] text-[#b45309]">({row.pendingOffers})</span>}
           {row.acceptedPrice !== null && (
-            <span className="block text-[10px] text-neutral-500">{formatArabicNumber(row.acceptedPrice)} ر.س</span>
+            <span className="block text-[10px] text-[#94a3b8]">{formatArabicNumber(row.acceptedPrice)} ر.س</span>
           )}
         </span>
       ),
@@ -229,9 +227,9 @@ export function InspectionsTable({ rows }: { rows: InspectionRow[] }) {
           {row.decision ? (
             <GlassBadge tone={reviewDecisionTone[row.decision]}>{reviewDecisionLabels[row.decision]}</GlassBadge>
           ) : (
-            <span className="text-[10px] text-neutral-600">لم تُراجَع</span>
+            <span className="text-[10px] text-[#94a3b8]">لم تُراجَع</span>
           )}
-          {row.note && <span className="max-w-[160px] text-[10px] leading-4 text-neutral-500">{row.note}</span>}
+          {row.note && <span className="max-w-[160px] text-[10px] leading-4 text-[#64748b]">{row.note}</span>}
         </div>
       ),
     },
@@ -242,7 +240,7 @@ export function InspectionsTable({ rows }: { rows: InspectionRow[] }) {
       sortValue: (row) => Date.parse(row.scheduledAt),
       exportValue: (row) => row.scheduledAt,
       render: (row) => (
-        <time dir="ltr" className="text-[10px] text-neutral-500">
+        <time dir="ltr" className="text-[10px] text-[#94a3b8]">
           {formatArabicDate(row.scheduledAt)}
         </time>
       ),

@@ -46,8 +46,8 @@ export default async function AdminInspectorsPage() {
         </Notice>
       )}
       <InspectorsTable rows={rows} />
-      <p className="text-[10px] leading-5 text-neutral-600">
-        اعتماد الفاحص يمنحه دور <span dir="ltr">inspector</span> ويربط مدن التغطية من استبيان الطلب. الاعتماد يتم من
+      <p className="admin-footnote">
+        اعتماد الفاحص يمنحه دور <code>inspector</code> ويربط مدن التغطية من استبيان الطلب. الاعتماد يتم من
         الخادم بعد التحقق من جلسة المدير، وكل تغيير حالة يُسجَّل في سجل التدقيق.
       </p>
     </div>

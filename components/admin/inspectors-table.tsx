@@ -36,9 +36,9 @@ function StatusForm({ row }: { row: InspectorRow }) {
   const [state, formAction, pending] = useActionState(setInspectorStatusAction, null)
 
   const actions: { value: 'approved' | 'rejected' | 'suspended'; label: string; variant: string }[] = [
-    { value: 'approved', label: 'اعتماد', variant: 'hover:bg-emerald-400/10 hover:text-emerald-300' },
-    { value: 'rejected', label: 'رفض', variant: 'hover:bg-rose-400/10 hover:text-rose-300' },
-    { value: 'suspended', label: 'إيقاف', variant: 'hover:bg-amber-400/10 hover:text-amber-300' },
+    { value: 'approved', label: 'اعتماد', variant: 'admin-btn-success' },
+    { value: 'rejected', label: 'رفض', variant: 'admin-btn-danger' },
+    { value: 'suspended', label: 'إيقاف', variant: 'admin-btn-warn' },
   ]
 
   return (
@@ -52,16 +52,17 @@ function StatusForm({ row }: { row: InspectorRow }) {
             name="status"
             value={action.value}
             disabled={pending || row.inspectorStatus === action.value}
-            className={cn(
-              'rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-neutral-400 transition-colors disabled:opacity-40',
-              action.variant,
-            )}
+            className={cn('admin-btn admin-btn-sm', action.variant)}
           >
             {action.label}
           </button>
         ))}
       </div>
-      {state && <span className={cn('text-[10px]', state.ok ? 'text-emerald-400' : 'text-rose-400')}>{state.message}</span>}
+      {state && (
+        <span className={cn('text-[10px]', state.ok ? 'text-[#15803d]' : 'text-[#e11d48]')}>
+          {state.message}
+        </span>
+      )}
     </form>
   )
 }
@@ -83,8 +84,8 @@ export function InspectorsTable({ rows }: { rows: InspectorRow[] }) {
       exportValue: (row) => row.name,
       render: (row) => (
         <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium text-neutral-100">{row.name}</span>
-          <span dir="ltr" className="text-right text-[10px] text-neutral-600">
+          <span className="truncate font-medium text-[#0f172a]">{row.name}</span>
+          <span dir="ltr" className="text-right text-[10px] text-[#94a3b8]">
             {maskPhone(row.phone)}
           </span>
         </div>
@@ -106,7 +107,7 @@ export function InspectorsTable({ rows }: { rows: InspectorRow[] }) {
       header: 'الخبرة',
       sortValue: (row) => row.experienceYears ?? -1,
       exportValue: (row) => row.experienceYears ?? '',
-      render: (row) => <span className="text-neutral-400">{experienceLabel(row.experienceYears)}</span>,
+      render: (row) => <span className="text-[#475569]">{experienceLabel(row.experienceYears)}</span>,
     },
     {
       key: 'cities',
@@ -114,7 +115,7 @@ export function InspectorsTable({ rows }: { rows: InspectorRow[] }) {
       sortValue: (row) => row.cities.length,
       exportValue: (row) => row.cities.join(' | '),
       render: (row) => (
-        <span className="text-[10px] leading-5 text-neutral-400">{row.cities.length > 0 ? row.cities.join('، ') : '—'}</span>
+        <span className="text-[10px] leading-5 text-[#475569]">{row.cities.length > 0 ? row.cities.join('، ') : '—'}</span>
       ),
       className: 'max-w-[200px]',
     },
@@ -122,7 +123,7 @@ export function InspectorsTable({ rows }: { rows: InspectorRow[] }) {
       key: 'specialties',
       header: 'مجالات الفحص',
       render: (row) => (
-        <span className="text-[10px] leading-5 text-neutral-400">
+        <span className="text-[10px] leading-5 text-[#475569]">
           {row.specialties.length > 0 ? row.specialties.join('، ') : '—'}
         </span>
       ),
@@ -134,7 +135,7 @@ export function InspectorsTable({ rows }: { rows: InspectorRow[] }) {
       sortValue: (row) => (row.hasEquipment ? 1 : 0),
       exportValue: (row) => (row.hasEquipment === null ? '' : row.hasEquipment ? 'متوفرة' : 'غير متوفرة'),
       render: (row) => (
-        <span className="text-[10px] text-neutral-400">
+        <span className="text-[10px] text-[#475569]">
           {row.hasEquipment === null ? '—' : row.hasEquipment ? 'متوفرة' : 'غير متوفرة'}
         </span>
       ),

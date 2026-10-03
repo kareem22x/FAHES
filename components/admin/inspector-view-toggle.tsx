@@ -53,7 +53,7 @@ export function InspectorViewToggle({ collapsed = false }: { collapsed?: boolean
       disabled={pending}
       title={collapsed ? 'الدخول كمفتش' : undefined}
       className={cn(
-        'flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-3 text-[11px] font-medium text-emerald-200 transition-colors hover:bg-emerald-400/15 disabled:opacity-60',
+        'flex min-h-[36px] items-center justify-center gap-2 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 text-[11px] font-medium text-[#15803d] transition-colors hover:bg-[#dcfce7] disabled:opacity-60',
         collapsed && 'px-0',
       )}
     >

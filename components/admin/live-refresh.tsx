@@ -33,7 +33,7 @@ export function LiveRefresh({ intervalMs = 30_000 }: { intervalMs?: number }) {
           router.refresh()
           window.setTimeout(() => setSpinning(false), 600)
         }}
-        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-neutral-300 transition-colors hover:bg-white/10"
+        className="admin-btn admin-btn-sm"
       >
         <RefreshCw className={cn('size-3', spinning && 'animate-spin')} /> تحديث
       </button>
@@ -42,13 +42,13 @@ export function LiveRefresh({ intervalMs = 30_000 }: { intervalMs?: number }) {
         onClick={() => setLive((current) => !current)}
         aria-pressed={live}
         className={cn(
-          'flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] transition-colors',
+          'admin-btn admin-btn-sm',
           live
-            ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
-            : 'border-white/10 bg-white/5 text-neutral-400 hover:bg-white/10',
+            ? 'admin-btn-success'
+            : '',
         )}
       >
-        <span className={cn('size-1.5 rounded-full', live ? 'bg-emerald-400' : 'bg-neutral-500')} />
+        <span className={cn('size-1.5 rounded-full', live ? 'bg-[#10b981]' : 'bg-[#94a3b8]')} />
         بث مباشر
       </button>
     </div>

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AlertTriangle, CheckCircle2, Crown, Lock, ShieldCheck, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Crown, ShieldCheck, XCircle } from 'lucide-react'
 import { GlassBadge, GlassCard, GlassPanel } from '@/components/admin/ui/glass'
 import { KpiCard, KpiGrid } from '@/components/admin/kpi-cards'
 import { requireAdminPage } from '@/lib/admin/rbac'
@@ -53,15 +53,15 @@ export default async function AdminSecurityPage() {
         <KpiCard label="حسابات المالك" value={owners.length} tone="amber" hint="بلا بوابة رمز" />
         <KpiCard label="حسابات المديرين" value={admins.length} tone="violet" hint="تخضع لبوابة الرمز" />
         <KpiCard label="أحداث أمنية" value={securityEvents.length} tone="rose" hint="محاولات مرفوضة مسجّلة" />
-        <KpiCard label="طبقات الحماية" value={LAYERS.length} tone="emerald" hint="دفاع متعدد الطبقات" />
+        <KpiCard label="طبقات الحماية" value={LAYERS.length} tone="sky" hint="دفاع متعدد الطبقات" />
       </KpiGrid>
 
       <div className="grid gap-4 xl:grid-cols-[1.25fr_.95fr]">
         <GlassCard title="طبقات الحماية المطبّقة">
           <ul className="flex flex-col gap-2.5">
             {LAYERS.map((layer) => (
-              <li key={layer} className="flex gap-2.5 text-[11px] leading-6 text-neutral-400">
-                <CheckCircle2 className="mt-1 size-3.5 shrink-0 text-emerald-400" />
+              <li key={layer} className="flex gap-2.5 text-[11px] leading-6 text-[#334155]">
+                <CheckCircle2 className="mt-1 size-3.5 shrink-0 text-[#15803d]" />
                 <span>{layer}</span>
               </li>
             ))}
@@ -72,19 +72,19 @@ export default async function AdminSecurityPage() {
           <GlassCard title="إعدادات البيئة">
             <ul className="flex flex-col gap-1.5">
               {config.map((item) => (
-                <li key={item.name} className="flex items-center gap-2.5 rounded-lg bg-white/[.03] px-3 py-2">
+                <li key={item.name} className="flex items-center gap-2.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2">
                   {item.ok ? (
-                    <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+                    <CheckCircle2 className="size-3.5 shrink-0 text-[#15803d]" />
                   ) : (
-                    <XCircle className="size-3.5 shrink-0 text-rose-400" />
+                    <XCircle className="size-3.5 shrink-0 text-[#e11d48]" />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span dir="ltr" className="block truncate text-[11px] font-medium text-neutral-200">
+                    <span dir="ltr" className="block truncate text-[11px] font-medium text-[#0f172a]">
                       {item.name}
                     </span>
-                    <span className="block text-[10px] text-neutral-600">{item.note}</span>
+                    <span className="block text-[10px] text-[#64748b]">{item.note}</span>
                   </span>
-                  <span className={item.ok ? 'text-[10px] text-emerald-400' : 'text-[10px] text-rose-400'}>
+                  <span className={item.ok ? 'text-[10px] text-[#15803d]' : 'text-[10px] text-[#e11d48]'}>
                     {item.ok ? 'مضبوط' : 'غير مضبوط'}
                   </span>
                 </li>
@@ -94,9 +94,9 @@ export default async function AdminSecurityPage() {
 
           <GlassCard title="حسابات المالك">
             {owners.length === 0 ? (
-              <p className="text-[11px] leading-6 text-neutral-500">
+              <p className="text-[11px] leading-6 text-[#64748b]">
                 لا يوجد حساب مالك مُعرَّف. أضف معرّف Clerk إلى{' '}
-                <span dir="ltr" className="font-medium text-neutral-300">
+                <span dir="ltr" className="font-medium text-[#0f172a]">
                   ADMIN_OWNER_CLERK_IDS
                 </span>
                 .
@@ -104,10 +104,10 @@ export default async function AdminSecurityPage() {
             ) : (
               <ul className="flex flex-col gap-1.5">
                 {owners.map((owner) => (
-                  <li key={owner.id} className="flex items-center gap-2.5 rounded-lg bg-amber-400/[.07] px-3 py-2">
-                    <Crown className="size-3.5 shrink-0 text-amber-300" />
-                    <span className="min-w-0 flex-1 truncate text-[11px] text-neutral-200">{owner.name}</span>
-                    <span className="text-[10px] text-amber-300/80">بلا بوابة رمز</span>
+                  <li key={owner.id} className="flex items-center gap-2.5 rounded-lg border border-[#fde68a] bg-[#fffbeb] px-3 py-2">
+                    <Crown className="size-3.5 shrink-0 text-[#b45309]" />
+                    <span className="min-w-0 flex-1 truncate text-[11px] text-[#0f172a]">{owner.name}</span>
+                    <span className="text-[10px] text-[#b45309]">بلا بوابة رمز</span>
                   </li>
                 ))}
               </ul>
@@ -118,21 +118,21 @@ export default async function AdminSecurityPage() {
 
       <GlassPanel className="p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-neutral-100">آخر الأحداث الأمنية</h2>
-          <Link href="/admin/audit-logs" className="text-[11px] text-sky-400 hover:text-sky-300">
+          <h2 className="text-sm font-medium text-[#0f172a]">آخر الأحداث الأمنية</h2>
+          <Link href="/admin/audit-logs" className="text-[11px] text-[#2563eb] hover:text-[#1d4ed8]">
             السجل الكامل
           </Link>
         </div>
         {securityEvents.length === 0 ? (
-          <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-white/10 px-5 py-8 text-[11px] text-neutral-500">
-            <ShieldCheck className="size-4 text-emerald-400" /> لا توجد محاولات وصول مرفوضة مسجّلة — الوضع هادئ.
+          <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-[#e2e8f0] bg-[#f8fafc] px-5 py-8 text-[11px] text-[#64748b]">
+            <ShieldCheck className="size-4 text-[#15803d]" /> لا توجد محاولات وصول مرفوضة مسجّلة — الوضع هادئ.
           </div>
         ) : (
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-[#f1f5f9]">
             {securityEvents.slice(0, 12).map((event) => (
               <li key={event.id} className="flex items-center justify-between gap-3 py-2">
                 <GlassBadge tone={auditEventTone(event.event_type)}>{auditEventLabel(event.event_type)}</GlassBadge>
-                <time dir="ltr" className="text-[10px] text-neutral-600">
+                <time dir="ltr" className="text-[10px] text-[#94a3b8]">
                   {formatArabicDate(event.created_at, { dateStyle: 'short', timeStyle: 'short' })}
                 </time>
               </li>
@@ -141,7 +141,7 @@ export default async function AdminSecurityPage() {
         )}
       </GlassPanel>
 
-      <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[.06] p-4 text-[11px] leading-6 text-amber-200/90">
+      <div className="flex items-start gap-2.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-4 text-[11px] leading-6 text-[#b45309]">
         <AlertTriangle className="mt-0.5 size-4 shrink-0" />
         <span>
           لا تُشارك رمز الإدارة ولا مفاتيح البيئة مع أي شخص. تغيير أي متغير بيئة يتطلب إعادة تشغيل الخادم ليصبح ساريًا.

@@ -56,7 +56,7 @@ export function AuditTable({
       render: (row) => (
         <div className="flex flex-col gap-1">
           <GlassBadge tone={auditEventTone(row.event_type)}>{auditEventLabel(row.event_type)}</GlassBadge>
-          <span dir="ltr" className="text-right text-[10px] text-neutral-600">
+          <span dir="ltr" className="text-right text-[10px] text-[#94a3b8]">
             {row.event_type}
           </span>
         </div>
@@ -67,7 +67,7 @@ export function AuditTable({
       header: 'المنفّذ',
       sortValue: (row) => (row.actor_id ? (nameById[row.actor_id] ?? row.actor_id) : 'النظام'),
       render: (row) => (
-        <span className="text-neutral-300">
+        <span className="text-[#334155]">
           {row.actor_id ? (nameById[row.actor_id] ?? <span dir="ltr">{row.actor_id.slice(0, 12)}…</span>) : 'النظام'}
         </span>
       ),
@@ -77,10 +77,10 @@ export function AuditTable({
       header: 'الهدف',
       sortValue: (row) => row.resource_type,
       render: (row) => (
-        <span className="text-neutral-400">
+        <span className="text-[#475569]">
           {row.resource_type}
           {row.resource_id && (
-            <span dir="ltr" className="mr-1 block text-[10px] text-neutral-600">
+            <span dir="ltr" className="mr-1 block text-[10px] text-[#94a3b8]">
               {row.resource_id.length > 24 ? `${row.resource_id.slice(0, 24)}…` : row.resource_id}
             </span>
           )}
@@ -91,7 +91,7 @@ export function AuditTable({
       key: 'metadata',
       header: 'تفاصيل',
       render: (row) => (
-        <span className="text-[10px] leading-5 text-neutral-500">{metadataSummary(row.metadata) || '—'}</span>
+        <span className="text-[10px] leading-5 text-[#64748b]">{metadataSummary(row.metadata) || '—'}</span>
       ),
       className: 'max-w-[280px]',
     },
@@ -102,7 +102,7 @@ export function AuditTable({
       sortValue: (row) => Date.parse(row.created_at),
       exportValue: (row) => row.created_at,
       render: (row) => (
-        <time dir="ltr" className="text-[10px] text-neutral-500">
+        <time dir="ltr" className="text-[10px] text-[#94a3b8]">
           {formatArabicDate(row.created_at)}
         </time>
       ),
@@ -122,7 +122,7 @@ export function AuditTable({
           <select
             value={scope}
             onChange={(event) => setScope(event.target.value as 'all' | 'admin')}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] text-neutral-300 outline-none focus:border-sky-400/50"
+            className="admin-select"
           >
             <option value="all">كل الأحداث</option>
             <option value="admin">الأحداث الإدارية</option>
@@ -130,7 +130,7 @@ export function AuditTable({
           <select
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value)}
-            className="max-w-[180px] rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] text-neutral-300 outline-none focus:border-sky-400/50"
+            className="admin-select max-w-[180px]"
           >
             <option value="all">كل الأنواع</option>
             {types.map((type) => (

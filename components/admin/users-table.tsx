@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import { Crown, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { GlassBadge, GlassButton } from '@/components/admin/ui/glass'
+import { GlassBadge } from '@/components/admin/ui/glass'
 import { DataTable, type Column } from '@/components/admin/ui/data-table'
 import { bulkSetUserRoleAction, setUserRoleAction } from '@/lib/admin/actions'
 import { inspectorStatusLabels, roleBadgeClasses, roleLabels } from '@/lib/admin/labels'
@@ -36,7 +36,7 @@ function UserRoleForm({
   const [state, formAction, pending] = useActionState(setUserRoleAction, null)
 
   if (!canEdit) {
-    return <span className="text-[10px] text-neutral-600">{lockedReason ?? 'غير قابل للتعديل'}</span>
+    return <span className="text-[10px] text-[#94a3b8]">{lockedReason ?? 'غير قابل للتعديل'}</span>
   }
 
   return (
@@ -51,18 +51,18 @@ function UserRoleForm({
             value={option}
             disabled={option === role || pending}
             className={cn(
-              'rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors disabled:cursor-default',
+              'admin-btn admin-btn-sm',
               option === role
-                ? 'bg-white text-neutral-950'
-                : 'border border-white/10 bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-neutral-100 disabled:opacity-40',
+                ? 'admin-btn-solid'
+                : 'disabled:opacity-40',
             )}
           >
             {roleShort[option]}
           </button>
         ))}
       </div>
-      {state && !state.ok && <span className="text-[10px] text-rose-400">{state.message}</span>}
-      {state?.ok && <span className="text-[10px] text-emerald-400">{state.message}</span>}
+      {state && !state.ok && <span className="text-[10px] text-[#e11d48]">{state.message}</span>}
+      {state?.ok && <span className="text-[10px] text-[#15803d]">{state.message}</span>}
     </form>
   )
 }
@@ -90,7 +90,7 @@ export function UsersTable({
       exportValue: (row) => row.name,
       render: (row) => (
         <div className="flex min-w-0 flex-col">
-          <span className="flex items-center gap-1.5 truncate font-medium text-neutral-100">
+          <span className="flex items-center gap-1.5 truncate font-medium text-[#0f172a]">
             {row.name}
             {ownerSet.has(row.id) && (
               <GlassBadge tone="warn">
@@ -98,7 +98,7 @@ export function UsersTable({
               </GlassBadge>
             )}
           </span>
-          <span dir="ltr" className="truncate text-right text-[10px] text-neutral-600">
+          <span dir="ltr" className="truncate text-right text-[10px] text-[#94a3b8]">
             {row.id.slice(0, 8)}…
           </span>
         </div>
@@ -110,7 +110,7 @@ export function UsersTable({
       sortValue: (row) => row.phone ?? '',
       exportValue: (row) => row.phone ?? '',
       render: (row) => (
-        <span dir="ltr" className="text-neutral-400">
+        <span dir="ltr" className="text-[#475569]">
           {maskPhone(row.phone)}
         </span>
       ),
@@ -131,7 +131,7 @@ export function UsersTable({
       header: 'حالة الفاحص',
       sortValue: (row) => inspectorStatusLabels[row.inspectorStatus] ?? row.inspectorStatus,
       exportValue: (row) => row.inspectorStatus,
-      render: (row) => <span className="text-neutral-400">{inspectorStatusLabels[row.inspectorStatus] ?? '—'}</span>,
+      render: (row) => <span className="text-[#475569]">{inspectorStatusLabels[row.inspectorStatus] ?? '—'}</span>,
     },
     {
       key: 'inspections',
@@ -139,7 +139,7 @@ export function UsersTable({
       align: 'end',
       sortValue: (row) => row.inspectionCount,
       exportValue: (row) => row.inspectionCount,
-      render: (row) => <span className="text-neutral-300">{formatArabicNumber(row.inspectionCount)}</span>,
+      render: (row) => <span className="text-[#334155]">{formatArabicNumber(row.inspectionCount)}</span>,
     },
     {
       key: 'lastLogin',
@@ -148,7 +148,7 @@ export function UsersTable({
       sortValue: (row) => row.lastLoginAt,
       exportValue: (row) => new Date(row.lastLoginAt).toISOString(),
       render: (row) => (
-        <time dir="ltr" className="text-[10px] text-neutral-500">
+        <time dir="ltr" className="text-[10px] text-[#94a3b8]">
           {formatArabicDate(row.lastLoginAt)}
         </time>
       ),
@@ -180,7 +180,7 @@ export function UsersTable({
       render: (row) => (
         <Link
           href={`/admin/users/${row.id}`}
-          className="inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300"
+          className="inline-flex items-center gap-1 text-[10px] text-[#2563eb] hover:text-[#1d4ed8]"
         >
           <ExternalLink className="size-3" /> عرض
         </Link>
@@ -203,7 +203,7 @@ export function UsersTable({
             {selectedIds.map((id) => (
               <input key={id} type="hidden" name="ids" value={id} />
             ))}
-            <span className="text-[11px] text-neutral-500">تعيين الدور:</span>
+            <span className="text-[11px] text-[#64748b]">تعيين الدور:</span>
             {ROLE_OPTIONS.map((option) => (
               <button
                 key={option}
@@ -211,21 +211,21 @@ export function UsersTable({
                 name="role"
                 value={option}
                 disabled={bulkPending}
-                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium text-neutral-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+                className="admin-btn admin-btn-sm"
               >
                 {roleShort[option]}
               </button>
             ))}
-            <button type="button" onClick={clear} className="text-[10px] text-neutral-500 hover:text-neutral-300">
+            <button type="button" onClick={clear} className="text-[10px] text-[#64748b] hover:text-[#0f172a]">
               مسح التحديد
             </button>
           </form>
         )}
       />
       {bulkState && (
-        <p className={cn('text-[11px]', bulkState.ok ? 'text-emerald-400' : 'text-rose-400')}>{bulkState.message}</p>
+        <p className={cn('text-[11px]', bulkState.ok ? 'text-[#15803d]' : 'text-[#e11d48]')}>{bulkState.message}</p>
       )}
-      <p className="text-[10px] leading-5 text-neutral-600">
+      <p className="admin-footnote">
         قواعد الحماية: لا يمكنك تغيير دور حسابك، وحسابات المالك محميّة، ومنح أو سحب صلاحية «مدير» للمالك فقط،
         ولا يمكن إزالة آخر مدير. كل محاولة — ناجحة أو مرفوضة — تُسجَّل في سجل التدقيق.
       </p>

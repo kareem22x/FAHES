@@ -20,9 +20,9 @@ export default async function AdminAuditLogsPage() {
   return (
     <div className="flex flex-col gap-4">
       <AuditTable events={events} nameById={nameById} types={types} />
-      <p className="text-[10px] leading-5 text-neutral-600">
-        الجدول مُلزَم على مستوى قاعدة البيانات برفض أي تعديل أو حذف (مُشغّل يمنع <span dir="ltr">UPDATE</span> و
-        <span dir="ltr">DELETE</span>)، لذلك ما تراه سجل دائم لما حدث فعلًا — حتى حساب الخدمة لا يستطيع تغييره.
+      <p className="admin-footnote">
+        الجدول مُلزَم على مستوى قاعدة البيانات برفض أي تعديل أو حذف (مُشغّل يمنع <code>UPDATE</code> و
+        <code>DELETE</code>)، لذلك ما تراه سجل دائم لما حدث فعلًا — حتى حساب الخدمة لا يستطيع تغييره.
       </p>
     </div>
   )

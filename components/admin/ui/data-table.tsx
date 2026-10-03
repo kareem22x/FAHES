@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { GlassButton, GlassPanel } from '@/components/admin/ui/glass'
+import { GlassPanel } from '@/components/admin/ui/glass'
 
 export type Column<T> = {
   key: string
@@ -22,12 +22,7 @@ export type Column<T> = {
 type SortDirection = 'asc' | 'desc'
 
 /**
- * Dense, dependency-free data table.
- *
- * Sorting, filtering, pagination and selection are all client-side: the admin
- * console loads at most a few hundred rows per view, and doing it here keeps
- * every interaction instant instead of round-tripping. The dataset bounds are
- * enforced by the queries in `lib/admin/store.ts`.
+ * Dense, dependency-free data table — light theme.
  */
 export function DataTable<T extends { id: string | number }>({
   columns,
@@ -169,11 +164,11 @@ export function DataTable<T extends { id: string | number }>({
 
   return (
     <GlassPanel className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-2.5 sm:p-3">
+      {/* ── Toolbar ── */}
+      <div className="admin-table-toolbar">
         {searchable && (
-          // Full row on phones, shares the row from `sm` up.
-          <label className="relative min-w-0 flex-1 basis-full sm:basis-56">
-            <Search className="pointer-events-none absolute inset-y-0 right-3 my-auto size-3.5 text-neutral-500" />
+          <label className="admin-search-box relative basis-full sm:basis-56">
+            <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto size-3.5 text-[#94a3b8]" />
             <input
               value={query}
               onChange={(event) => {
@@ -181,52 +176,51 @@ export function DataTable<T extends { id: string | number }>({
                 setPage(1)
               }}
               placeholder={searchPlaceholder}
-              className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pr-9 pl-3 text-xs text-neutral-100 outline-none placeholder:text-neutral-500 focus:border-sky-400/50"
+              className="admin-search-input"
             />
           </label>
         )}
         {toolbar}
-        <span className="text-[11px] text-neutral-500">
+        <span className="admin-table-count">
           {sorted.length} من {rows.length}
         </span>
         {exportName && (
           <div className="flex items-center gap-1">
-            <GlassButton size="sm" onClick={() => exportRows('csv')} title="تصدير CSV">
+            <button className="admin-btn admin-btn-sm" onClick={() => exportRows('csv')} title="تصدير CSV">
               <Download className="size-3" /> CSV
-            </GlassButton>
-            <GlassButton size="sm" onClick={() => exportRows('json')} title="تصدير JSON">
+            </button>
+            <button className="admin-btn admin-btn-sm" onClick={() => exportRows('json')} title="تصدير JSON">
               <Download className="size-3" /> JSON
-            </GlassButton>
+            </button>
           </div>
         )}
       </div>
 
+      {/* ── Bulk action bar ── */}
       {selectable && selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-sky-400/20 bg-sky-400/[.06] px-3 py-2">
-          <span className="text-[11px] font-medium text-sky-200">تم تحديد {selectedIds.length}</span>
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-2.5">
+          <span className="text-[11px] font-medium text-[#2563eb]">تم تحديد {selectedIds.length}</span>
           {renderBulkBar?.(selectedIds, clearSelection)}
-          <GlassButton size="sm" className="mr-auto" onClick={clearSelection}>
+          <button className="admin-btn admin-btn-sm mr-auto" onClick={clearSelection}>
             <X className="size-3" /> إلغاء التحديد
-          </GlassButton>
+          </button>
         </div>
       )}
 
-      {/* The one sanctioned horizontal-scroll surface: a 720px table cannot be
-          legible on a 360px phone, so it scrolls sideways inside its own box
-          (with a glassmorphic scrollbar) instead of widening the page. */}
-      <div className="rc-scroll-x rc-scroll-x-dark">
-        <table className="w-full min-w-[720px] border-collapse text-right text-xs">
+      {/* ── Table ── */}
+      <div className="admin-table-wrap">
+        <table className="admin-table">
           <thead>
-            <tr className="border-b border-white/10 bg-white/[.03]">
+            <tr>
               {selectable && (
-                <th className="w-9 px-3 py-2">
+                <th className="w-10 px-3 py-2.5">
                   <input
                     ref={selectAllRef}
                     type="checkbox"
                     checked={allOnPageSelected}
                     onChange={toggleAllOnPage}
                     aria-label="تحديد الكل في الصفحة"
-                    className="size-3.5 accent-sky-400"
+                    className="admin-checkbox"
                   />
                 </th>
               )}
@@ -235,18 +229,15 @@ export function DataTable<T extends { id: string | number }>({
                 return (
                   <th
                     key={column.key}
-                    className={cn(
-                      'px-3 py-2 font-medium text-neutral-400 whitespace-nowrap',
-                      column.align === 'end' && 'text-left',
-                    )}
+                    className={cn(column.align === 'end' && 'text-left')}
                   >
                     {column.sortValue ? (
                       <button
                         type="button"
                         onClick={() => toggleSort(column)}
                         className={cn(
-                          'inline-flex items-center gap-1 transition-colors hover:text-neutral-100',
-                          isSorted && 'text-sky-300',
+                          'transition-colors hover:text-[#2563eb]',
+                          isSorted && 'text-[#2563eb]',
                         )}
                       >
                         {column.header}
@@ -265,10 +256,7 @@ export function DataTable<T extends { id: string | number }>({
             {pageRows.map((row) => (
               <tr
                 key={rowId(row)}
-                className={cn(
-                  'border-b border-white/5 transition-colors last:border-0 hover:bg-white/[.03]',
-                  selected.has(rowId(row)) && 'bg-sky-400/[.06]',
-                )}
+                className={cn(selected.has(rowId(row)) && 'bg-[#eff6ff]')}
               >
                 {selectable && (
                   <td className="px-3 py-2.5">
@@ -277,7 +265,7 @@ export function DataTable<T extends { id: string | number }>({
                       checked={selected.has(rowId(row))}
                       onChange={() => toggleRow(rowId(row))}
                       aria-label={`تحديد ${rowId(row)}`}
-                      className="size-3.5 accent-sky-400"
+                      className="admin-checkbox"
                     />
                   </td>
                 )}
@@ -285,7 +273,6 @@ export function DataTable<T extends { id: string | number }>({
                   <td
                     key={column.key}
                     className={cn(
-                      'px-3 py-2.5 align-middle text-neutral-300',
                       column.align === 'end' && 'text-left',
                       column.className,
                     )}
@@ -300,21 +287,21 @@ export function DataTable<T extends { id: string | number }>({
       </div>
 
       {pageRows.length === 0 && (
-        <div className="px-5 py-12 text-center text-xs text-neutral-500">{emptyMessage}</div>
+        <div className="px-5 py-12 text-center text-xs text-[#94a3b8]">{emptyMessage}</div>
       )}
 
       {totalPages > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
-          <span className="text-[11px] text-neutral-500">
+        <div className="admin-table-pagination">
+          <span className="text-[11px] text-[#94a3b8]">
             صفحة {currentPage} من {totalPages}
           </span>
           <div className="flex items-center gap-1">
-            <GlassButton size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
+            <button className="admin-btn admin-btn-sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
               <ChevronRight className="size-3" /> السابق
-            </GlassButton>
-            <GlassButton size="sm" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>
+            </button>
+            <button className="admin-btn admin-btn-sm" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>
               التالي <ChevronLeft className="size-3" />
-            </GlassButton>
+            </button>
           </div>
         </div>
       )}

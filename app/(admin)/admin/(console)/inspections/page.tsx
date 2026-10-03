@@ -73,19 +73,14 @@ export default async function AdminInspectionsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-1.5">
+      <div className="admin-filter-pills">
         {inspectionStatusFilters.map((filter) => {
           const isActive = (filter.value === 'all' && !status) || filter.value === status
           return (
             <Link
               key={filter.value}
               href={filter.value === 'all' ? '/admin/inspections' : `/admin/inspections?status=${filter.value}`}
-              className={cn(
-                'rounded-full px-3 py-1.5 text-[11px] transition-colors',
-                isActive
-                  ? 'bg-white font-medium text-neutral-950'
-                  : 'border border-white/10 bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-neutral-100',
-              )}
+              className={cn('admin-filter-pill', isActive && 'is-active')}
             >
               {filter.label}
             </Link>
@@ -95,8 +90,8 @@ export default async function AdminInspectionsPage({
 
       <InspectionsTable rows={rows} />
 
-      <p className="text-[10px] leading-5 text-neutral-600">
-        قرارات المراجعة والملاحظات الإدارية تُخزَّن كأحداث تدقيق <span dir="ltr">append-only</span> لا كمُعرّفات قابلة
+      <p className="admin-footnote">
+        قرارات المراجعة والملاحظات الإدارية تُخزَّن كأحداث تدقيق <code>append-only</code> لا كمُعرّفات قابلة
         للتعديل — فيبقى سجل من غيّر القرار ومتى. الإلغاء متاح للطلبات النشطة فقط، ويرفض العروض المعلّقة معه.
       </p>
     </div>
