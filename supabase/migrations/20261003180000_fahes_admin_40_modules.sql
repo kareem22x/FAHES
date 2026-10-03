@@ -69,7 +69,7 @@ create table if not exists public.inspection_audits (
   status text not null default 'pending'
     check (status in ('pending', 'passed', 'flagged_for_fix', 'rejected')),
   audit_notes text not null default '',
-  flagged_categories text[] not null default '{}',
+  flagged_categories text[] not null default '{}'::text[],
   created_at timestamptz not null default now(),
   completed_at timestamptz
 );
@@ -121,7 +121,7 @@ create table if not exists public.disputes (
   status text not null default 'open'
     check (status in ('open', 'under_review', 'approved', 'rejected', 'resolved')),
   refund_amount numeric(10, 2) not null default 0.00 check (refund_amount >= 0),
-  evidence_urls text[] not null default '{}',
+  evidence_urls text[] not null default '{}'::text[],
   resolution_note text not null default '',
   created_at timestamptz not null default now(),
   resolved_at timestamptz,
@@ -200,7 +200,7 @@ create table if not exists public.broadcast_announcements (
   id uuid primary key default gen_random_uuid(),
   title text not null check (char_length(title) between 3 and 200),
   body text not null check (char_length(body) between 1 and 2000),
-  target_cities text[] not null default '{}'::jsonb, -- فارغ = كل المدن
+  target_cities text[] not null default '{}'::text[], -- فارغ = كل المدن
   priority text not null default 'normal'
     check (priority in ('low', 'normal', 'high', 'emergency')),
   is_active boolean not null default true,
@@ -225,7 +225,7 @@ create table if not exists public.ai_photo_analyses (
   clarity_score numeric(3, 2),
   blur_detected boolean not null default false,
   angle_ok boolean not null default true,
-  issues text[] not null default '{}',
+  issues text[] not null default '{}'::text[],
   ocr_plate_text text,
   ocr_vin_text text,
   model_version text not null default '',
