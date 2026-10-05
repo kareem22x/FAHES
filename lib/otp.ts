@@ -29,7 +29,10 @@ function readInt(value: string | undefined, fallback: number, min: number, max: 
 
 export function otpConfig(): OtpConfig {
   return {
-    expiryMinutes: readInt(process.env.OTP_EXPIRY_MINUTES, 5, 1, 30),
+    // Three minutes, per the platform brief. Kept short on purpose: the resend
+    // cooldown is only 60s, so a user who mistypes is never stuck waiting longer
+    // than a minute for a fresh code, while a leaked code goes stale fast.
+    expiryMinutes: readInt(process.env.OTP_EXPIRY_MINUTES, 3, 1, 30),
     maxAttempts: readInt(process.env.OTP_MAX_ATTEMPTS, 5, 3, 10),
     resendCooldownSeconds: readInt(process.env.OTP_RESEND_COOLDOWN_SECONDS, 60, 30, 600),
     lockoutSeconds: OTP_LOCKOUT_MINUTES * 60,

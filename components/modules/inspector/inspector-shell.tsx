@@ -16,6 +16,7 @@ import {
 import BrandMark from '@/components/brand-mark'
 import { LogoutButton } from '@/components/logout-button'
 import { SurfaceExit } from '@/components/admin/surface-exit'
+import { NavPending } from '@/components/ui/nav-pending'
 import InspectorDashboardHeader from '@/components/modules/inspector/dashboard-header'
 import type { AppNotification } from '@/lib/notifications/store'
 import { maskPhone } from '@/lib/phone'
@@ -111,6 +112,7 @@ export function InspectorShell({
             {NAV.map(({ key, href, label, icon: Icon }) => (
               <Link key={key} href={href} className={active === key ? 'is-current' : ''}>
                 <Icon size={17} />{label}
+                <NavPending />
                 {key === 'requests' && pendingRequests > 0 && (
                   <span className="inspector-nav-count">{pendingRequests}</span>
                 )}
@@ -164,7 +166,7 @@ export function InspectorShell({
           <nav className="inspector-mobile-nav" aria-label="التنقل السريع">
             {NAV.slice(0, 4).map(({ key, href, label, icon: Icon }) => (
               <Link key={key} href={href} className={active === key ? 'is-current' : ''}>
-                <Icon size={19} /><span>{label}</span>
+                <Icon size={19} /><span>{label}</span><NavPending />
               </Link>
             ))}
           </nav>

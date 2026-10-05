@@ -291,6 +291,30 @@ export async function supportStats(): Promise<SupportStats> {
 }
 
 /**
+ * "Still on someone's plate". Defined once at module scope because the counters
+ * in `computeSupportStats` and the per-agent workload both ask the same question,
+ * and a single drifting copy of this rule is how a dashboard starts disagreeing
+ * with its own table.
+ */
+export function isOpenTicket(ticket: SupportTicket): boolean {
+  return !['resolved', 'closed'].includes(ticket.status)
+}
+
+/**
+ * Per-agent workload, for the staff profile.
+ *
+ * Reuses `listTicketsForAdmin` with an `assignedTo` filter rather than issuing a
+ * bespoke `count(*)` query: the filter is already indexed and the console caps at
+ * a few hundred rows, so this stays one cheap read that cannot disagree with the
+ * console's own numbers.
+ */
+export async function agentWorkload(adminId: string): Promise<{ assignedOpen: number; resolved: number }> {
+  const tickets = await listTicketsForAdmin({ assignedTo: adminId })
+  const open = tickets.filter(isOpenTicket).length
+  return { assignedOpen: open, resolved: tickets.length - open }
+}
+
+/**
  * Pure aggregation over an already-loaded ticket list. Exposed so the console can
  * derive its stat cards from the same rows it renders, instead of issuing a second
  * identical query.
@@ -298,10 +322,7 @@ export async function supportStats(): Promise<SupportStats> {
 export function computeSupportStats(tickets: SupportTicket[]): SupportStats {
   const now = Date.now()
 
-  // "Still on someone's plate". Defined once because the counters below each
-  // asked the same question inline, and a single drifting copy of this rule is
-  // how a dashboard starts disagreeing with its own table.
-  const isOpen = (t: SupportTicket) => !['resolved', 'closed'].includes(t.status)
+  const isOpen = isOpenTicket
 
   const resolvedWithResponse = tickets.filter((t) => t.firstResponseAt !== null)
   const avgFirstResponseMinutes = resolvedWithResponse.length

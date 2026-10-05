@@ -1,6 +1,17 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
+/**
+ * The project's own class-name joiner.
+ *
+ * The shadcn CLI rewrote this file to `export { cn } from "cn"`, which swapped
+ * the implementation for a third-party package and — more importantly — dropped
+ * `initialsOf`, breaking `app/dashboard/layout.tsx` and the whole typecheck. The
+ * clsx + tailwind-merge pair is already a direct dependency and is what the 13
+ * existing consumers were written against, so it is restored here and the new
+ * `components/ui/*` primitives were repointed at it. One `cn`, one dependency,
+ * one import path.
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -11,3 +22,4 @@ export function initialsOf(name: string) {
   if (parts.length === 0) return '؟'
   return parts.slice(0, 2).map((part) => Array.from(part)[0]).join('')
 }
+

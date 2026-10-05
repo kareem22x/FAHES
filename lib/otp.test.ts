@@ -94,7 +94,9 @@ describe('otpConfig', () => {
 
   it('falls back to safe defaults when unset', () => {
     const config = otpConfig()
-    expect(config.expiryMinutes).toBe(5)
+    // 3 minutes, matching the platform brief. The 60s resend cooldown is what
+    // makes such a short window tolerable.
+    expect(config.expiryMinutes).toBe(3)
     expect(config.maxAttempts).toBe(5)
     expect(config.resendCooldownSeconds).toBe(60)
     expect(config.lockoutSeconds).toBe(OTP_LOCKOUT_MINUTES * 60)

@@ -1,15 +1,42 @@
-import { requireAdminPage } from '@/lib/admin/rbac'
+import { redirect } from 'next/navigation'
+import { currentUser as clerkCurrentUser } from '@clerk/nextjs/server'
+import { requireAdminPage, tierOf } from '@/lib/admin/rbac'
 import { listSystemSettings } from '@/lib/admin/extended-store'
 import { GlassPanel, GlassCard, GlassBadge, EmptyState, Notice } from '@/components/admin/ui/glass'
 import { KillSwitchToggle } from '@/components/admin/kill-switch-toggle'
-import { Settings as SettingsIcon, Power, Shield, Zap } from 'lucide-react'
+import { StaffProfile } from '@/components/admin/staff-profile'
+import { getUserById } from '@/lib/user-store'
+import { Settings as SettingsIcon, Power, Shield, Zap, IdCard } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
+export const metadata = { title: 'الإعدادات — فاحص' }
 
+/**
+ * Platform settings, plus the signed-in admin's own profile.
+ *
+ * ── Why the profile lives here ─────────────────────────────────────────────
+ *
+ * «ملفي الشخصي» in the admin console used to send the admin to `/account`, the
+ * *public* account screen on the marketing shell — a dead end dressed up as a
+ * working link. This page is the console's settings surface and is already
+ * admin-gated, so it is where an admin looks for their own account. The two are
+ * sectioned rather than merged: «حسابي» answers "who am I signed in as", and
+ * «إعدادات المنصة» answers "what is the platform doing".
+ */
 export default async function AdminSettingsPage() {
-  await requireAdminPage()
+  const session = await requireAdminPage()
 
-  const { settings, migrationPending } = await listSystemSettings()
+  const [{ settings, migrationPending }, user, clerkUser] = await Promise.all([
+    listSystemSettings(),
+    getUserById(session.sub),
+    clerkCurrentUser(),
+  ])
+
+  // No `user_profiles` row means the account was never provisioned. Redirect
+  // rather than substituting a placeholder date: `Date.now()` in a render body
+  // violates `react-hooks/purity`, and a fabricated `createdAt` would report a
+  // long-standing admin's account age as «أقل من يوم».
+  if (!user) redirect('/auth/complete')
 
   const killSwitch = settings.find((s) => s.key === 'kill_switch')
   const auditRate = settings.find((s) => s.key === 'audit_sample_rate')
@@ -21,6 +48,30 @@ export default async function AdminSettingsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* ── حسابي ────────────────────────────────────────────────────────── */}
+      <header className="flex items-center gap-2">
+        <IdCard size={16} className="text-[#2563eb]" />
+        <h1 className="text-sm font-bold text-[#102444]">حسابي</h1>
+      </header>
+
+      <StaffProfile
+        name={user.name}
+        email={clerkUser?.primaryEmailAddress?.emailAddress ?? null}
+        phone={session.phone}
+        phoneVerified={session.phoneVerified}
+        role={session.role}
+        tier={tierOf(session)}
+        createdAt={user.createdAt}
+        lastLoginAt={user.lastLoginAt}
+        surface={session.surface}
+      />
+
+      {/* ── إعدادات المنصة ───────────────────────────────────────────────── */}
+      <header className="mt-2 flex items-center gap-2 border-t border-[#e3eaf2] pt-4">
+        <SettingsIcon size={16} className="text-[#2563eb]" />
+        <h1 className="text-sm font-bold text-[#102444]">إعدادات المنصة</h1>
+      </header>
+
       {migrationPending && (
         <Notice tone="warn" title="الترحيل معلَّق">
           جدول <code className="admin-code">system_settings</code> غير موجود. طبّق ترحيل الـ40 وحدة.

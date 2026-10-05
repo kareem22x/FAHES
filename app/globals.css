@@ -5,6 +5,10 @@
 @import '@fontsource/alexandria/arabic-800.css';
 @import 'tailwindcss' source(none);
 @import './theme-dark.css';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Explicit source registration — do NOT switch back to automatic detection.
@@ -130,6 +134,49 @@
   --site-line: var(--color-border);
   --site-paper: var(--color-background);
   --site-copper: var(--brand-500);
+
+  /* ── shadcn/ui semantic tokens ─────────────────────────────────────────────
+     The CLI appended these as a hard-coded neutral-grey palette, which is not
+     this product's palette. Every one is re-pointed at the project ramp above,
+     so the `components/ui/*` primitives render in the real brand colours and any
+     name that exists in both systems resolves to the *same* value it had before
+     shadcn was installed — `--border` is `--color-border`, `--primary` is
+     `--color-primary`, and so on.
+
+     Do not "simplify" these back to literals: the aliasing is the entire reason
+     the two token systems cannot drift apart. */
+  --background: var(--color-background);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text);
+  --primary: var(--color-primary);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-border-light);
+  --secondary-foreground: var(--color-primary);
+  --muted: var(--color-border-light);
+  --muted-foreground: var(--color-text-muted);
+  --accent: var(--brand-50);
+  --accent-foreground: var(--brand-700);
+  --destructive: var(--color-error);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--brand-500);
+  --chart-1: var(--brand-500);
+  --chart-2: var(--brand-400);
+  --chart-3: var(--brand-300);
+  --chart-4: var(--brand-200);
+  --chart-5: var(--brand-100);
+  --radius: var(--radius-lg);
+  --sidebar: var(--color-surface);
+  --sidebar-foreground: var(--color-text);
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--brand-50);
+  --sidebar-accent-foreground: var(--brand-700);
+  --sidebar-border: var(--color-border);
+  --sidebar-ring: var(--brand-500);
 }
 
 * { box-sizing: border-box; }
@@ -2181,3 +2228,84 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   .admin-footer span { text-align: start; }
 }
 
+@theme inline {
+  /* ── Deliberately narrow ───────────────────────────────────────────────────
+     Only the colours shadcn's own utilities need are registered here, aliased
+     onto the project tokens above.
+
+     Two categories are intentionally ABSENT, because `@theme` overrides Tailwind's
+     built-in theme values and would silently change utilities this codebase
+     already uses:
+
+       * `--radius-*`  — shadcn's `calc(var(--radius) * N)` scale would have moved
+         `rounded-lg` from Tailwind's 8px to 10px and `rounded-xl` from 12px to
+         14px across 137 existing call sites. Omitting them leaves every current
+         `rounded-*` rendering exactly as it did before.
+       * `--font-sans` — shadcn writes `--font-sans: var(--font-sans)`, a
+         self-reference that resolves to nothing and relied on a Latin-only Geist
+         face to paper over it. The project's Arabic face is applied to `body`
+         unlayered in this file, which outranks anything in `@layer base`.
+
+     `--font-heading` is kept because `components/ui/card.tsx` and `dialog.tsx`
+     reference it, and it is pointed at the product's own face rather than a
+     second font family. */
+  --font-heading: 'Alexandria', Tahoma, Arial, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+}
+
+/* No `.dark` block on purpose.
+
+   shadcn ships one holding a hard-coded grey palette. It is dead code here — this
+   product switches themes with `[data-theme='dark']` in `theme-dark.css`, never
+   with a `.dark` class — and it is now actively redundant: because every token
+   above is an alias of the project's own ramp, `[data-theme='dark']` re-pointing
+   `--color-background` / `--color-surface` / `--color-text` / `--color-border`
+   already flips the shadcn tokens for free. A second palette would only give the
+   two systems somewhere to disagree.
+
+   `@custom-variant dark` is kept, and matters: the `components/ui/*` primitives
+   carry `dark:` utilities. Without it, `dark:` falls back to
+   `prefers-color-scheme`, so a visitor on a dark OS would get dark primitives
+   inside this light-only app. Pinned to `.dark`, those utilities stay dormant. */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

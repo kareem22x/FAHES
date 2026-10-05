@@ -18,6 +18,7 @@ import BrandMark from '@/components/brand-mark'
 import { LogoutButton } from '@/components/logout-button'
 import { CommandPalette, CommandPaletteTrigger } from '@/components/admin/ui/command-palette'
 import { SurfaceSwitcher } from '@/components/admin/surface-switcher'
+import { NavPending } from '@/components/ui/nav-pending'
 import { SURFACE_LABEL, type Surface } from '@/lib/surfaces'
 
 export type AdminNavKey = 'overview' | 'inspections' | 'inspectors' | 'users' | 'support' | 'audit' | 'security' | 'settings'
@@ -120,6 +121,7 @@ export function AdminShell({
                 className={current.key === key ? 'is-current' : ''}
               >
                 <Icon size={17} />{label}
+                <NavPending />
                 {key === 'inspectors' && quickStats.pendingInspectors > 0 && (
                   <span className="inspector-nav-count">{quickStats.pendingInspectors}</span>
                 )}
@@ -139,7 +141,14 @@ export function AdminShell({
                 log — the exact "route freezing" feel, from the one control in
                 the shell that bypassed client-side routing. */}
             <Link href="/admin/audit-logs">سجل التدقيق <LayoutDashboard size={14} /></Link>
-            <Link href="/account">الملف الشخصي والأمان <UserRound size={14} /></Link>
+            {/* «الملف الشخصي» and «الأمان» are deliberately two links. The
+                profile is a screen inside this console (`/admin/settings` →
+                «حسابي»); credentials, password and national-ID verification are
+                account-level facts that only `/account` can change. Sending
+                both to `/account` is what made the console's profile menu a dead
+                end — the admin left the console to read their own name. */}
+            <Link href="/admin/settings">ملفي الشخصي <UserRound size={14} /></Link>
+            <Link href="/account">إعدادات الأمان والتحقق <ShieldCheck size={14} /></Link>
           </div>
 
           <div className="inspector-sidebar-user">
@@ -181,7 +190,7 @@ export function AdminShell({
           <nav className="inspector-mobile-nav" aria-label="التنقل السريع">
             {navItems.slice(0, 4).map(({ href, label, icon: Icon }, index) => (
               <Link key={href} href={href} className={index === 0 ? 'is-current' : ''}>
-                <Icon size={19} /><span>{label}</span>
+                <Icon size={19} /><span>{label}</span><NavPending />
               </Link>
             ))}
           </nav>

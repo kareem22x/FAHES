@@ -80,7 +80,9 @@ function initialsOf(name: string) {
  *
  *   * `/dashboard/profile`   — the identical `AccountProfile`, in the customer shell
  *   * `/inspector/settings`  — work scope + identity, in the inspector shell
- *   * `/account`             — for `admin_pending`, who has no workspace yet
+ *   * `/admin/settings`      — «حسابي», in the admin console (support agents are
+ *                              admins here, so they land on the same screen)
+ *   * `/account`             — for `admin_pending`, who has no console yet
  *
  * The default (`'customer'`) is what the public header passes, where the role
  * is genuinely unknown. `/dashboard/profile` re-routes a non-customer to the
@@ -89,6 +91,7 @@ function initialsOf(name: string) {
 function profileHrefForRole(role: AccountRole) {
   if (role === 'inspector') return '/inspector/settings'
   if (role === 'customer') return '/dashboard/profile'
+  if (role === 'admin') return '/admin/settings'
   return '/account'
 }
 

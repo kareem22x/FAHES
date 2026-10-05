@@ -14,6 +14,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  UserRound,
   UsersRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -56,6 +57,7 @@ export function CommandPalette() {
       { id: 'audit', label: 'سجل التدقيق', group: 'تنقّل', icon: <ScrollText className="size-3.5" />, run: go('/admin/audit-logs'), keywords: 'audit logs' },
       { id: 'security', label: 'الأمان', group: 'تنقّل', icon: <Activity className="size-3.5" />, run: go('/admin/security') },
       { id: 'settings', label: 'الإعدادات', group: 'تنقّل', icon: <Settings className="size-3.5" />, run: go('/admin/settings'), keywords: 'system settings kill switch' },
+      { id: 'agent-profile', label: 'ملفي الشخصي', group: 'تنقّل', icon: <UserRound className="size-3.5" />, run: go('/admin/support/agent-profile'), keywords: 'profile account my account' },
       { id: 'site', label: 'الموقع العام', group: 'انتقال', icon: <ExternalLink className="size-3.5" />, run: go('/') },
       { id: 'dashboard', label: 'لوحة العميل', group: 'انتقال', icon: <ExternalLink className="size-3.5" />, run: go('/dashboard') },
     ]

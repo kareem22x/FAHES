@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Clock, Download, Inbox, Loader2, Search, Star, TrendingUp } from 'lucide-react'
+import { AlertTriangle, Clock, Download, Inbox, Loader2, Search, Star, TrendingUp, UserRound } from 'lucide-react'
 import { EmptyState, GlassBadge, GlassPanel } from '@/components/admin/ui/glass'
 import { bulkTicketAction, type SupportActionState } from '@/lib/support/admin-actions'
 import {
@@ -133,6 +133,25 @@ export default function SupportConsole({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-sm font-bold text-[#102444]">لوحة الدعم الفني</h1>
+          <p className="text-[11px] text-[#65768d]">
+            التذاكر الواردة، حالة الاستجابة، وحِمل العمل.
+          </p>
+        </div>
+        {/* Linked from here because an agent looks for their own profile next to
+            the queue they are working, not buried in platform settings. */}
+        <Link
+          href="/admin/support/agent-profile"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3eaf2] bg-white px-3 py-2 text-[11px] font-semibold text-[#102444] transition-colors hover:border-[#c9d8ea] hover:bg-[#f8fafc]"
+        >
+          <UserRound size={14} />
+          ملفي الشخصي وحِملي
+        </Link>
+      </header>
+
       {/* ── Stat cards ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard icon={<Inbox size={15} />} label="تذاكر مفتوحة" value={stats.open} tone="text-rose-600" />
