@@ -5,11 +5,16 @@ import { useRouter } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
 
 /**
- * The mirror of `InspectorViewToggle`: an owner's way back to the admin console.
+ * The way back to the admin console from the inspector field surface.
  *
- * Rendered only when the session is a platform owner *and* inspector view mode
- * is on. A real inspector never sees it, because for them it would be a link to
- * a console they cannot enter.
+ * ── Why it now calls `/api/auth/surface` ───────────────────────────────────
+ *
+ * It used to POST `{ view: false }` to `/api/auth/inspector-view`, which cleared
+ * `fahes_inspector_view`. That cookie has been superseded by `fahes_surface`,
+ * and `getSession()` reads the old one as a *fallback* when the new one is
+ * absent — so clearing only the legacy cookie would leave an owner who entered
+ * through the new switcher pinned to the inspector surface with no way out.
+ * Both routes now share one cookie and one clearing path.
  *
  * Deliberately placed in the inspector topbar next to the logout control — the
  * one row an owner will look at when they have finished in the field, and where
@@ -23,10 +28,10 @@ export function ExitInspectorView() {
   async function exit() {
     setFailed(false)
     try {
-      const response = await fetch('/api/auth/inspector-view', {
+      const response = await fetch('/api/auth/surface', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ view: false }),
+        body: JSON.stringify({ surface: null }),
       })
       if (!response.ok) {
         setFailed(true)

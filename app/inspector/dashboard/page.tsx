@@ -20,6 +20,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/logout-button'
+import { SurfaceExit } from '@/components/admin/surface-exit'
 import InspectorDashboardHeader from '@/components/modules/inspector/dashboard-header'
 import { InspectorOfferForm } from '@/components/modules/inspector/offer-form'
 import { InspectorProfileSettings } from '@/components/modules/inspector/profile-settings'
@@ -113,6 +114,11 @@ export default async function InspectorDashboardPage() {
               <p className="inspector-topbar-description">متابعة طلبات الفحص والمواعيد في مدن التغطية.</p>
             </div>
             <div className="inspector-topbar-actions">
+              {/* Only an owner standing in the inspector surface sees this. A real
+                  inspector has no admin console to return to, so the control is
+                  keyed on the surface rather than on `requireRoles` admitting the
+                  request — owners are admitted to every console by design. */}
+              {session.surface === 'inspector' && <SurfaceExit />}
               <span className={`inspector-status-pill ${isOnline ? 'is-online' : ''}`}>
                 <span />{isOnline ? 'متصل' : 'غير متاح'}
               </span>

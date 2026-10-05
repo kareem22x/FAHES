@@ -4,12 +4,15 @@ import { redirect } from 'next/navigation'
 import {
   ADMIN_ELEVATION_COOKIE,
   INSPECTOR_VIEW_COOKIE,
+  SURFACE_COOKIE,
   signAdminElevation,
-  signInspectorView,
+  signSurface,
   verifyAdminElevation,
   verifyInspectorView,
+  verifySurface,
 } from '@/lib/admin-elevation'
 import { isValidSaudiMobile, normalizePhone } from '@/lib/phone'
+import type { Surface } from '@/lib/surfaces'
 import type { Role } from '@/types/domain'
 import { dashboardPath } from '@/lib/post-auth-path'
 import { getUserByClerkId, getUserById, isPlatformAdmin, isPlatformOwner, upsertUserFromClerk } from '@/lib/user-store'
@@ -26,8 +29,28 @@ export type AppSession = {
    * It is *not* a role and carries no privileges of its own — `isInspectorSession()`
    * in `lib/field/access.ts` still re-checks `isPlatformOwner()` on the live
    * identity, so this flag can never lift a non-owner into the inspector APIs.
+   *
+   * Retained as a derived convenience: it is exactly `surface === 'inspector'`,
+   * and keeping it means the sixteen call sites that already ask this question
+   * did not have to change when the single toggle became three surfaces.
    */
   inspectorView: boolean
+  /**
+   * Which operator surface the owner is standing in, or `null` for the ordinary
+   * admin console.
+   *
+   * Owner-only, and honoured only together with `isPlatformOwner()` on the live
+   * identity — the cookie is a signed, session-bound *switch*, never a grant, so
+   * a non-owner presenting a perfect forgery is still a non-owner.
+   *
+   * This is deliberately a surface rather than a stored role. The account holds
+   * `admin` permanently (it is env-listed), so it can never *be* a customer,
+   * inspector or support agent: `getSession()` resolves the role to `admin`
+   * before it reads `inspector_status`, and dozens of API routes test the role
+   * directly. Changing which surface it stands in leaves every one of those
+   * checks correct.
+   */
+  surface: Surface | null
   /**
    * True when the customer has both a verified phone (via Clerk) and a
    * national ID (10-digit Saudi ID entered in the profile). Customers who
@@ -81,12 +104,21 @@ export async function getSession(): Promise<AppSession | null> {
     jar.get(ADMIN_ELEVATION_COOKIE)?.value,
     clerkSession.sessionId,
   ))
-  // Inspector view mode is owner-only. A non-owner is refused here, before the
-  // cookie is even verified, so a stolen or forged cookie is inert.
-  const inspectorView = isOwner && await verifyInspectorView(
-    jar.get(INSPECTOR_VIEW_COOKIE)?.value,
-    clerkSession.sessionId,
-  )
+  // Surfaces are owner-only. A non-owner is refused here, before either cookie
+  // is even read, so a stolen or forged cookie is inert.
+  //
+  // The second read is a migration: `fahes_surface` is the current cookie, and
+  // `fahes_inspector_view` is the single-boolean cookie it replaced. An owner who
+  // was already inside the inspector surface when this shipped still holds the
+  // old one, and dropping that read would bounce them to the admin console
+  // mid-session. The old cookie is never written again, so it ages out.
+  const surface: Surface | null = isOwner
+    ? (await verifySurface(jar.get(SURFACE_COOKIE)?.value, clerkSession.sessionId))
+      ?? (await verifyInspectorView(jar.get(INSPECTOR_VIEW_COOKIE)?.value, clerkSession.sessionId)
+        ? 'inspector'
+        : null)
+    : null
+  const inspectorView = surface === 'inspector'
   const role: Role = isAdmin
     ? elevated ? 'admin' : 'admin_pending'
     : user.inspectorStatus === 'approved' ? 'inspector' : 'customer'
@@ -100,24 +132,29 @@ export async function getSession(): Promise<AppSession | null> {
     clerkSessionId: clerkSession.sessionId,
     clerkUserId: clerkSession.userId,
     inspectorView,
+    surface,
     isVerified,
     phoneVerified: user.phoneVerified,
   }
 }
 
-/** Enters inspector view mode. Owner-only; enforced again in `getSession()`. */
-export async function setInspectorViewCookie(sessionId: string) {
+/**
+ * Records the surface the owner is standing in.
+ *
+ * Called only from an owner-authorised route, but nothing here trusts that: the
+ * cookie is signed and bound to the Clerk session id, and `getSession()` refuses
+ * to read it for anyone who is not an owner on the live identity.
+ */
+export async function setSurfaceCookie(sessionId: string, surface: Surface) {
   const jar = await cookies()
   jar.set({
-    name: INSPECTOR_VIEW_COOKIE,
-    value: await signInspectorView(sessionId),
+    name: SURFACE_COOKIE,
+    value: await signSurface(sessionId, surface),
     ...adminElevationCookieOptions,
     maxAge: 30 * 24 * 60 * 60,
   })
-}
-
-export async function clearInspectorViewCookie() {
-  const jar = await cookies()
+  // Retire the superseded cookie in the same response. Leaving it set would keep
+  // the migration read alive and let the two disagree about the surface.
   jar.set({
     name: INSPECTOR_VIEW_COOKIE,
     value: '',
@@ -125,6 +162,40 @@ export async function clearInspectorViewCookie() {
     maxAge: 0,
   })
 }
+
+/**
+ * Leaves every surface and returns to the ordinary admin console.
+ *
+ * Clears the superseded `INSPECTOR_VIEW_COOKIE` in the same response, and that
+ * is not belt-and-braces: `getSession()` reads the old cookie as a *fallback*
+ * when the new one is absent, so clearing only `fahes_surface` would let an
+ * owner who had ever used the single inspector toggle leave the surface and be
+ * pulled straight back into it by the migration read. The two cookies are
+ * retired together or the exit silently fails.
+ */
+export async function clearSurfaceCookie() {
+  const jar = await cookies()
+  for (const name of [SURFACE_COOKIE, INSPECTOR_VIEW_COOKIE]) {
+    jar.set({
+      name,
+      value: '',
+      ...adminElevationCookieOptions,
+      maxAge: 0,
+    })
+  }
+}
+
+/**
+ * The single-boolean inspector-view writers are gone.
+ *
+ * `fahes_inspector_view` is read-only from here on: `getSession()` still
+ * consults it as the migration fallback for an owner who was inside the
+ * inspector surface when the surface cookie shipped, and `signInspectorView`
+ * stays in `lib/admin-elevation.ts` as the counterpart that proves the read
+ * works. Nothing writes the cookie any more — every entry point, including the
+ * legacy `/api/auth/inspector-view` route, writes `fahes_surface` — so it ages
+ * out with the session and the fallback disappears on its own.
+ */
 
 export async function setAdminElevationCookie(sessionId: string) {
   const jar = await cookies()
@@ -138,24 +209,14 @@ export async function setAdminElevationCookie(sessionId: string) {
 
 export async function clearSessionCookie() {
   const jar = await cookies()
-  jar.set({
-    name: ADMIN_ELEVATION_COOKIE,
-    value: '',
-    ...adminElevationCookieOptions,
-    maxAge: 0,
-  })
-  jar.set({
-    name: INSPECTOR_VIEW_COOKIE,
-    value: '',
-    ...adminElevationCookieOptions,
-    maxAge: 0,
-  })
-  jar.set({
-    name: 'fahes_session',
-    value: '',
-    ...adminElevationCookieOptions,
-    maxAge: 0,
-  })
+  for (const name of [ADMIN_ELEVATION_COOKIE, INSPECTOR_VIEW_COOKIE, SURFACE_COOKIE, 'fahes_session']) {
+    jar.set({
+      name,
+      value: '',
+      ...adminElevationCookieOptions,
+      maxAge: 0,
+    })
+  }
 }
 
 export async function requireSession() {

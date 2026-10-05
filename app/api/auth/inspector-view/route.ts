@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession, setInspectorViewCookie, clearInspectorViewCookie } from '@/lib/auth'
+import { clearSurfaceCookie, getSession, setSurfaceCookie } from '@/lib/auth'
 import { assertSameOrigin } from '@/lib/origin'
 import { logAuditEvent } from '@/lib/audit'
 import { isPlatformOwner } from '@/lib/user-store'
 import { inspectorExitPath } from '@/lib/post-auth-path'
+import { surfaceHomePath } from '@/lib/surfaces'
 
 /**
- * The owner's dual-role toggle: enter and leave the inspector surface.
+ * The owner's original dual-role toggle: enter and leave the inspector surface.
+ *
+ * ── Why this still exists ──────────────────────────────────────────────────
+ *
+ * The single boolean toggle has been superseded by `/api/auth/surface`, which
+ * carries the surface name and serves three of them. This route is kept as a
+ * thin translation layer rather than deleted, for two reasons:
+ *
+ *   1. It used to write `fahes_inspector_view`, the cookie the surface cookie
+ *      now supersedes. Anything that still calls it — a stale tab holding the
+ *      old client bundle, a bookmark, a mobile build mid-update — would
+ *      otherwise keep writing a cookie the exit path no longer reads, and the
+ *      owner would find themselves unable to leave the surface.
+ *   2. It is the documented endpoint in the older notes, and a redirect of
+ *      *semantics* is cheaper to reason about than a 404.
+ *
+ * So it now writes the same `fahes_surface` cookie the switcher writes. There
+ * is one source of truth for which surface the owner stands in; the boolean is
+ * a spelling of `inspector`, and leaving is leaving every surface.
  *
  * ── Why this is a route and not a UI-only affordance ───────────────────────
  *
@@ -45,22 +64,22 @@ export async function POST(request: NextRequest) {
   }
 
   const entering = body.view
-  if (entering) await setInspectorViewCookie(session.clerkSessionId)
-  else await clearInspectorViewCookie()
+  if (entering) await setSurfaceCookie(session.clerkSessionId, 'inspector')
+  else await clearSurfaceCookie()
 
   await logAuditEvent({
     actorId: session.sub,
     eventType: entering ? 'admin.inspector_view_entered' : 'admin.inspector_view_left',
     resourceType: 'user',
     resourceId: session.sub,
-    metadata: { role: session.role },
+    metadata: { role: session.role, surface: entering ? 'inspector' : null },
   })
 
   // Leaving the inspector surface only returns an admin to the admin console.
   // `inspectorExitPath` refuses to send a non-owner there, so a stale cookie can
   // never turn this response into an admin-URL leak.
   const redirectTo = entering
-    ? '/inspector/dashboard'
+    ? surfaceHomePath('inspector')
     : inspectorExitPath({ role: session.role })
 
   return NextResponse.json({ success: true, inspectorView: entering, redirectTo })

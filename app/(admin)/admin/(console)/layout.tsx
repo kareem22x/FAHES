@@ -24,6 +24,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     <AdminShell
       tier={tierOf(session)}
       adminName={user?.name ?? 'مدير'}
+      surface={session.surface}
       quickStats={{
         users: stats.users,
         openInspections: stats.openInspections,

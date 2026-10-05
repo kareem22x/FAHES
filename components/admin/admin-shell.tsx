@@ -7,6 +7,7 @@ import {
   Activity,
   CarFront,
   LayoutDashboard,
+  LifeBuoy,
   ScrollText,
   ShieldCheck,
   UsersRound,
@@ -14,9 +15,10 @@ import {
 import BrandMark from '@/components/brand-mark'
 import { LogoutButton } from '@/components/logout-button'
 import { CommandPalette, CommandPaletteTrigger } from '@/components/admin/ui/command-palette'
-import { InspectorViewToggle } from '@/components/admin/inspector-view-toggle'
+import { SurfaceSwitcher } from '@/components/admin/surface-switcher'
+import { SURFACE_LABEL, type Surface } from '@/lib/surfaces'
 
-export type AdminNavKey = 'overview' | 'inspections' | 'inspectors' | 'users' | 'audit' | 'security'
+export type AdminNavKey = 'overview' | 'inspections' | 'inspectors' | 'users' | 'support' | 'audit' | 'security'
 
 const navItems: {
   key: AdminNavKey
@@ -29,6 +31,11 @@ const navItems: {
   { key: 'inspections', href: '/admin/inspections', label: 'طلبات الفحص', subtitle: 'متابعة العمليات', icon: CarFront },
   { key: 'inspectors', href: '/admin/inspectors', label: 'الفاحصون', subtitle: 'إدارة الفريق', icon: ShieldCheck },
   { key: 'users', href: '/admin/users', label: 'المستخدمون', subtitle: 'إدارة الحسابات', icon: UsersRound },
+  // Placed fifth on purpose: the mobile nav renders `navItems.slice(0, 4)`, so
+  // inserting this higher would push «المستخدمون» off the mobile bar. It was
+  // reachable only by typing the URL before, which is why the support surface
+  // looked missing even though the page and its API were complete.
+  { key: 'support', href: '/admin/support', label: 'الدعم الفني', subtitle: 'تذاكر الدعم والردود', icon: LifeBuoy },
   { key: 'audit', href: '/admin/audit-logs', label: 'سجل التدقيق', subtitle: 'سجل غير قابل للتعديل', icon: ScrollText },
   { key: 'security', href: '/admin/security', label: 'الأمان', subtitle: 'وضع الحماية', icon: Activity },
 ]
@@ -48,11 +55,22 @@ export type ShellQuickStats = {
 export function AdminShell({
   tier,
   adminName,
+  surface = null,
   quickStats,
   children,
 }: {
   tier: 'admin' | 'super_admin'
   adminName: string
+  /**
+   * The surface the owner is standing in, or `null` for the console itself.
+   *
+   * The console is still rendered while a surface is active whenever the
+   * surface *is* an admin route — the support surface is `/admin/support`, so
+   * the switcher must show "دعم فني" as current rather than claiming the owner
+   * is in the console. Passed down rather than read from the session here
+   * because this is a client component and the session is server-side.
+   */
+  surface?: Surface | null
   quickStats: ShellQuickStats
   children: React.ReactNode
 }) {
@@ -118,7 +136,11 @@ export function AdminShell({
             <span className="inspector-user-avatar">{adminName.slice(0, 1)}</span>
             <span>
               <strong>{adminName}</strong>
-              <small>{tier === 'super_admin' ? 'مالك المنصة' : 'مدير'}</small>
+              <small>
+                {tier === 'super_admin'
+                  ? surface ? `مالك · واجهة ${SURFACE_LABEL[surface]}` : 'مالك المنصة'
+                  : 'مدير'}
+              </small>
             </span>
             <LogoutButton />
           </div>
@@ -134,7 +156,7 @@ export function AdminShell({
               <p className="inspector-topbar-description">{current.subtitle}</p>
             </div>
             <div className="inspector-topbar-actions">
-              {tier === 'super_admin' && <InspectorViewToggle />}
+              {tier === 'super_admin' && <SurfaceSwitcher current={surface} />}
               <CommandPaletteTrigger />
               <span className="inspector-status-pill is-online">
                 <span />النظام يعمل

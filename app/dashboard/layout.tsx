@@ -48,7 +48,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </aside>
 
       <div className="app-main">
-        <DashboardTopbar />
+        <DashboardTopbar ownerSurface={session.surface === 'customer'} />
         <nav className="app-mobile-nav" aria-label="تنقل لوحة العميل للجوال">
           <DashboardNav counts={{ requests: summary.active, reports: summary.completed }} />
         </nav>
