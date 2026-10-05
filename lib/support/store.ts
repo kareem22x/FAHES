@@ -275,6 +275,15 @@ export type SupportStats = {
   criticalOpen: number
   avgFirstResponseMinutes: number | null
   avgSatisfaction: number | null
+  /**
+   * Unresolved tickets per priority, over the same rows as the counters above.
+   *
+   * Scoped to unresolved on purpose: a distribution that included closed tickets
+   * would describe the archive rather than the queue an agent is actually
+   * working, which is the question the console is answering. A critical ticket
+   * from last month is not load.
+   */
+  openByPriority: Record<TicketPriority, number>
 }
 
 export async function supportStats(): Promise<SupportStats> {
@@ -288,6 +297,11 @@ export async function supportStats(): Promise<SupportStats> {
  */
 export function computeSupportStats(tickets: SupportTicket[]): SupportStats {
   const now = Date.now()
+
+  // "Still on someone's plate". Defined once because the counters below each
+  // asked the same question inline, and a single drifting copy of this rule is
+  // how a dashboard starts disagreeing with its own table.
+  const isOpen = (t: SupportTicket) => !['resolved', 'closed'].includes(t.status)
 
   const resolvedWithResponse = tickets.filter((t) => t.firstResponseAt !== null)
   const avgFirstResponseMinutes = resolvedWithResponse.length
@@ -303,19 +317,29 @@ export function computeSupportStats(tickets: SupportTicket[]): SupportStats {
     ? Math.round((rated.reduce((sum, t) => sum + (t.satisfactionRating as number), 0) / rated.length) * 10) / 10
     : null
 
+  const openTickets = tickets.filter(isOpen)
+  const countOpen = (priority: TicketPriority) =>
+    openTickets.filter((t) => t.priority === priority).length
+
   return {
     open: tickets.filter((t) => t.status === 'open').length,
     inProgress: tickets.filter((t) => t.status === 'in_progress').length,
     waiting: tickets.filter((t) => t.status === 'waiting_for_user').length,
     resolved: tickets.filter((t) => t.status === 'resolved').length,
     closed: tickets.filter((t) => t.status === 'closed').length,
-    unassigned: tickets.filter((t) => t.assignedTo === null && !['resolved', 'closed'].includes(t.status)).length,
+    unassigned: tickets.filter((t) => t.assignedTo === null && isOpen(t)).length,
     slaBreached: tickets.filter(
-      (t) => t.firstResponseAt === null && t.slaDueAt !== null && t.slaDueAt < now && !['resolved', 'closed'].includes(t.status),
+      (t) => t.firstResponseAt === null && t.slaDueAt !== null && t.slaDueAt < now && isOpen(t),
     ).length,
-    criticalOpen: tickets.filter((t) => t.priority === 'critical' && !['resolved', 'closed'].includes(t.status)).length,
+    criticalOpen: countOpen('critical'),
     avgFirstResponseMinutes,
     avgSatisfaction,
+    openByPriority: {
+      critical: countOpen('critical'),
+      high: countOpen('high'),
+      medium: countOpen('medium'),
+      low: countOpen('low'),
+    },
   }
 }
 

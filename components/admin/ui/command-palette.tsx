@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   ScrollText,
   Search,
+  Settings,
   ShieldCheck,
   UsersRound,
 } from 'lucide-react'
@@ -54,6 +55,7 @@ export function CommandPalette() {
       { id: 'support', label: 'الدعم الفني', group: 'تنقّل', icon: <LifeBuoy className="size-3.5" />, run: go('/admin/support'), keywords: 'support tickets' },
       { id: 'audit', label: 'سجل التدقيق', group: 'تنقّل', icon: <ScrollText className="size-3.5" />, run: go('/admin/audit-logs'), keywords: 'audit logs' },
       { id: 'security', label: 'الأمان', group: 'تنقّل', icon: <Activity className="size-3.5" />, run: go('/admin/security') },
+      { id: 'settings', label: 'الإعدادات', group: 'تنقّل', icon: <Settings className="size-3.5" />, run: go('/admin/settings'), keywords: 'system settings kill switch' },
       { id: 'site', label: 'الموقع العام', group: 'انتقال', icon: <ExternalLink className="size-3.5" />, run: go('/') },
       { id: 'dashboard', label: 'لوحة العميل', group: 'انتقال', icon: <ExternalLink className="size-3.5" />, run: go('/dashboard') },
     ]

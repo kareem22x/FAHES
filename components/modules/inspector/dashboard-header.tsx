@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useClerk } from '@clerk/nextjs'
 import { useTheme } from 'next-themes'
@@ -110,9 +110,23 @@ export default function InspectorDashboardHeader({
   const bellPanelId = useId()
   const menuPanelId = useId()
   const lastUnread = useRef(initialUnread)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
+  /**
+   * "Have we hydrated yet?" — needed because the theme icon must not be chosen
+   * during SSR, where `next-themes` has not resolved the stored preference.
+   *
+   * This used to be `useState(false)` plus `useEffect(() => setMounted(true), [])`.
+   * That is the common idiom, but it schedules a second render on every mount and
+   * React's linter flags it as a cascading render (`react-hooks/set-state-in-effect`).
+   * `useSyncExternalStore` asks the same question without a state write: the
+   * server snapshot is `false`, the client snapshot is `true`, and the empty
+   * subscribe function is correct because hydration happens exactly once and
+   * never needs to notify.
+   */
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  )
 
   const refresh = useCallback(async () => {
     try {
@@ -321,6 +335,22 @@ export default function InspectorDashboardHeader({
             </div>
 
             <div className="border-t border-[#e3eaf2] py-1">
+              {/* Two destinations, not one, because they are two different things.
+                  The profile lives inside the inspector workspace (work scope,
+                  availability, verification state); the security settings are
+                  account-level facts shared by every role and stay at /account.
+                  Both used to point at /account, which dropped the inspector out
+                  of their own shell for a screen whose main action bounces back. */}
+              <Link
+                href="/inspector/settings"
+                role="menuitem"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-[11px] text-[#33465f] transition hover:bg-[#f5f9ff]"
+              >
+                <UserRound size={15} />
+                الملف الشخصي والإعدادات
+              </Link>
+
               <Link
                 href="/account"
                 role="menuitem"

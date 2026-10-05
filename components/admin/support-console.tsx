@@ -22,6 +22,27 @@ import type { SupportStats, SupportTicket, TicketPriority, TicketStatus } from '
  * caps at a few hundred rows, so an instant filter beats a round-trip per keystroke.
  */
 
+/**
+ * Fill colour per priority, for the distribution bar.
+ *
+ * Written as a static map rather than built from the value with a template
+ * literal: Tailwind scans source text, so `bg-${tone}-500` produces no CSS at
+ * all and the bar would render invisible.
+ */
+const PRIORITY_BAR: Record<TicketPriority, string> = {
+  critical: 'bg-rose-500',
+  high: 'bg-amber-500',
+  medium: 'bg-sky-500',
+  low: 'bg-slate-300',
+}
+
+const PRIORITY_DOT: Record<TicketPriority, string> = {
+  critical: 'bg-rose-500',
+  high: 'bg-amber-500',
+  medium: 'bg-sky-500',
+  low: 'bg-slate-300',
+}
+
 function slaState(ticket: SupportTicket, now: number) {
   if (ticket.firstResponseAt !== null || ['resolved', 'closed'].includes(ticket.status)) return null
   if (ticket.slaDueAt === null) return null
@@ -106,6 +127,10 @@ export default function SupportConsole({
 
   const allSelected = filtered.length > 0 && filtered.every((ticket) => selected.has(ticket.id))
 
+  // Summed from the distribution itself, not from the status counters, so the
+  // bar widths and the "N تذكرة" caption can never disagree with each other.
+  const openTotal = priorityOrder.reduce((sum, value) => sum + stats.openByPriority[value], 0)
+
   return (
     <div className="flex flex-col gap-4">
       {/* ── Stat cards ────────────────────────────────────────────────────── */}
@@ -125,6 +150,50 @@ export default function SupportConsole({
           tone="text-emerald-600"
         />
       </div>
+
+      {/* ── Priority distribution ─────────────────────────────────────────── */}
+      <GlassPanel className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <strong className="text-[12px] text-[#102444]">توزيع الأولويات — التذاكر غير المغلقة</strong>
+          <span className="text-[10px] text-[#65768d]">{openTotal} تذكرة</span>
+        </div>
+
+        {openTotal === 0 ? (
+          <p className="mt-3 text-[11px] text-[#788699]">لا توجد تذاكر مفتوحة حاليًا.</p>
+        ) : (
+          <>
+            <div
+              className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[#eef2f7]"
+              role="img"
+              aria-label={priorityOrder
+                .map((value) => `${priorityLabels[value]}: ${stats.openByPriority[value]}`)
+                .join('، ')}
+            >
+              {priorityOrder.map((value) => {
+                const count = stats.openByPriority[value]
+                if (count === 0) return null
+                return (
+                  <span
+                    key={value}
+                    className={PRIORITY_BAR[value]}
+                    style={{ width: `${(count / openTotal) * 100}%` }}
+                  />
+                )
+              })}
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              {priorityOrder.map((value) => (
+                <span key={value} className="inline-flex items-center gap-1.5 text-[10px] text-[#475d78]">
+                  <span className={`size-2 rounded-full ${PRIORITY_DOT[value]}`} aria-hidden="true" />
+                  {priorityLabels[value]}
+                  <strong className="text-[#102444]">{stats.openByPriority[value]}</strong>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </GlassPanel>
 
       {stats.slaBreached > 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] text-rose-800">

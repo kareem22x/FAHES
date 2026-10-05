@@ -66,6 +66,32 @@ function initialsOf(name: string) {
   return parts.slice(0, 2).map((part) => Array.from(part)[0]).join('')
 }
 
+/**
+ * Where «ملفي الشخصي» goes, per role.
+ *
+ * ── Why this is not one URL ────────────────────────────────────────────────
+ *
+ * A profile is a *screen inside a workspace*, and the role decides which one.
+ * Every role used to be sent to the standalone `/account`, which renders
+ * `AccountProfile` on the marketing shell (`SiteHeader`) — so a customer left
+ * their dashboard, and an inspector left their workspace, to look at their own
+ * name on a page whose primary button only bounced them back. Both now land on
+ * the same component framed by the shell they were already in:
+ *
+ *   * `/dashboard/profile`   — the identical `AccountProfile`, in the customer shell
+ *   * `/inspector/settings`  — work scope + identity, in the inspector shell
+ *   * `/account`             — for `admin_pending`, who has no workspace yet
+ *
+ * The default (`'customer'`) is what the public header passes, where the role
+ * is genuinely unknown. `/dashboard/profile` re-routes a non-customer to the
+ * console their role owns, so the guess is safe.
+ */
+function profileHrefForRole(role: AccountRole) {
+  if (role === 'inspector') return '/inspector/settings'
+  if (role === 'customer') return '/dashboard/profile'
+  return '/account'
+}
+
 /** Clears the elevated-admin cookie, then ends the Clerk session. */
 function useEndSession() {
   const { signOut } = useClerk()
@@ -192,7 +218,7 @@ export function AccountMenu({ role = 'customer' }: { role?: AccountRole }) {
           </div>
 
           <div className="account-dropdown-foot">
-            <Link href="/account" role="menuitem" onClick={() => close()}>
+            <Link href={profileHrefForRole(role)} role="menuitem" onClick={() => close()}>
               <span className="account-link-icon"><UserRound size={16} /></span>
               <span className="account-link-text"><strong>ملفي الشخصي</strong><small>البيانات والأمان</small></span>
             </Link>
@@ -229,7 +255,7 @@ export function AccountMenuInline({ role = 'customer' }: { role?: AccountRole })
       {linksForRole(role).map(({ href, label, icon: Icon }) => (
         <Link key={href} href={href}><Icon size={16} />{label}</Link>
       ))}
-      <Link href="/account"><UserRound size={16} />ملفي الشخصي</Link>
+      <Link href={profileHrefForRole(role)}><UserRound size={16} />ملفي الشخصي</Link>
       <button type="button" onClick={() => void endSession()}><LogOut size={16} />تسجيل الخروج</button>
     </div>
   )

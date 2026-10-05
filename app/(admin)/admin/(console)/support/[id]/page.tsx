@@ -3,6 +3,7 @@ import { requireAdminPage } from '@/lib/admin/rbac'
 import { getCustomerRequests } from '@/lib/customer-data'
 import { getUserById } from '@/lib/user-store'
 import { getTicket, listCannedResponses, listEvents, listMessages } from '@/lib/support/store'
+import { formatAccountAge, formatLastSeen } from '@/lib/relative-time'
 import AdminTicketDetail from '@/components/admin/support-ticket-detail'
 
 export const dynamic = 'force-dynamic'
@@ -35,6 +36,11 @@ export default async function AdminTicketPage({ params }: { params: Promise<{ id
     recentOrders = []
   }
 
+  // Resolved on the server, once, and shipped as plain strings. `Date.now()` is
+  // deliberately not called here: reading the clock during a render is impure
+  // (and the linter rejects it), and the browser recomputing the label could
+  // land on the other side of a boundary ("أقل من يوم" vs "1 يوم"), which React
+  // reports as a hydration mismatch. The default lives inside the helpers.
   return (
     <AdminTicketDetail
       ticket={ticket}
@@ -46,6 +52,8 @@ export default async function AdminTicketPage({ params }: { params: Promise<{ id
         phone: requester?.phone ?? null,
         role: requester?.role ?? 'customer',
         verified: requester?.phoneVerified ?? false,
+        accountAge: formatAccountAge(requester?.createdAt),
+        lastSeen: formatLastSeen(requester?.lastLoginAt),
       }}
       recentOrders={recentOrders}
     />

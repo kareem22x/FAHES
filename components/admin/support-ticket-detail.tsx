@@ -29,6 +29,7 @@ import {
 import {
   categoryLabels,
   priorityLabels,
+  requesterRoleLabels,
   statusOrder,
   ticketStatusLabels,
   ticketStatusTone,
@@ -49,6 +50,18 @@ type RequesterSummary = {
   phone: string | null
   role: string
   verified: boolean
+  /**
+   * Pre-formatted on the server, not a timestamp.
+   *
+   * The agent needs "is this a brand-new account or a long-standing one?" and
+   * formatting it here would call `Date.now()` during render — a different
+   * answer on the server and in the browser, which React flags as a hydration
+   * mismatch. `null` means the row carries no creation date, and the row is
+   * omitted rather than guessed at.
+   */
+  accountAge: string | null
+  /** Always present: a missing last-login is itself worth stating. */
+  lastSeen: string
 }
 
 type RecentOrder = { id: string; label: string; status: string }
@@ -300,7 +313,9 @@ export default function AdminTicketDetail({
             <div className="mt-3 flex flex-col gap-2 text-[11px]">
               <Row label="الاسم" value={requester.name} />
               <Row label="الجوال" value={requester.phone ?? 'غير مضاف'} ltr />
-              <Row label="الدور" value={requester.role} />
+              <Row label="الدور" value={requesterRoleLabels[requester.role] ?? requester.role} />
+              {requester.accountAge && <Row label="عمر الحساب" value={requester.accountAge} />}
+              <Row label="آخر ظهور" value={requester.lastSeen} />
               <div className="flex items-center justify-between">
                 <span className="text-[#65768d]">توثيق الجوال</span>
                 {requester.verified ? (

@@ -54,3 +54,21 @@ export const statusOrder: TicketStatus[] = ['open', 'in_progress', 'waiting_for_
 
 /** The status timeline shown on the ticket detail page. */
 export const statusTimeline: TicketStatus[] = ['open', 'in_progress', 'waiting_for_user', 'resolved', 'closed']
+
+/**
+ * Arabic labels for the account role of whoever opened the ticket.
+ *
+ * The admin sidebar used to print the raw column value, so a fully Arabic
+ * console showed "customer" next to the agent's own name. Keyed by `string`
+ * rather than a union on purpose: the ticket's own `requesterRole` enum and
+ * `AppUser.role` use overlapping but different vocabularies, and the sidebar
+ * reads whichever one the row happens to carry. Callers fall back to the raw
+ * value so an unmapped role degrades to the old behaviour instead of blank.
+ */
+export const requesterRoleLabels: Record<string, string> = {
+  customer: 'عميل',
+  inspector: 'فاحص',
+  admin: 'مشرف',
+  admin_pending: 'مشرف (بانتظار التفعيل)',
+  support: 'دعم فني',
+}

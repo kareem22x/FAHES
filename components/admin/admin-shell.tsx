@@ -9,7 +9,9 @@ import {
   LayoutDashboard,
   LifeBuoy,
   ScrollText,
+  Settings,
   ShieldCheck,
+  UserRound,
   UsersRound,
 } from 'lucide-react'
 import BrandMark from '@/components/brand-mark'
@@ -18,7 +20,7 @@ import { CommandPalette, CommandPaletteTrigger } from '@/components/admin/ui/com
 import { SurfaceSwitcher } from '@/components/admin/surface-switcher'
 import { SURFACE_LABEL, type Surface } from '@/lib/surfaces'
 
-export type AdminNavKey = 'overview' | 'inspections' | 'inspectors' | 'users' | 'support' | 'audit' | 'security'
+export type AdminNavKey = 'overview' | 'inspections' | 'inspectors' | 'users' | 'support' | 'audit' | 'security' | 'settings'
 
 const navItems: {
   key: AdminNavKey
@@ -38,6 +40,9 @@ const navItems: {
   { key: 'support', href: '/admin/support', label: 'الدعم الفني', subtitle: 'تذاكر الدعم والردود', icon: LifeBuoy },
   { key: 'audit', href: '/admin/audit-logs', label: 'سجل التدقيق', subtitle: 'سجل غير قابل للتعديل', icon: ScrollText },
   { key: 'security', href: '/admin/security', label: 'الأمان', subtitle: 'وضع الحماية', icon: Activity },
+  // Also unreachable before this: the page, its kill switch and its settings
+  // table all existed, but nothing in the console linked to them.
+  { key: 'settings', href: '/admin/settings', label: 'الإعدادات', subtitle: 'إعدادات المنصة', icon: Settings },
 ]
 
 export type ShellQuickStats = {
@@ -129,7 +134,12 @@ export function AdminShell({
             <span><ShieldCheck size={18} /></span>
             <strong>{tier === 'super_admin' ? 'صلاحيات المالك' : 'جلسة إدارية'}</strong>
             <p>تتحكم هذه اللوحة في جميع جوانب المنصة. التغييرات تُسجَّل في سجل التدقيق.</p>
-            <a href="/admin/audit-logs">سجل التدقيق <LayoutDashboard size={14} /></a>
+            {/* `Link`, not `<a>`: a bare anchor forces a full document reload, so
+                the console tore down and re-rendered on every visit to the audit
+                log — the exact "route freezing" feel, from the one control in
+                the shell that bypassed client-side routing. */}
+            <Link href="/admin/audit-logs">سجل التدقيق <LayoutDashboard size={14} /></Link>
+            <Link href="/account">الملف الشخصي والأمان <UserRound size={14} /></Link>
           </div>
 
           <div className="inspector-sidebar-user">
