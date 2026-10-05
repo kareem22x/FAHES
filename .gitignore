@@ -33,7 +33,19 @@ middleware.ts.backup
 # Common ignores
 node_modules
 .next/
-data/
+# Local runtime state only. `app-store.json` holds real user rows (phone numbers
+# and ids), so the directory contents stay out of version control.
+#
+# `data/*` rather than `data/` on purpose: excluding the *directory* makes git
+# skip it entirely, and a later `!` negation can never re-include a file whose
+# parent was excluded. Ignoring each entry instead keeps the directory walkable
+# so the exception below works.
+data/*
+# …but the workshop directory is real application content. `components/ui/
+# workshops-map.tsx` imports it, and because it used to be ignored the build
+# passed locally (the file was on disk) and failed on Vercel with
+# "Module not found: Can't resolve '@/data/workshops'". Tracked from now on.
+!data/workshops.ts
 *.tsbuildinfo
 .DS_Store
 .clerk/
