@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "next dev -p 4001",
+    "check:imports": "node scripts/check-untracked-imports.mjs",
+    "prebuild": "node scripts/check-untracked-imports.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
