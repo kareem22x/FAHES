@@ -82,3 +82,140 @@ export const reviewDecisionTone: Record<ReviewDecision, Tone> = {
   rejected: 'bad',
   flagged: 'warn',
 }
+
+/* ── Extended labels for 40-module admin features ── */
+
+export const violationTypeLabels: Record<string, string> = {
+  fake_gps: 'موقع مزيف',
+  tardiness: 'تأخّر',
+  unexcused_cancel: 'إلغاء بلا عذر',
+  zone_breach: 'تجاوز حدود المنطقة',
+  speed_anomaly: 'سرعة غير طبيعية',
+  photo_tamper: 'تلاعب بالصور',
+}
+
+export const violationTypeTone: Record<string, Tone> = {
+  fake_gps: 'bad',
+  tardiness: 'warn',
+  unexcused_cancel: 'warn',
+  zone_breach: 'bad',
+  speed_anomaly: 'warn',
+  photo_tamper: 'bad',
+}
+
+export const severityLabels: Record<string, string> = {
+  low: 'منخفض',
+  medium: 'متوسط',
+  high: 'عالٍ',
+  critical: 'حرج',
+}
+
+export const severityTone: Record<string, Tone> = {
+  low: 'neutral',
+  medium: 'warn',
+  high: 'bad',
+  critical: 'bad',
+}
+
+export const disputeStatusLabels: Record<string, string> = {
+  open: 'مفتوح',
+  under_review: 'قيد المراجعة',
+  approved: 'مقبول',
+  rejected: 'مرفوض',
+  resolved: 'محلول',
+}
+
+export const disputeStatusTone: Record<string, Tone> = {
+  open: 'bad',
+  under_review: 'warn',
+  approved: 'good',
+  rejected: 'bad',
+  resolved: 'good',
+}
+
+export const auditQueueStatusLabels: Record<string, string> = {
+  pending: 'بانتظار المراجعة',
+  passed: 'مقبول',
+  flagged_for_fix: 'يحتاج تعديل',
+  rejected: 'مرفوض',
+}
+
+export const auditQueueStatusTone: Record<string, Tone> = {
+  pending: 'warn',
+  passed: 'good',
+  flagged_for_fix: 'bad',
+  rejected: 'bad',
+}
+
+export const ticketCategoryLabels: Record<string, string> = {
+  technical: 'فني',
+  showroom_dispute: 'نزاع معرض',
+  location_mismatch: 'عدم تطابق موقع',
+  payment: 'دفع',
+  safety: 'سلامة',
+  account: 'حساب',
+  other: 'أخرى',
+}
+
+export const ticketStatusLabels: Record<string, string> = {
+  open: 'مفتوح',
+  in_review: 'قيد المراجعة',
+  resolved: 'محلول',
+  closed: 'مغلق',
+}
+
+export const ticketStatusTone: Record<string, Tone> = {
+  open: 'bad',
+  in_review: 'warn',
+  resolved: 'good',
+  closed: 'neutral',
+}
+
+export const priorityLabels: Record<string, string> = {
+  low: 'منخفض',
+  normal: 'عادي',
+  high: 'عالٍ',
+  urgent: 'عاجل',
+}
+
+export const priorityTone: Record<string, Tone> = {
+  low: 'neutral',
+  normal: 'neutral',
+  high: 'warn',
+  urgent: 'bad',
+}
+
+export const inspectorLocationStatusLabels: Record<string, string> = {
+  available: 'متاح',
+  en_route: 'في الطريق',
+  inspecting: 'يفحص',
+  offline: 'غير متصل',
+}
+
+export const inspectorLocationStatusTone: Record<string, Tone> = {
+  available: 'good',
+  en_route: 'warn',
+  inspecting: 'neutral',
+  offline: 'bad',
+}
+
+export const broadcastPriorityLabels: Record<string, string> = {
+  low: 'منخفض',
+  normal: 'عادي',
+  high: 'عالٍ',
+  emergency: 'طارئ',
+}
+
+export const broadcastPriorityTone: Record<string, Tone> = {
+  low: 'neutral',
+  normal: 'neutral',
+  high: 'warn',
+  emergency: 'bad',
+}
+
+export const vehicleTierLabels: Record<string, string> = {
+  economy: 'اقتصادي',
+  mid: 'متوسط',
+  luxury: 'فاخر',
+  commercial: 'تجاري',
+}

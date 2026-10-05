@@ -25,6 +25,17 @@ function toAppUser(row: UserProfileRow): AppUser {
     name: row.name,
     role: row.role,
     inspectorStatus: row.inspector_status,
+    nationalId: row.national_id,
+    nationalIdVerifiedAt: row.national_id_verified_at ? Date.parse(row.national_id_verified_at) : null,
+    isVerified: row.phone !== null && row.national_id !== null && row.national_id_verified_at !== null,
+    // Migration 05 adds `phone_verified`. Until it is applied the column is
+    // absent from the row, and a bare `Boolean(undefined)` would read as "phone
+    // not verified" for every account — locking the whole platform out behind
+    // the new gate. Falling back to "has a phone" (which only ever holds a
+    // Clerk-verified number) keeps behaviour correct both before and after the
+    // migration, and the explicit flag takes precedence once it exists.
+    phoneVerified: row.phone_verified ?? row.phone !== null,
+    phoneVerifiedAt: row.phone_verified_at ? Date.parse(row.phone_verified_at) : null,
     inspectorProfile: row.inspector_profile_updated_at ? {
       isOnline: row.is_online,
       cities: row.inspector_cities,
@@ -359,4 +370,55 @@ export async function platformStats() {
     pendingInspectors: users.filter((user) => user.inspectorStatus === 'pending').length,
     admins: users.filter((user) => user.role === 'admin').length,
   }
+}
+
+/** Saudi national ID: 10 digits, starts with 1 (citizen) or 2 (resident). */
+export function isValidSaudiNationalId(id: string): boolean {
+  return /^[12][0-9]{9}$/.test(id)
+}
+
+/**
+ * Saves the customer's national ID and marks it as verified.
+ *
+ * The national ID is a soft verification — the user enters it, we store it,
+ * and we stamp `national_id_verified_at`. Unlike phone (which goes through
+ * Clerk's SMS flow), there is no external authority to check against here.
+ *
+ * A unique-partial index on `national_id` prevents duplicates: if another
+ * account already holds this ID, the INSERT/UPDATE will fail with a 23505
+ * unique violation, which we translate to a `duplicate` reason.
+ */
+export type NationalIdResult =
+  | { ok: true; user: AppUser }
+  | { ok: false; reason: 'invalid' | 'duplicate' | 'not_found' }
+
+export async function saveNationalId(userId: string, nationalId: string): Promise<NationalIdResult> {
+  const cleaned = nationalId.replace(/\D/g, '')
+  if (!isValidSaudiNationalId(cleaned)) return { ok: false, reason: 'invalid' }
+
+  const { data, error } = await getSupabaseAdmin()
+    .from('user_profiles')
+    .update({
+      national_id: cleaned,
+      national_id_verified_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .select('*')
+    .maybeSingle()
+
+  if (error) {
+    if (error.code === '23505') return { ok: false, reason: 'duplicate' }
+    throwIfError(error)
+  }
+  if (!data) return { ok: false, reason: 'not_found' }
+
+  await logAuditEvent({
+    actorId: userId,
+    eventType: 'user.national_id_set',
+    resourceType: 'user',
+    resourceId: userId,
+    metadata: {},
+  })
+
+  return { ok: true, user: toAppUser(data) }
 }

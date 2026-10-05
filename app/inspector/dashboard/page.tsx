@@ -17,14 +17,15 @@ import {
   Navigation,
   ShieldCheck,
   Star,
-  UserRound,
   WalletCards,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/logout-button'
+import InspectorDashboardHeader from '@/components/modules/inspector/dashboard-header'
 import { InspectorOfferForm } from '@/components/modules/inspector/offer-form'
 import { InspectorProfileSettings } from '@/components/modules/inspector/profile-settings'
 import { SUPPORTED_CITIES } from '@/lib/locations/saudi-cities'
 import { requireRoles } from '@/lib/auth'
+import { countUnreadNotifications, listNotifications } from '@/lib/notifications/store'
 import {
   listAssignedInspectionsForInspector,
   listCompletedInspectionsForInspector,
@@ -62,6 +63,10 @@ export default async function InspectorDashboardPage() {
     listOpenInspectionsForInspector(session.sub, selectedCities),
     listAssignedInspectionsForInspector(session.sub),
     listCompletedInspectionsForInspector(session.sub),
+  ])
+  const [notifications, unreadNotifications] = await Promise.all([
+    listNotifications(session.sub),
+    countUnreadNotifications(session.sub),
   ])
   const newRequests = requests.filter((request) => !request.myOffer)
   const todayAppointments = assigned.filter((inspection) => isToday(inspection.scheduledAt))
@@ -111,8 +116,13 @@ export default async function InspectorDashboardPage() {
               <span className={`inspector-status-pill ${isOnline ? 'is-online' : ''}`}>
                 <span />{isOnline ? 'متصل' : 'غير متاح'}
               </span>
-              <Link href="/account" aria-label="الملف الشخصي ومعلومات الحساب" title="الملف الشخصي" className="inspector-icon-button"><UserRound size={17} /></Link>
-              <a href="#notifications" aria-label="الإشعارات" className="inspector-icon-button"><Bell size={17} /></a>
+              <InspectorDashboardHeader
+                initialNotifications={notifications}
+                initialUnread={unreadNotifications}
+                name={user?.name || 'موظف الفحص'}
+                phone={session.phone ?? ''}
+                verified={session.phoneVerified}
+              />
             </div>
           </header>
 

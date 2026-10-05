@@ -17,6 +17,7 @@ import type { Role } from '@/types/domain'
 export type SurfaceSubject = {
   role: Role
   inspectorView?: boolean
+  isVerified?: boolean
 }
 
 /**
@@ -58,10 +59,12 @@ export function dashboardPath({ role, inspectorView }: SurfaceSubject): string {
  * into the inspector surface and then signed in again should come back to where
  * they were, not be silently bounced to the admin console.
  */
-export function postAuthPath({ role, inspectorView }: SurfaceSubject): string {
+export function postAuthPath({ role, inspectorView, isVerified }: SurfaceSubject): string {
   if (inspectorView) return '/inspector/dashboard'
   if (role === 'inspector') return '/inspector/dashboard'
   if (role === 'admin' || role === 'admin_pending') return dashboardPath({ role, inspectorView })
+  // Customers must verify phone + national ID before reaching /account.
+  if (!isVerified) return '/verify-identity'
   return '/account'
 }
 

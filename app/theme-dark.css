@@ -1,0 +1,90 @@
+/*
+ * Dark theme layer.
+ *
+ * The product is designed light-first: the token ramp in `globals.css` and the
+ * inspector workspace's own `--inspector-*` variables. Enabling dark mode means
+ * re-pointing those variables under `[data-theme='dark']`, not rewriting every
+ * component — so anything that already reads from a token flips for free.
+ *
+ * Scope note: this covers the token-driven surfaces and the inspector workspace
+ * shell. Components that hard-code `#fff` / `#102444` (a handful of admin glass
+ * panels) keep their light styling in dark mode; that is a known, deliberate
+ * limitation rather than an oversight, and the default theme stays light.
+ */
+
+[data-theme='dark'] {
+  /* Base surface ramp */
+  --color-background: #0b1220;
+  --color-surface: #111a2b;
+  --color-text: #e6edf7;
+  --color-text-muted: #9fb0c7;
+  --color-border: #23324a;
+  --color-border-light: #1c2940;
+
+  /* Inspector workspace tokens */
+  --inspector-forest: #dbe6f5;
+  --inspector-ink: #e6edf7;
+  --inspector-muted: #9fb0c7;
+  --inspector-line: #23324a;
+
+  color-scheme: dark;
+}
+
+[data-theme='dark'] body {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+/* ── Inspector workspace ──────────────────────────────────────────────────── */
+
+[data-theme='dark'] .inspector-dashboard {
+  background: var(--color-background);
+}
+
+[data-theme='dark'] .inspector-sidebar,
+[data-theme='dark'] .inspector-topbar,
+[data-theme='dark'] .inspector-detail-header {
+  background: rgb(17 26 43 / 94%);
+}
+
+[data-theme='dark'] .inspector-stat-card,
+[data-theme='dark'] .inspector-panel,
+[data-theme='dark'] .inspector-side-card,
+[data-theme='dark'] .inspector-requests-section,
+[data-theme='dark'] .inspector-empty-panel,
+[data-theme='dark'] .inspector-detail-card,
+[data-theme='dark'] .inspector-assigned-card,
+[data-theme='dark'] .inspector-request-card,
+[data-theme='dark'] .inspector-schedule-item {
+  background: var(--color-surface);
+  border-color: var(--inspector-line);
+  color: var(--color-text);
+}
+
+[data-theme='dark'] .inspector-icon-button {
+  background: var(--color-surface);
+  border-color: var(--inspector-line);
+  color: var(--color-text-muted);
+}
+
+[data-theme='dark'] .inspector-sidebar nav a {
+  color: var(--color-text-muted);
+}
+
+[data-theme='dark'] .inspector-sidebar nav a:hover,
+[data-theme='dark'] .inspector-sidebar nav a.is-current {
+  background: #1b2942;
+  color: var(--color-text);
+}
+
+[data-theme='dark'] .inspector-user-avatar {
+  background: #1b2942;
+  color: var(--color-text);
+}
+
+[data-theme='dark'] .inspector-dashboard h1,
+[data-theme='dark'] .inspector-dashboard h2,
+[data-theme='dark'] .inspector-dashboard h3,
+[data-theme='dark'] .inspector-dashboard strong {
+  color: var(--color-text);
+}

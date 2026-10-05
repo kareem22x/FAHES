@@ -28,6 +28,18 @@ export type AppSession = {
    * identity, so this flag can never lift a non-owner into the inspector APIs.
    */
   inspectorView: boolean
+  /**
+   * True when the customer has both a verified phone (via Clerk) and a
+   * national ID (10-digit Saudi ID entered in the profile). Customers who
+   * are not yet verified are redirected to /verify-identity.
+   * Admins and inspectors are always considered verified.
+   */
+  isVerified: boolean
+  /**
+   * Mirrors `AppUser.phoneVerified`. The route gatekeeper reads this from the
+   * proxy so the check happens before a protected tree starts rendering.
+   */
+  phoneVerified: boolean
 }
 
 const adminElevationCookieOptions = {
@@ -79,6 +91,8 @@ export async function getSession(): Promise<AppSession | null> {
     ? elevated ? 'admin' : 'admin_pending'
     : user.inspectorStatus === 'approved' ? 'inspector' : 'customer'
 
+  const isVerified = role !== 'customer' || user.isVerified
+
   return {
     sub: user.id,
     phone: user.phone,
@@ -86,6 +100,8 @@ export async function getSession(): Promise<AppSession | null> {
     clerkSessionId: clerkSession.sessionId,
     clerkUserId: clerkSession.userId,
     inspectorView,
+    isVerified,
+    phoneVerified: user.phoneVerified,
   }
 }
 
@@ -154,6 +170,24 @@ export async function requireRoles(roles: Role[]) {
   // Owners are allowed into every area of the product (customer + inspector + admin).
   if (isPlatformOwner({ phone: session.phone, clerkUserId: session.clerkUserId })) return session
   redirect(dashboardPath(session))
+}
+
+/**
+ * Second gate on the phone-verification wall, behind the edge proxy.
+ *
+ * The proxy drops unverified requests before a protected tree renders; this guard
+ * is the authoritative check for the case the proxy cannot cover — a degraded
+ * lookup, or a navigation that reaches the layout directly. Both call the same
+ * predicate, so they cannot disagree.
+ *
+ * Operators (owner / admin) are exempt by identity, for the same reason the proxy
+ * exempts them: they are provisioned from the environment and some hold no phone.
+ */
+export async function requirePhoneVerified(session: AppSession): Promise<AppSession> {
+  if (session.phoneVerified) return session
+  const identity = { phone: session.phone, clerkUserId: session.clerkUserId }
+  if (isPlatformOwner(identity) || isPlatformAdmin(identity)) return session
+  redirect('/verify-phone')
 }
 
 /**

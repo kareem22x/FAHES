@@ -9,8 +9,14 @@ describe('postAuthPath', () => {
     expect(postAuthPath({ role: 'inspector' })).toBe('/inspector/dashboard')
   })
 
-  it('sends a customer to their profile page, not the workspace', () => {
-    expect(postAuthPath({ role: 'customer' })).toBe('/account')
+  it('sends a verified customer to their profile page, not the workspace', () => {
+    expect(postAuthPath({ role: 'customer', isVerified: true })).toBe('/account')
+  })
+
+  it('sends an unverified customer to identity verification first', () => {
+    // The customer surface is gated on both a verified phone and a national ID.
+    // An unverified customer is routed to /verify-identity rather than /account.
+    expect(postAuthPath({ role: 'customer', isVerified: false })).toBe('/verify-identity')
   })
 
   it('sends an elevated admin to the console and an unelevated one to the gate', () => {

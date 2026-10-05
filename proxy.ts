@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clerkMiddleware } from '@clerk/nextjs/server'
 import { logAuditEvent } from '@/lib/audit'
+import { phoneGateDecision } from '@/lib/phone-gate'
 
 /**
  * Prefixes that require a signed-in identity. This is an authentication gate
@@ -9,10 +10,39 @@ import { logAuditEvent } from '@/lib/audit'
  * where the decision can be made against fresh data. Gating here means an
  * anonymous request never even starts rendering the protected tree.
  */
-const PROTECTED_PREFIXES = ['/admin', '/inspector', '/dashboard', '/account', '/requests'] as const
+const PROTECTED_PREFIXES = ['/admin', '/inspector', '/dashboard', '/account', '/requests', '/support'] as const
 
 function isProtected(pathname: string) {
   return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
+/**
+ * Surfaces that additionally require a verified phone number.
+ *
+ * `/inspector` (the inspector workspace), `/admin` (the operator console) and
+ * `/dashboard` (the customer console, the product's `/client/*` equivalent).
+ *
+ * `/requests` is deliberately NOT gated: it hosts the public inspection-booking
+ * wizard, and walling that off behind verification would block the very first
+ * thing a new customer does.
+ */
+const PHONE_GATE_PREFIXES = ['/inspector', '/admin', '/dashboard'] as const
+
+/**
+ * Routes that must stay reachable while the gate is closed:
+ *   * `/verify-phone` — the gate's own target (otherwise: infinite redirect);
+ *   * `/account`      — where a phone-less user adds the number they must verify;
+ *   * `/admin/gate`   — the admin access-code step, which is a separate concern.
+ */
+const PHONE_GATE_EXEMPT = ['/verify-phone', '/account', '/admin/gate'] as const
+
+function isPhoneGated(pathname: string) {
+  if (PHONE_GATE_EXEMPT.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return false
+  }
+  return PHONE_GATE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   )
 }
@@ -89,7 +119,30 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
   }
 
   const { userId, sessionId } = await auth()
+
   if (userId) {
+    // Authenticated. Before the request reaches a phone-gated product surface,
+    // confirm the account's phone is verified. The server-side layout guard
+    // re-checks the same predicate — this is the fast path, not the only path.
+    if (isPhoneGated(pathname)) {
+      const decision = await phoneGateDecision(userId)
+      if (decision.action === 'block') {
+        await logAuditEvent({
+          actorId: null,
+          eventType: 'access.blocked_phone_unverified',
+          resourceType: 'route',
+          resourceId: pathname,
+          metadata: { path: pathname, reason: decision.reason, clerkUserId: userId },
+        })
+
+        const gateUrl = request.nextUrl.clone()
+        gateUrl.pathname = '/verify-phone'
+        gateUrl.search = ''
+        gateUrl.searchParams.set('redirect_url', pathname)
+        return applySecurityHeaders(NextResponse.redirect(gateUrl), pathname)
+      }
+    }
+
     return applySecurityHeaders(NextResponse.next(), pathname)
   }
 

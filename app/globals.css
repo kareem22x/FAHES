@@ -4,6 +4,7 @@
 @import '@fontsource/alexandria/arabic-700.css';
 @import '@fontsource/alexandria/arabic-800.css';
 @import 'tailwindcss' source(none);
+@import './theme-dark.css';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Explicit source registration — do NOT switch back to automatic detection.

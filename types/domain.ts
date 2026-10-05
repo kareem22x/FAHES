@@ -40,6 +40,19 @@ export type AppUser = {
   name: string
   role: Exclude<Role, 'admin_pending'>
   inspectorStatus: InspectorStatus
+  nationalId: string | null
+  nationalIdVerifiedAt: number | null
+  isVerified: boolean
+  /**
+   * Whether the phone on this account has been confirmed — the single flag the
+   * route gatekeeper (`proxy.ts`) checks before admitting a signed-in user to
+   * `/inspector`, `/admin` or `/dashboard`.
+   *
+   * Distinct from `isVerified`, which additionally requires a national ID and
+   * only ever applies to customers.
+   */
+  phoneVerified: boolean
+  phoneVerifiedAt: number | null
   inspectorProfile?: {
     isOnline: boolean
     cities: string[]

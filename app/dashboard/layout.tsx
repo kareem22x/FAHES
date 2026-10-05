@@ -2,7 +2,7 @@ import Link from 'next/link'
 import BrandMark from '@/components/brand-mark'
 import DashboardNav from '@/components/modules/customer/dashboard/nav'
 import DashboardTopbar from '@/components/modules/customer/dashboard/topbar'
-import { requireRoles } from '@/lib/auth'
+import { requirePhoneVerified, requireRoles } from '@/lib/auth'
 import { getCustomerRequests, summarizeRequests } from '@/lib/customer-data'
 import { maskPhone } from '@/lib/phone'
 import { getUserById } from '@/lib/user-store'
@@ -10,6 +10,7 @@ import { initialsOf } from '@/lib/utils'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await requireRoles(['customer'])
+  await requirePhoneVerified(session)
   const [user, requests] = await Promise.all([
     getUserById(session.sub),
     getCustomerRequests(session.sub),

@@ -7,6 +7,19 @@ type Table<Row, Insert, Update> = {
   Relationships: []
 }
 
+/**
+ * Shape of the operational tables owned by the 40-module admin console
+ * (`supabase/migrations/20261003180000_fahes_admin_40_modules.sql`).
+ *
+ * The console reads every one of those tables through a
+ * `Record<string, unknown>` row mapping and writes narrow literal payloads, so
+ * a permissive shape is enough. The point of declaring them at all is that an
+ * undeclared table resolves to `never` in `from()`, which would turn every
+ * `.insert()` / `.update()` in the console into a type error.
+ */
+export type OpsRow = Record<string, Json | undefined>
+type OpsTable = Table<OpsRow, OpsRow, OpsRow>
+
 export type UserProfileRow = {
   id: string
   clerk_user_id: string | null
@@ -17,6 +30,10 @@ export type UserProfileRow = {
   inspector_cities: string[]
   is_online: boolean
   inspector_profile_updated_at: string | null
+  national_id: string | null
+  national_id_verified_at: string | null
+  phone_verified: boolean
+  phone_verified_at: string | null
   created_at: string
   last_login_at: string
 }
@@ -491,6 +508,30 @@ export type Database = {
         resolved_at: string | null
         resolution_note: string
       }>>
+
+      /* ── Admin console (40 modules) ─────────────────────────────────────
+       * Operational tables the console owns. See `OpsTable`. */
+      inspector_locations: OpsTable
+      geofence_zones: OpsTable
+      inspection_audits: OpsTable
+      inspector_violations: OpsTable
+      disputes: OpsTable
+      system_settings: OpsTable
+      inspection_templates: OpsTable
+      order_internal_notes: OpsTable
+      broadcast_announcements: OpsTable
+      ai_photo_analyses: OpsTable
+      archived_inspections: OpsTable
+      inspector_stats: OpsTable
+      pricing_rules: OpsTable
+      showrooms: OpsTable
+
+      /* ── Phone gate + support suite (migration 05) ────────────────────── */
+      notifications: OpsTable
+      support_tickets: OpsTable
+      support_ticket_messages: OpsTable
+      support_ticket_events: OpsTable
+      support_canned_responses: OpsTable
     }
     Views: Record<string, never>
     Functions: {
@@ -522,6 +563,27 @@ export type Database = {
       store_otp_challenge: {
         Args: { p_phone: string; p_code_hash: string; p_expiry_minutes: number }
         Returns: undefined
+      }
+      issue_phone_otp: {
+        Args: {
+          p_phone: string
+          p_code_hash: string
+          p_expiry_minutes: number
+          p_cooldown_seconds: number
+        }
+        Returns: string
+      }
+      mark_phone_verified: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      claim_support_ticket: {
+        Args: { p_ticket_id: string; p_admin_id: string }
+        Returns: string
+      }
+      reopen_support_ticket: {
+        Args: { p_ticket_id: string; p_user_id: string }
+        Returns: string
       }
       consume_rate_limit: {
         Args: { p_bucket_hash: string; p_limit: number; p_window_ms: number }

@@ -64,7 +64,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <style>{'[data-reveal]{opacity:1!important;transform:none!important}'}</style>
         </noscript>
         <ClerkProvider localization={arSA}>
-          <ThemeProvider attribute="data-theme" defaultTheme="light" forcedTheme="light" enableSystem={false} disableTransitionOnChange>
+          <ThemeProvider attribute="data-theme" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
             <MotionProvider>
               {/*
                 Root layout wrapper.

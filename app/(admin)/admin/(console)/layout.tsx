@@ -1,5 +1,6 @@
 import { AdminShell } from '@/components/admin/admin-shell'
 import { requireAdminPage, tierOf } from '@/lib/admin/rbac'
+import { requirePhoneVerified } from '@/lib/auth'
 import { adminOverview } from '@/lib/admin/store'
 import { getUserById } from '@/lib/user-store'
 
@@ -16,6 +17,7 @@ export const dynamic = 'force-dynamic'
  */
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAdminPage()
+  await requirePhoneVerified(session)
   const [user, stats] = await Promise.all([getUserById(session.sub), adminOverview()])
 
   return (
