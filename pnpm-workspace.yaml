@@ -8,30 +8,55 @@
 #
 #     ERR_PNPM_IGNORED_BUILDS: Ignored build scripts: core-js, unrs-resolver
 #
-# That error is what broke every Vercel deployment.
+# That error is what broke every Vercel deployment. The previous workaround was
+# `pnpm install --ignore-scripts` in vercel.json, which silently skipped *all*
+# scripts; once pnpm started treating an undeclared skip as an error, the same
+# command began failing the build instead.
 #
-# ── The trap (cost several failed deploys) ───────────────────────────────────
+# ── The trap ─────────────────────────────────────────────────────────────────
 #
 # pnpm **v11 removed** `onlyBuiltDependencies`, `onlyBuiltDependenciesFile`,
 # `neverBuiltDependencies`, `ignoredBuiltDependencies` and `ignoreDepScripts`,
 # replacing them all with a single `allowBuilds` **map**. Listing a package
 # under the old keys does nothing in pnpm 12 — it is silently ignored, so the
-# build script is still "undeclared" and the install still fails. The fix is to
-# express intent in `allowBuilds`:
+# build script stays "undeclared" and the install still fails.
 #
-#   * `@tailwindcss/oxide` — native Tailwind v4 scanner. MUST build → true.
-#   * `core-js` — postinstall only prints funding banners; harmless → true.
-#   * `unrs-resolver` — native resolver used only by ESLint's import plugin.
-#     Its postinstall is the one that fails on Vercel, and the Vercel build does
-#     not lint, so it is explicitly denied → false.
+# ── Why BOTH spellings are declared ──────────────────────────────────────────
 #
-# Anything absent from `allowBuilds` is denied by default (`strictDepBuilds`
-# defaults to true, so an undeclared skip is an error rather than a warning).
+# `package.json` pins `packageManager: pnpm@12.3.4`, so `allowBuilds` is the
+# live setting. But the two spellings are read by disjoint toolchain
+# generations, and each generation ignores the other's keys rather than
+# rejecting them:
+#
+#   pnpm >= 11  reads `allowBuilds`              (ignores the two lists)
+#   pnpm <= 10  reads the two lists              (ignores `allowBuilds`)
+#
+# Declaring both means the install succeeds no matter which pnpm the CI image
+# happens to resolve, at the cost of a few redundant lines. The alternative —
+# guessing the CI's pnpm version and being wrong — is what produced four
+# consecutive failed deployments.
+#
+# The decision per package is the same either way:
+#
+#   * `@tailwindcss/oxide` — the native Tailwind v4 scanner. MUST build.
+#   * `core-js`            — its postinstall only prints a funding banner.
+#   * `unrs-resolver`      — native resolver used only by ESLint's import
+#                            plugin. Its postinstall is the one that fails on
+#                            Vercel, and the production build does not lint.
 minimumReleaseAgeExclude:
   - '@next/*'
   - next
 
+# pnpm >= 11
 allowBuilds:
   '@tailwindcss/oxide': true
   core-js: true
   unrs-resolver: false
+
+# pnpm <= 10
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - core-js
+
+ignoredBuiltDependencies:
+  - unrs-resolver
