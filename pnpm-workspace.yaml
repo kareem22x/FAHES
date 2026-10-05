@@ -1,7 +1,37 @@
+# pnpm workspace configuration for the fahes app.
+#
+# ── Why this file exists ─────────────────────────────────────────────────────
+#
+# pnpm refuses to run a dependency's install scripts unless it is explicitly
+# named here, and — since the stricter releases — it *fails the install* when a
+# script is skipped without being declared:
+#
+#     ERR_PNPM_IGNORED_BUILDS: Ignored build scripts: core-js, unrs-resolver
+#
+# That error is what broke every Vercel deployment.
+#
+# ── The trap (cost several failed deploys) ───────────────────────────────────
+#
+# pnpm **v11 removed** `onlyBuiltDependencies`, `onlyBuiltDependenciesFile`,
+# `neverBuiltDependencies`, `ignoredBuiltDependencies` and `ignoreDepScripts`,
+# replacing them all with a single `allowBuilds` **map**. Listing a package
+# under the old keys does nothing in pnpm 12 — it is silently ignored, so the
+# build script is still "undeclared" and the install still fails. The fix is to
+# express intent in `allowBuilds`:
+#
+#   * `@tailwindcss/oxide` — native Tailwind v4 scanner. MUST build → true.
+#   * `core-js` — postinstall only prints funding banners; harmless → true.
+#   * `unrs-resolver` — native resolver used only by ESLint's import plugin.
+#     Its postinstall is the one that fails on Vercel, and the Vercel build does
+#     not lint, so it is explicitly denied → false.
+#
+# Anything absent from `allowBuilds` is denied by default (`strictDepBuilds`
+# defaults to true, so an undeclared skip is an error rather than a warning).
 minimumReleaseAgeExclude:
   - '@next/*'
   - next
 
-onlyBuiltDependencies:
-  - '@tailwindcss/oxide'
-  - core-js
+allowBuilds:
+  '@tailwindcss/oxide': true
+  core-js: true
+  unrs-resolver: false
