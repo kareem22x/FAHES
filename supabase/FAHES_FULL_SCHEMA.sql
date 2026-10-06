@@ -7,12 +7,18 @@
 --      الصق محتواه في محرر SQL في لوحة Supabase:
 --      https://supabase.com/dashboard/project/xaainchmehfwdezxfwo/sql/new
 --
---  ✅ آمن للتشغيل أكثر من مرة (idempotent بالكامل):
+--  ✅ آمن للتشغيل أكثر من مرة (idempotent):
 --     كل جدول بـ `create table if not exists`، وكل فهرس بـ `if not exists`،
 --     وكل دالة بـ `create or replace`، وكل مُشغّل (trigger) يُحذف قبل إنشائه،
 --     وكل بيانات أولية بـ `on conflict do nothing`، وكل قيد (constraint) داخل
---     كتلة `do` تتحقق من `pg_constraint` قبل الإضافة.
+--     كتلة `do` تتحقق من `pg_constraint` قبل الإضافة، وكل دالة تتغيّر فتراتها
+--     الافتراضية أو نوع إرجاعها تُحذف بـ `drop function if exists` قبل إعادة تعريفها
+--     (لأن PostgreSQL يسمح بإضافة فترة افتراضية ولا يسمح بإزالتها: 42P13).
 --     ⇒ تشغيله على قاعدة قائمة لا يغيّر شيئًا، وتشغيله على قاعدة فارغة يبنيها كاملة.
+--
+--  🔍 إعادة التشغيل مُتحقَّقة آليًّا: `node scripts/check-migration-function-defaults.mjs`
+--     يحاكي التشغيل الثاني على الحالة التي يتركها الملف، ويفشل إن كان أي تعريف
+--     لا ينجو منه. يعمل ضمن `pnpm build`.
 --
 --  ℹ️  التشغيل في محرر SQL يلفّ الملف في معاملة واحدة. إن أردت تشغيله على مراحل،
 --      كل قسم يبدأ بسطر `--  NN/17 — <اسم الملف>` وهو مستقل وقابل للتشغيل وحده
@@ -430,6 +436,22 @@ begin
   );
 end;
 $$;
+
+-- ── لماذا `drop` قبل `create or replace` هنا ────────────────────────────────
+-- الترحيل 12 يعيد تعريف الدالة نفسها ويضيف `default null` على `p_cities`. وهذا
+-- يجعل هذا الملف يفشل عند **إعادة التشغيل**: القاعدة تحمل توقيع 12 (بفترة افتراضية)
+-- وهذا الملف يطلب إزالتها، وPostgreSQL يرفض ذلك:
+--     42P13: cannot remove parameter defaults from existing function
+--      HINT: Use DROP FUNCTION submit_inspection_offer(text,uuid,text,numeric,text,text[]) first.
+-- الإضافة مسموحة، الإزالة لا. والحل هنا هو ما يقترحه الـHINT نفسه: الحذف أولًا،
+-- فيصبح التعريف أدناه غير مشروط بما تركه ملف لاحق. الصلاحيات لا تُفقد: حلقة
+-- `grant` في نهاية هذا الملف (قسم الصلاحيات) تمنح `service_role` من جديد.
+--
+-- البديل — إضافة `default null` هنا لمجاراة 12 — مرفوض: جسم الدالة في هذا
+-- الملف يفحص الأهلية بـ`inspection.city <> all(p_cities)`، و`x <> all(null)` تساوي
+-- NULL فلا يتحقق الشرط ⇒ تمرير `p_cities` فارغة كان سيتجاوز فحص المدينة بصمت
+-- في قاعدة توقّفت عند الترحيل 11.
+drop function if exists public.submit_inspection_offer(text, uuid, text, numeric, text, text[]);
 
 create or replace function public.submit_inspection_offer(
   p_inspection_id text,

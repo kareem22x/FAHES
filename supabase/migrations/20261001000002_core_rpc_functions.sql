@@ -153,6 +153,22 @@ begin
 end;
 $$;
 
+-- ── لماذا `drop` قبل `create or replace` هنا ────────────────────────────────
+-- الترحيل 12 يعيد تعريف الدالة نفسها ويضيف `default null` على `p_cities`. وهذا
+-- يجعل هذا الملف يفشل عند **إعادة التشغيل**: القاعدة تحمل توقيع 12 (بفترة افتراضية)
+-- وهذا الملف يطلب إزالتها، وPostgreSQL يرفض ذلك:
+--     42P13: cannot remove parameter defaults from existing function
+--      HINT: Use DROP FUNCTION submit_inspection_offer(text,uuid,text,numeric,text,text[]) first.
+-- الإضافة مسموحة، الإزالة لا. والحل هنا هو ما يقترحه الـHINT نفسه: الحذف أولًا،
+-- فيصبح التعريف أدناه غير مشروط بما تركه ملف لاحق. الصلاحيات لا تُفقد: حلقة
+-- `grant` في نهاية هذا الملف (قسم الصلاحيات) تمنح `service_role` من جديد.
+--
+-- البديل — إضافة `default null` هنا لمجاراة 12 — مرفوض: جسم الدالة في هذا
+-- الملف يفحص الأهلية بـ`inspection.city <> all(p_cities)`، و`x <> all(null)` تساوي
+-- NULL فلا يتحقق الشرط ⇒ تمرير `p_cities` فارغة كان سيتجاوز فحص المدينة بصمت
+-- في قاعدة توقّفت عند الترحيل 11.
+drop function if exists public.submit_inspection_offer(text, uuid, text, numeric, text, text[]);
+
 create or replace function public.submit_inspection_offer(
   p_inspection_id text,
   p_inspector_id uuid,

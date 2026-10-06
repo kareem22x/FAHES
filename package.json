@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "next dev -p 4001",
     "check:imports": "node scripts/check-untracked-imports.mjs",
-    "prebuild": "node scripts/check-untracked-imports.mjs",
+    "check:migrations": "node scripts/check-migration-function-defaults.mjs",
+    "schema:build": "node scripts/build-full-schema.mjs",
+    "prebuild": "node scripts/check-untracked-imports.mjs && node scripts/check-migration-function-defaults.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

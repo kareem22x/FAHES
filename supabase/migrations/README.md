@@ -89,15 +89,40 @@ corepack pnpm dlx supabase migration repair --status applied <timestamp>
 
 1. **كل ملف idempotent.** استخدم `if not exists`، `create or replace`،
    `drop … if exists`، أو كتلة `do $$` تتحقق من `to_regclass` / `to_regprocedure`.
-   كل الملفات في هذا المجلد مُختبرة بتشغيلها مرتين متتاليتين بصفر إخفاقات.
-2. **لا تفترض وجود جدول.** القاعدة قد تنقصها جداول من ترحيلات قديمة؛ استخدم
+2. **🚨 `create or replace function` لا يسمح بإزالة فترة افتراضية.**
+   الإضافة مسموحة، الإزالة لا:
+   ```sql
+   -- 02
+   create or replace function f(a text, b text[])              -- بلا فترة افتراضية
+   -- 12
+   create or replace function f(a text, b text[] default null) -- أضافها
+   ```
+   التشغيل **الأول** ينجح. إعادة التشغيل تفشل: الملف 02 يطلب إزالة ما أضافه 12:
+   ```
+   42P13: cannot remove parameter defaults from existing function
+   HINT:  Use DROP FUNCTION f(text,text[]) first.
+   ```
+   **الحل** — اتبع الـHINT: `drop function if exists f(text,text[]);` قبل التعريف.
+   الصلاحيات لا تُفقد لأن كل ملف هنا يمنح `service_role` في حلقة `grant` بعده.
+   **لا** تجارِ الفترة الافتراضية في الملف الأقدم: قد يكون جسمه يعتمد على غيابها
+   (مثال: `city <> all(null)` تساوي NULL ⇒ تمرير قائمة فارغة يتجاوز الفحص بصمت).
+   القاعدة نفسها تنطبق على **تغيير اسم معامل** و**تغيير نوع الإرجاع**.
+3. **التحقق آلي** — لا تعتمد على المراجعة:
+   ```bash
+   node scripts/check-migration-function-defaults.mjs   # أو: corepack pnpm check:migrations
+   ```
+   يحسب الحالة التي يتركها الملف **ثم يعيد تشغيل كل عبارة عليها** — أي نفس ما يفحصه
+   PostgreSQL في التشغيل الثاني — ويفشل إن لم ينجُ أي تعريف. يعمل ضمن `pnpm build`.
+   **السبب**: هذه الأخطاء غير مرئية لأي فحص آخر — الـSQL صحيح، والمخطط صحيح،
+   والتشغيل الأول ينجح. الفشل في التشغيل الثاني فقط.
+4. **لا تفترض وجود جدول.** القاعدة قد تنقصها جداول من ترحيلات قديمة؛ استخدم
    `if to_regclass(...) is null then continue` قبل أي `alter table`.
-3. **`user_profiles` ليس فيه `updated_at`.** الأعمدة الزمنية المتاحة:
+5. **`user_profiles` ليس فيه `updated_at`.** الأعمدة الزمنية المتاحة:
    `created_at`, `last_login_at`, `inspector_profile_updated_at`.
-4. **GRANT قبل تواقيع الدوال.** اكتب `<sig> text` ثم
+6. **GRANT قبل تواقيع الدوال.** اكتب `<sig> text` ثم
    `if to_regprocedure(sig) is null then continue` — انحراف توقيع في دالة واحدة
    كان سيُفشل الملف كله.
-5. **لا تعتمد على `db push`.** راجع الأعلى.
+7. **لا تعتمد على `db push`.** راجع الأعلى.
 
 ## إعادة البناء من الصفر
 
