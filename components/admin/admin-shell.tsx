@@ -7,6 +7,7 @@ import {
   Activity,
   CarFront,
   ClipboardCheck,
+  ClipboardList,
   Download,
   FileText,
   Gavel,
@@ -43,6 +44,7 @@ export type AdminNavKey =
   | 'quality-reviews'
   | 'violations'
   | 'disputes'
+  | 'inspector-applications'
   | 'inspectors'
   | 'users'
   | 'showrooms'
@@ -92,6 +94,7 @@ const navGroups: NavGroup[] = [
   {
     caption: 'الحسابات',
     items: [
+      { key: 'inspector-applications', href: '/admin/inspector-applications', label: 'طلبات التقديم', icon: ClipboardList },
       { key: 'inspectors', href: '/admin/inspectors', label: 'الفاحصون', icon: ShieldCheck },
       { key: 'users', href: '/admin/users', label: 'المستخدمون', icon: UsersRound },
       { key: 'showrooms', href: '/admin/showrooms', label: 'المعارض', icon: Store },
@@ -123,8 +126,11 @@ const navItems = navGroups.flatMap((group) => group.items)
  * `navItems.slice(0, 4)`: the flat order is now grouped, so a positional slice
  * would silently hand the bar «التحليلات» and «خريطة الفاحصين» and drop
  * «المستخدمون». Everything not listed here stays reachable through «المزيد».
+ *
+ * «طلبات التقديم» earns its place over «الفاحصون» because it is the only entry
+ * on this bar that asks for a decision — the rest are read-only views.
  */
-const mobileKeys: AdminNavKey[] = ['overview', 'inspections', 'inspectors', 'users']
+const mobileKeys: AdminNavKey[] = ['overview', 'inspector-applications', 'inspections', 'users']
 
 /**
  * Three shortcuts above the nav, mirroring the reference layout's action row.
@@ -149,8 +155,14 @@ export type ShellQuickStats = {
   flagged: number
 }
 
+/**
+ * The pending-applications count belongs on «طلبات التقديم», not on
+ * «الفاحصون»: that page lists accounts, so a badge there read as "N inspectors"
+ * when it actually meant "N people waiting". The count is the same number —
+ * `inspector_status = 'pending'` — but the label now matches what it counts.
+ */
 function badgeFor(key: AdminNavKey, stats: ShellQuickStats): number | null {
-  if (key === 'inspectors' && stats.pendingInspectors > 0) return stats.pendingInspectors
+  if (key === 'inspector-applications' && stats.pendingInspectors > 0) return stats.pendingInspectors
   if (key === 'inspections' && stats.openInspections > 0) return stats.openInspections
   return null
 }

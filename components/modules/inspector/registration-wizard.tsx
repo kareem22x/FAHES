@@ -7,23 +7,27 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
-  Check,
   Eye,
   EyeOff,
   LoaderCircle,
   Mail,
-  MapPin,
   Phone,
   Send,
   ShieldCheck,
   User,
 } from 'lucide-react'
-import { SUPPORTED_CITIES } from '@/lib/locations/saudi-cities'
 import { e164Saudi, isValidSaudiMobile } from '@/lib/phone'
-import { inspectorAvailabilities, inspectorSpecialties } from '@/types/domain'
-
-const fieldClassName =
-  'mt-2 w-full rounded-xl border border-[#dce4ee] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#0873d1] focus:ring-4 focus:ring-[#0873d1]/10'
+import {
+  EMPTY_APPLICATION_DRAFT,
+  coverageStepError,
+  draftToPayload,
+  identityStepError,
+  type InspectorApplicationDraft,
+} from '@/lib/inspector-application'
+import { fieldClassName } from '@/components/modules/inspector/application/fields'
+import { ApplicationReview } from '@/components/modules/inspector/application/review'
+import { CoverageStep } from '@/components/modules/inspector/application/step-coverage'
+import { IdentityStep } from '@/components/modules/inspector/application/step-identity'
 
 /**
  * Clerk rejects shorter passwords (`auth_password.min_length = 15` on the linked
@@ -32,22 +36,21 @@ const fieldClassName =
  */
 const PASSWORD_MIN_LENGTH = 15
 
-const WEEKLY_VOLUME_OPTIONS = [
-  '1-5 فحوصات',
-  '6-10 فحوصات',
-  '11-20 فحصًا',
-  '21-50 فحصًا',
-  'أكثر من 50 فحصًا',
-] as const
-
 const STEPS = [
-  { label: 'البيانات الشخصية', icon: User },
+  { label: 'البيانات الأساسية', icon: User },
   { label: 'بيانات الحساب', icon: ShieldCheck },
   { label: 'توثيق الجوال', icon: Phone },
   { label: 'توثيق البريد', icon: Mail },
-  { label: 'استبيان الخبرة', icon: BadgeCheck },
+  { label: 'التغطية والتوفر', icon: BadgeCheck },
   { label: 'مراجعة وإرسال', icon: Send },
 ] as const
+
+const FIRST_INPUT_STEP = 0
+const ACCOUNT_STEP = 1
+const PHONE_OTP_STEP = 2
+const EMAIL_OTP_STEP = 3
+const COVERAGE_STEP = 4
+const REVIEW_STEP = 5
 
 /**
  * Clerk Core 3 reports failures as a `ClerkError` (`{ code, message }`) returned
@@ -85,6 +88,14 @@ function throwIfClerkError(result: { error: unknown }): void {
   if (result.error) throw result.error
 }
 
+/**
+ * Sign-up wizard for an applicant with no account yet.
+ *
+ * Steps 1 and 5 render the *same* components as the signed-in questionnaire
+ * (`/become-inspector`), so both intake paths ask identical questions and the
+ * two can never drift apart. The only difference is the phone field, which the
+ * wizard collects here in its account step instead — see `showPhone`.
+ */
 export function RegistrationWizard() {
   const { signUp, fetchStatus } = useSignUp()
   // Clerk Core 3's `useSignUp()` exposes no `isLoaded`: the resource stays null
@@ -92,85 +103,56 @@ export function RegistrationWizard() {
   const clerkReady = signUp !== null && fetchStatus !== 'fetching'
   const router = useRouter()
 
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(FIRST_INPUT_STEP)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  // --- Step 0: personal info ---
-  const [fullName, setFullName] = useState('')
-  const [nationalId, setNationalId] = useState('')
-  const [workCities, setWorkCities] = useState<string[]>([])
-
-  // --- Step 1: account ---
-  const [phone, setPhone] = useState('')
+  const [draft, setDraft] = useState<InspectorApplicationDraft>(EMPTY_APPLICATION_DRAFT)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-
-  // --- Step 2-3: OTP ---
   const [phoneOtp, setPhoneOtp] = useState('')
   const [emailOtp, setEmailOtp] = useState('')
 
-  // --- Step 4: questionnaire ---
-  const [experienceYears, setExperienceYears] = useState(0)
-  const [experienceSelected, setExperienceSelected] = useState(false)
-  const [specialties, setSpecialties] = useState<string[]>([])
-  const [availability, setAvailability] = useState('')
-  const [hasEquipment, setHasEquipment] = useState(false)
-  const [equipmentAnswered, setEquipmentAnswered] = useState(false)
-  const [qualification, setQualification] = useState('')
-  const [vehicleTypes, setVehicleTypes] = useState('')
-  const [previousWorkYes, setPreviousWorkYes] = useState(false)
-  const [previousWorkAnswered, setPreviousWorkAnswered] = useState(false)
-  const [previousWorkDetails, setPreviousWorkDetails] = useState('')
-  const [weeklyVolume, setWeeklyVolume] = useState('')
-  const [tamperingHandling, setTamperingHandling] = useState('')
-  const [additionalInfo, setAdditionalInfo] = useState('')
-
-  function toggleCity(city: string) {
-    setWorkCities((cur) =>
-      cur.includes(city) ? cur.filter((c) => c !== city) : [...cur, city],
-    )
+  function patch(next: Partial<InspectorApplicationDraft>) {
+    setDraft((current) => ({ ...current, ...next }))
     setError('')
   }
 
-  function toggleSpecialty(s: string) {
-    setSpecialties((cur) =>
-      cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s],
-    )
+  function toggle(field: 'cities' | 'specialties', value: string) {
+    setDraft((current) => {
+      const list = current[field]
+      return {
+        ...current,
+        [field]: list.includes(value) ? list.filter((item) => item !== value) : [...list, value],
+      }
+    })
     setError('')
   }
 
-  // --- step 0 → 1 ---
-  function validatePersonalInfo(): boolean {
-    if (fullName.trim().length < 3) {
-      setError('أدخل الاسم الثلاثي الكامل (3 أحرف على الأقل).')
-      return false
-    }
-    if (!/^[12][0-9]{9}$/.test(nationalId)) {
-      setError('رقم الهوية يجب أن يكون 10 أرقام ويبدأ بـ 1 (سعودي) أو 2 (مقيم).')
-      return false
-    }
-    if (workCities.length === 0) {
-      setError('اختر مدينة عمل واحدة على الأقل.')
-      return false
+  // ── step 0 → 1 ─────────────────────────────────────────────────────
+  function continueFromIdentity() {
+    // The phone is not on this step — the account step collects it.
+    const stepError = identityStepError(draftToPayload(draft), { skipPhone: true })
+    if (stepError) {
+      setError(stepError)
+      return
     }
     setError('')
-    return true
+    setStep(ACCOUNT_STEP)
   }
 
-  // --- step 1 → 2 (create Clerk account + prepare phone OTP) ---
+  // ── step 1 → 2 (create the Clerk account, then start phone verification) ──
   async function createAccount() {
     if (!signUp) return
     setError('')
 
-    if (!isValidSaudiMobile(phone)) {
+    if (!isValidSaudiMobile(draft.phone)) {
       setError('رقم الجوال غير صحيح. أدخل رقمًا يبدأ بـ 05 ويتكون من 10 أرقام.')
       return
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email.trim())) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError('أدخل بريدًا إلكترونيًا صحيحًا.')
       return
     }
@@ -181,14 +163,14 @@ export function RegistrationWizard() {
 
     setLoading(true)
     try {
-      const parts = fullName.trim().split(/\s+/)
-      const clerkFirstName = parts[0] || fullName.trim()
+      const parts = draft.fullName.trim().split(/\s+/)
+      const clerkFirstName = parts[0] || draft.fullName.trim()
       const clerkLastName = parts.slice(1).join(' ')
 
       throwIfClerkError(
         await signUp.create({
           emailAddress: email.trim(),
-          phoneNumber: e164Saudi(phone),
+          phoneNumber: e164Saudi(draft.phone),
           password,
           firstName: clerkFirstName,
           lastName: clerkLastName,
@@ -197,13 +179,12 @@ export function RegistrationWizard() {
 
       if (signUp.status === 'complete') {
         throwIfClerkError(await signUp.finalize())
-        setStep(4) // skip OTP steps — Clerk didn't require verification
+        setStep(COVERAGE_STEP) // Clerk did not require verification
         return
       }
 
-      // send the phone verification code
       throwIfClerkError(await signUp.verifications.sendPhoneCode())
-      setStep(2)
+      setStep(PHONE_OTP_STEP)
     } catch (err) {
       setError(clerkErrorMessage(err))
     } finally {
@@ -211,7 +192,7 @@ export function RegistrationWizard() {
     }
   }
 
-  // --- step 2 → 3 (verify phone, prepare email) ---
+  // ── step 2 → 3 ─────────────────────────────────────────────────────
   async function verifyPhone() {
     if (!signUp) return
     setError('')
@@ -225,12 +206,12 @@ export function RegistrationWizard() {
 
       if (signUp.status === 'complete') {
         throwIfClerkError(await signUp.finalize())
-        setStep(4) // email not required — go to questionnaire
+        setStep(COVERAGE_STEP)
         return
       }
 
       throwIfClerkError(await signUp.verifications.sendEmailCode())
-      setStep(3)
+      setStep(EMAIL_OTP_STEP)
     } catch (err) {
       setError(clerkErrorMessage(err))
     } finally {
@@ -238,7 +219,7 @@ export function RegistrationWizard() {
     }
   }
 
-  // --- step 3 → 4 (verify email, set active session) ---
+  // ── step 3 → 4 ─────────────────────────────────────────────────────
   async function verifyEmail() {
     if (!signUp) return
     setError('')
@@ -252,7 +233,7 @@ export function RegistrationWizard() {
 
       if (signUp.status === 'complete') {
         throwIfClerkError(await signUp.finalize())
-        setStep(4)
+        setStep(COVERAGE_STEP)
         return
       }
 
@@ -264,7 +245,7 @@ export function RegistrationWizard() {
     }
   }
 
-  // --- resend OTP ---
+  // ── resend OTP ─────────────────────────────────────────────────────
   async function resendOtp(strategy: 'phone_code' | 'email_code') {
     if (!signUp) return
     setError('')
@@ -282,65 +263,26 @@ export function RegistrationWizard() {
     }
   }
 
-  // --- step 4 validation ---
-  function validateQuestionnaire(): boolean {
-    if (!experienceSelected) {
-      setError('حدد عدد سنوات الخبرة.')
-      return false
-    }
-    if (specialties.length === 0) {
-      setError('اختر مجال خبرة واحدًا على الأقل.')
-      return false
-    }
-    if (!availability) {
-      setError('حدد نوع التفرغ.')
-      return false
-    }
-    if (!equipmentAnswered) {
-      setError('حدد ما إذا كانت معدات الفحص متوفرة.')
-      return false
-    }
-    if (!previousWorkAnswered) {
-      setError('أجب على سؤال العمل السابق.')
-      return false
-    }
-    if (!weeklyVolume) {
-      setError('حدد حجم العمل الأسبوعي.')
-      return false
+  // ── step 4 → 5 ─────────────────────────────────────────────────────
+  function continueFromCoverage() {
+    const stepError = coverageStepError(draftToPayload(draft))
+    if (stepError) {
+      setError(stepError)
+      return
     }
     setError('')
-    return true
+    setStep(REVIEW_STEP)
   }
 
-  // --- step 5: submit everything ---
+  // ── step 5: submit ─────────────────────────────────────────────────
   async function submitRegistration() {
     setError('')
     setLoading(true)
     try {
-      const previousWork = previousWorkAnswered
-        ? previousWorkYes
-          ? `نعم${previousWorkDetails.trim() ? ': ' + previousWorkDetails.trim() : ''}`
-          : 'لا'
-        : ''
-
       const res = await fetch('/api/inspectors/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nationalId: nationalId.trim(),
-          fullName: fullName.trim(),
-          workCities,
-          experienceYears,
-          specialties,
-          availability,
-          hasEquipment,
-          qualification: qualification.trim(),
-          vehicleTypes: vehicleTypes.trim(),
-          previousWork,
-          weeklyVolume,
-          tamperingHandling: tamperingHandling.trim(),
-          additionalInfo: additionalInfo.trim(),
-        }),
+        body: JSON.stringify(draftToPayload(draft)),
       })
       const data: { error?: string; success?: boolean } = await res.json()
       if (!res.ok) {
@@ -356,7 +298,7 @@ export function RegistrationWizard() {
     }
   }
 
-  // ─── success screen ─────────────────────────────────────────────
+  // ─── success screen ───────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="mx-auto max-w-xl py-10 text-center">
@@ -383,12 +325,20 @@ export function RegistrationWizard() {
     )
   }
 
-  // ─── header + progress ──────────────────────────────────────────
   const StepIcon = STEPS[step].icon
+
+  /** Which step a «رجوع» press returns to. OTP steps cannot be re-entered. */
+  function backTarget(): number | null {
+    if (step === ACCOUNT_STEP) return FIRST_INPUT_STEP
+    if (step === COVERAGE_STEP) return EMAIL_OTP_STEP
+    if (step === REVIEW_STEP) return COVERAGE_STEP
+    return null
+  }
+
+  const back = backTarget()
 
   return (
     <div>
-      {/* heading */}
       <div className="flex items-center justify-between">
         <div>
           <span className="inline-flex items-center gap-1.5 text-sm font-bold text-[#0873d1]">
@@ -402,7 +352,6 @@ export function RegistrationWizard() {
         </span>
       </div>
 
-      {/* progress bar */}
       <div
         className="mt-5 h-2 overflow-hidden rounded-full bg-[#eaf0f6]"
         role="progressbar"
@@ -416,95 +365,35 @@ export function RegistrationWizard() {
         />
       </div>
 
-      {/* ─── step 0: personal info ─────────────────────────────── */}
-      {step === 0 && (
-        <div className="mt-8 space-y-7">
-          <label className="block text-sm font-bold">
-            الاسم الثلاثي الكامل
-            <input
-              className={fieldClassName}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="مثال: محمد عبدالله القحطاني"
-              maxLength={80}
-            />
-          </label>
-
-          <label className="block text-sm font-bold">
-            رقم الهوية الوطنية
-            <input
-              className={`${fieldClassName} text-center font-mono tracking-[0.2em]`}
-              dir="ltr"
-              inputMode="numeric"
-              maxLength={10}
-              value={nationalId}
-              onChange={(e) => setNationalId(e.target.value.replace(/\D/g, ''))}
-              placeholder="1XXXXXXXXX"
-            />
-            <span className="mt-1 block text-xs font-normal text-[#78879a]">
-              10 أرقام — يبدأ بـ 1 للسعوديين أو 2 للمقيمين.
-            </span>
-          </label>
-
-          <fieldset>
-            <legend className="flex items-center gap-2 text-sm font-bold">
-              <MapPin className="size-4 text-[#0873d1]" /> مكان العمل
-            </legend>
-            <p className="mt-1 text-xs leading-6 text-[#78879a]">
-              اختر المدن التي تقدر تفحص فيها. العمل متاح حاليًا في مدن المنطقة الشرقية.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {SUPPORTED_CITIES.map((city) => {
-                const selected = workCities.includes(city)
-                return (
-                  <button
-                    key={city}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => toggleCity(city)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition ${
-                      selected
-                        ? 'border-[#0873d1] bg-[#eff7ff] text-[#075cae]'
-                        : 'border-[#e4eaf1] bg-white text-[#52647a] hover:border-[#9cc9f1]'
-                    }`}
-                  >
-                    {city}
-                    {selected && <Check className="size-3.5" />}
-                  </button>
-                )
-              })}
-            </div>
-          </fieldset>
-        </div>
+      {step === FIRST_INPUT_STEP && (
+        <IdentityStep draft={draft} onChange={patch} showPhone={false} />
       )}
 
-      {/* ─── step 1: account credentials ────────────────────────── */}
-      {step === 1 && (
+      {/* ─── account credentials ──────────────────────────────────── */}
+      {step === ACCOUNT_STEP && (
         <div className="mt-8 space-y-7">
-          {signUp === null && (
-            <p className="text-sm text-[#78879a]">جارٍ تحميل نموذج التسجيل...</p>
-          )}
+          {signUp === null && <p className="text-sm text-[#78879a]">جارٍ تحميل نموذج التسجيل...</p>}
 
           <label className="block text-sm font-bold">
-            رقم الجوال
+            رقم الجوال <span className="text-[#0873d1]">*</span>
             <div className="mt-2 flex items-center gap-2">
               <span className="shrink-0 rounded-xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-3 text-sm font-bold text-[#52647a]">
                 +966
               </span>
               <input
-                className={fieldClassName}
+                className={`${fieldClassName} mt-0`}
                 dir="ltr"
                 inputMode="numeric"
                 maxLength={10}
-                value={phone ? '0' + phone : ''}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/\D/g, '')
-                  if (val.startsWith('966')) val = val.slice(3)
-                  if (val.startsWith('0')) val = val.slice(1)
-                  if (val.length > 9) val = val.slice(0, 9)
-                  setPhone(val)
+                value={draft.phone}
+                onChange={(event) => {
+                  let value = event.target.value.replace(/\D/g, '')
+                  if (value.startsWith('966')) value = value.slice(3)
+                  if (value.startsWith('0')) value = value.slice(1)
+                  patch({ phone: value.length > 9 ? value.slice(0, 9) : value })
                 }}
                 placeholder="05XXXXXXXX"
+                autoComplete="tel"
               />
             </div>
             <span className="mt-1 block text-xs font-normal text-[#78879a]">
@@ -513,13 +402,13 @@ export function RegistrationWizard() {
           </label>
 
           <label className="block text-sm font-bold">
-            البريد الإلكتروني
+            البريد الإلكتروني <span className="text-[#0873d1]">*</span>
             <input
               className={fieldClassName}
               dir="ltr"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
             />
             <span className="mt-1 block text-xs font-normal text-[#78879a]">
@@ -528,19 +417,19 @@ export function RegistrationWizard() {
           </label>
 
           <label className="block text-sm font-bold">
-            كلمة السر
+            كلمة السر <span className="text-[#0873d1]">*</span>
             <div className="relative mt-2">
               <input
                 className={fieldClassName}
                 dir="ltr"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
                 placeholder={`${PASSWORD_MIN_LENGTH} حرفًا على الأقل`}
               />
               <button
                 type="button"
-                onClick={() => setShowPassword((v) => !v)}
+                onClick={() => setShowPassword((value) => !value)}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-[#78879a] hover:text-[#0b1f46]"
                 aria-label={showPassword ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
               >
@@ -551,22 +440,22 @@ export function RegistrationWizard() {
         </div>
       )}
 
-      {/* ─── step 2: phone OTP ───────────────────────────────────── */}
-      {step === 2 && (
+      {/* ─── phone OTP ────────────────────────────────────────────── */}
+      {step === PHONE_OTP_STEP && (
         <div className="mt-8 space-y-6">
           <div className="rounded-xl bg-[#eff7ff] px-4 py-4 text-sm leading-7 text-[#075cae]">
             <Phone className="mb-1 inline size-4" /> أرسلنا رمز تحقق إلى{' '}
-            <strong dir="ltr">+966{phone}</strong>. أدخل الرمز أدناه.
+            <strong dir="ltr">{e164Saudi(draft.phone)}</strong>. أدخل الرمز أدناه.
           </div>
           <label className="block text-sm font-bold">
             رمز التحقق (SMS)
             <input
-              className={`${fieldClassName} text-center text-2xl tracking-[0.5em] font-mono`}
+              className={`${fieldClassName} text-center text-2xl font-mono tracking-[0.5em]`}
               dir="ltr"
               inputMode="numeric"
               maxLength={6}
               value={phoneOtp}
-              onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
+              onChange={(event) => setPhoneOtp(event.target.value.replace(/\D/g, ''))}
               placeholder="000000"
             />
           </label>
@@ -581,8 +470,8 @@ export function RegistrationWizard() {
         </div>
       )}
 
-      {/* ─── step 3: email OTP ───────────────────────────────────── */}
-      {step === 3 && (
+      {/* ─── email OTP ────────────────────────────────────────────── */}
+      {step === EMAIL_OTP_STEP && (
         <div className="mt-8 space-y-6">
           <div className="rounded-xl bg-[#eff7ff] px-4 py-4 text-sm leading-7 text-[#075cae]">
             <Mail className="mb-1 inline size-4" /> أرسلنا رمز تحقق إلى{' '}
@@ -591,12 +480,12 @@ export function RegistrationWizard() {
           <label className="block text-sm font-bold">
             رمز التحقق (البريد)
             <input
-              className={`${fieldClassName} text-center text-2xl tracking-[0.5em] font-mono`}
+              className={`${fieldClassName} text-center text-2xl font-mono tracking-[0.5em]`}
               dir="ltr"
               inputMode="numeric"
               maxLength={6}
               value={emailOtp}
-              onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ''))}
+              onChange={(event) => setEmailOtp(event.target.value.replace(/\D/g, ''))}
               placeholder="000000"
             />
           </label>
@@ -611,401 +500,61 @@ export function RegistrationWizard() {
         </div>
       )}
 
-      {/* ─── step 4: experience questionnaire (10 questions) ────── */}
-      {step === 4 && (
-        <div className="mt-8 space-y-7">
-          {/* Q1 */}
-          <label className="block text-sm font-bold">
-            1. كم سنة خبرتك في فحص السيارات؟
-            <select
-              className={fieldClassName}
-              value={experienceSelected ? experienceYears : ''}
-              onChange={(e) => {
-                setExperienceYears(Number(e.target.value))
-                setExperienceSelected(e.target.value !== '')
-              }}
-            >
-              <option value="" disabled>
-                اختر عدد السنوات
-              </option>
-              {Array.from({ length: 31 }, (_, y) => (
-                <option key={y} value={y}>
-                  {y === 0 ? 'أقل من سنة' : `${y} ${y === 1 ? 'سنة' : y <= 10 ? 'سنوات' : 'سنة'}`}
-                </option>
-              ))}
-              <option value={31}>أكثر من 30 سنة</option>
-            </select>
-          </label>
-
-          {/* Q2 */}
-          <fieldset>
-            <legend className="text-sm font-bold">
-              2. ما مجالات الفحص التي تتقنها؟{' '}
-              <span className="text-[#0873d1]">*</span>
-            </legend>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {inspectorSpecialties.map((s) => {
-                const selected = specialties.includes(s)
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => toggleSpecialty(s)}
-                    className={`flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-right text-sm font-semibold transition ${
-                      selected
-                        ? 'border-[#0873d1] bg-[#eff7ff] text-[#075cae]'
-                        : 'border-[#e4eaf1] bg-white text-[#52647a] hover:border-[#9cc9f1]'
-                    }`}
-                  >
-                    {s}
-                    {selected && <Check className="size-4 shrink-0" />}
-                  </button>
-                )
-              })}
-            </div>
-          </fieldset>
-
-          {/* Q3 */}
-          <fieldset>
-            <legend className="text-sm font-bold">
-              3. ما نوع التفرغ المتاح لك؟ <span className="text-[#0873d1]">*</span>
-            </legend>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {inspectorAvailabilities.map((a) => (
-                <label
-                  key={a}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                    availability === a
-                      ? 'border-[#0873d1] bg-[#eff7ff] text-[#075cae]'
-                      : 'border-[#e4eaf1] text-[#52647a] hover:border-[#9cc9f1]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="availability"
-                    value={a}
-                    checked={availability === a}
-                    onChange={() => setAvailability(a)}
-                    className="accent-[#0873d1]"
-                  />
-                  {a}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {/* Q4 */}
-          <fieldset>
-            <legend className="text-sm font-bold">
-              4. هل تتوفر لديك معدات الفحص الأساسية؟{' '}
-              <span className="text-[#0873d1]">*</span>
-            </legend>
-            <div className="mt-3 flex gap-3">
-              {[
-                { value: true, label: 'نعم، متوفرة' },
-                { value: false, label: 'لا، أحتاج تجهيزها' },
-              ].map((opt) => (
-                <label
-                  key={opt.label}
-                  className={`flex flex-1 cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                    equipmentAnswered && hasEquipment === opt.value
-                      ? 'border-[#0873d1] bg-[#eff7ff] text-[#075cae]'
-                      : 'border-[#e4eaf1] text-[#52647a]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="equipment"
-                    checked={equipmentAnswered && hasEquipment === opt.value}
-                    onChange={() => {
-                      setHasEquipment(opt.value)
-                      setEquipmentAnswered(true)
-                    }}
-                    className="accent-[#0873d1]"
-                  />
-                  {opt.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {/* Q5 */}
-          <label className="block text-sm font-bold">
-            5. ما الشهادات أو الدورات ذات الصلة التي تحملها؟{' '}
-            <span className="font-normal text-[#78879a]">(اختياري)</span>
-            <input
-              className={fieldClassName}
-              maxLength={180}
-              value={qualification}
-              onChange={(e) => setQualification(e.target.value)}
-              placeholder="مثال: شهادة فحص مركبات أو دورة ميكانيكا"
-            />
-          </label>
-
-          {/* Q6 */}
-          <label className="block text-sm font-bold">
-            6. ما أنواع السيارات التي لديك خبرة في فحصها؟{' '}
-            <span className="font-normal text-[#78879a]">(اختياري)</span>
-            <input
-              className={fieldClassName}
-              maxLength={200}
-              value={vehicleTypes}
-              onChange={(e) => setVehicleTypes(e.target.value)}
-              placeholder="مثال: يابانية، ألمانية، دفع رباعي، كهربائية"
-            />
-          </label>
-
-          {/* Q7 */}
-          <fieldset>
-            <legend className="text-sm font-bold">
-              7. هل سبق لك العمل في مركز فحص معتمد أو ورشة؟{' '}
-              <span className="text-[#0873d1]">*</span>
-            </legend>
-            <div className="mt-3 flex gap-3">
-              {[
-                { value: true, label: 'نعم' },
-                { value: false, label: 'لا' },
-              ].map((opt) => (
-                <label
-                  key={opt.label}
-                  className={`flex flex-1 cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                    previousWorkAnswered && previousWorkYes === opt.value
-                      ? 'border-[#0873d1] bg-[#eff7ff] text-[#075cae]'
-                      : 'border-[#e4eaf1] text-[#52647a]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="previousWork"
-                    checked={previousWorkAnswered && previousWorkYes === opt.value}
-                    onChange={() => {
-                      setPreviousWorkYes(opt.value)
-                      setPreviousWorkAnswered(true)
-                    }}
-                    className="accent-[#0873d1]"
-                  />
-                  {opt.label}
-                </label>
-              ))}
-            </div>
-            {previousWorkAnswered && previousWorkYes && (
-              <input
-                className={`${fieldClassName} mt-3`}
-                maxLength={300}
-                value={previousWorkDetails}
-                onChange={(e) => setPreviousWorkDetails(e.target.value)}
-                placeholder="اذكر اسم المركز/الورشة ومدة العمل"
-              />
-            )}
-          </fieldset>
-
-          {/* Q8 */}
-          <label className="block text-sm font-bold">
-            8. كم فحصًا تنجز تقريبًا في الأسبوع؟{' '}
-            <span className="text-[#0873d1]">*</span>
-            <select
-              className={fieldClassName}
-              value={weeklyVolume}
-              onChange={(e) => setWeeklyVolume(e.target.value)}
-            >
-              <option value="" disabled>
-                اختر الحجم
-              </option>
-              {WEEKLY_VOLUME_OPTIONS.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* Q9 */}
-          <label className="block text-sm font-bold">
-            9. كيف تتعامل مع علامات تلاعب العداد أو الأضرار الخفية؟{' '}
-            <span className="font-normal text-[#78879a]">(اختياري)</span>
-            <textarea
-              className={fieldClassName}
-              rows={3}
-              maxLength={400}
-              value={tamperingHandling}
-              onChange={(e) => setTamperingHandling(e.target.value)}
-              placeholder="صف بإيجاز منهجية الكشف عن التلاعب والأضرار الخفية..."
-            />
-          </label>
-
-          {/* Q10 */}
-          <label className="block text-sm font-bold">
-            10. أي معلومات إضافية تحب أن تخبرنا بها عن خبرتك؟{' '}
-            <span className="font-normal text-[#78879a]">(اختياري)</span>
-            <textarea
-              className={fieldClassName}
-              rows={3}
-              maxLength={400}
-              value={additionalInfo}
-              onChange={(e) => setAdditionalInfo(e.target.value)}
-              placeholder="نبذة مختصرة عن خبرتك أو أي تفاصيل تساعدنا في مراجعة طلبك."
-            />
-          </label>
-        </div>
+      {step === COVERAGE_STEP && (
+        <CoverageStep draft={draft} onChange={patch} onToggle={toggle} />
       )}
 
-      {/* ─── step 5: review ──────────────────────────────────────── */}
-      {step === 5 && (
-        <div className="mt-8 space-y-5">
-          <div className="rounded-xl border border-[#dce8f4] bg-[#f7f9fc] p-5 text-sm">
-            <h3 className="font-black text-[#0b1f46]">البيانات الشخصية</h3>
-            <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div>
-                <dt className="text-[#78879a]">الاسم</dt>
-                <dd className="font-semibold">{fullName}</dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">رقم الهوية</dt>
-                <dd className="font-semibold" dir="ltr">
-                  {nationalId}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">مكان العمل</dt>
-                <dd className="font-semibold">{workCities.join('، ')}</dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">الجوال</dt>
-                <dd className="font-semibold" dir="ltr">
-                  +966{phone}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">البريد</dt>
-                <dd className="font-semibold" dir="ltr">
-                  {email}
-                </dd>
-              </div>
-            </dl>
-          </div>
+      {step === REVIEW_STEP && <ApplicationReview draft={draft} />}
 
-          <div className="rounded-xl border border-[#dce8f4] bg-[#f7f9fc] p-5 text-sm">
-            <h3 className="font-black text-[#0b1f46]">ملخص الاستبيان</h3>
-            <dl className="mt-3 space-y-2">
-              <div>
-                <dt className="text-[#78879a]">سنوات الخبرة</dt>
-                <dd className="font-semibold">
-                  {experienceYears === 31 ? 'أكثر من 30 سنة' : experienceYears === 0 ? 'أقل من سنة' : `${experienceYears}`}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">المجالات</dt>
-                <dd className="font-semibold">{specialties.join('، ')}</dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">التفرغ</dt>
-                <dd className="font-semibold">{availability}</dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">المعدات</dt>
-                <dd className="font-semibold">{hasEquipment ? 'نعم' : 'لا'}</dd>
-              </div>
-              <div>
-                <dt className="text-[#78879a]">الحجم الأسبوعي</dt>
-                <dd className="font-semibold">{weeklyVolume}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <p className="text-xs leading-6 text-[#78879a]">
-            بالضغط على «إرسال طلب الانضمام» أنت توافق على مراجعة بياناتك وتفعيل
-            حسابك كفاحص بعد الموافقة.
-          </p>
-        </div>
-      )}
-
-      {/* ─── error ────────────────────────────────────────────────── */}
       {error && (
-        <p
-          role="alert"
-          className="mt-5 rounded-xl bg-[#fff1f0] px-4 py-3 text-sm font-semibold text-[#a83c35]"
-        >
+        <p role="alert" className="mt-5 rounded-xl bg-[#fff1f0] px-4 py-3 text-sm font-semibold text-[#a83c35]">
           {error}
         </p>
       )}
 
-      {/* ─── navigation ──────────────────────────────────────────── */}
+      {/* ─── navigation ───────────────────────────────────────────── */}
       <div className="mt-8 flex flex-col-reverse gap-3 border-t border-[#edf1f5] pt-6 sm:flex-row sm:items-center sm:justify-between">
-        {/* back button */}
-        {step > 0 && step < 4 ? (
-          <button
-            type="button"
-            onClick={() => {
-              setStep((s) => s - 1)
-              setError('')
-            }}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dce4ee] px-5 py-3 text-sm font-bold text-[#52647a] hover:bg-[#f7f9fc] disabled:opacity-50"
-          >
-            <ArrowRight className="size-4" /> رجوع
-          </button>
-        ) : step === 4 ? (
-          <button
-            type="button"
-            onClick={() => {
-              setStep(3)
-              setError('')
-            }}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dce4ee] px-5 py-3 text-sm font-bold text-[#52647a] hover:bg-[#f7f9fc] disabled:opacity-50"
-          >
-            <ArrowRight className="size-4" /> رجوع
-          </button>
-        ) : step === 5 ? (
-          <button
-            type="button"
-            onClick={() => {
-              setStep(4)
-              setError('')
-            }}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dce4ee] px-5 py-3 text-sm font-bold text-[#52647a] hover:bg-[#f7f9fc] disabled:opacity-50"
-          >
-            <ArrowRight className="size-4" /> رجوع
-          </button>
-        ) : (
+        {back === null ? (
           <span className="text-xs leading-6 text-[#78879a]">
             الحساب مجاني — لن نشارك بياناتك مع أي طرف ثالث.
           </span>
-        )}
-
-        {/* forward button */}
-        {step === 0 && (
+        ) : (
           <button
             type="button"
             onClick={() => {
-              if (validatePersonalInfo()) setStep(1)
+              setStep(back)
+              setError('')
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b1f46] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#075cae]"
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-[#dce4ee] px-5 py-3 text-sm font-bold text-[#52647a] hover:bg-[#f7f9fc] disabled:opacity-50"
           >
-            التالي
-            <ArrowLeft className="size-4" />
+            <ArrowRight className="size-4" /> رجوع
           </button>
         )}
 
-        {step === 1 && (
+        {step === FIRST_INPUT_STEP && (
+          <button
+            type="button"
+            onClick={continueFromIdentity}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b1f46] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#075cae]"
+          >
+            التالي <ArrowLeft className="size-4" />
+          </button>
+        )}
+
+        {step === ACCOUNT_STEP && (
           <button
             type="button"
             onClick={createAccount}
             disabled={loading || !clerkReady}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b1f46] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#075cae] disabled:cursor-wait disabled:opacity-60"
           >
-            {loading ? (
-              <LoaderCircle className="size-4 animate-spin" />
-            ) : (
-              <ShieldCheck className="size-4" />
-            )}
+            {loading ? <LoaderCircle className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
             {loading ? 'جارٍ إنشاء الحساب...' : 'إنشاء الحساب وإرسال الرمز'}
           </button>
         )}
 
-        {step === 2 && (
+        {step === PHONE_OTP_STEP && (
           <button
             type="button"
             onClick={verifyPhone}
@@ -1018,7 +567,7 @@ export function RegistrationWizard() {
           </button>
         )}
 
-        {step === 3 && (
+        {step === EMAIL_OTP_STEP && (
           <button
             type="button"
             onClick={verifyEmail}
@@ -1031,31 +580,24 @@ export function RegistrationWizard() {
           </button>
         )}
 
-        {step === 4 && (
+        {step === COVERAGE_STEP && (
           <button
             type="button"
-            onClick={() => {
-              if (validateQuestionnaire()) setStep(5)
-            }}
+            onClick={continueFromCoverage}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b1f46] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#075cae]"
           >
-            مراجعة الطلب
-            <ArrowLeft className="size-4" />
+            مراجعة الطلب <ArrowLeft className="size-4" />
           </button>
         )}
 
-        {step === 5 && (
+        {step === REVIEW_STEP && (
           <button
             type="button"
             onClick={submitRegistration}
             disabled={loading}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0b1f46] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#075cae] disabled:cursor-wait disabled:opacity-60"
           >
-            {loading ? (
-              <LoaderCircle className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
+            {loading ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}
             {loading ? 'جارٍ إرسال الطلب...' : 'إرسال طلب الانضمام'}
           </button>
         )}

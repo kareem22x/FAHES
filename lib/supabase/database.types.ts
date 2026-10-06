@@ -118,10 +118,16 @@ export type Database = {
       >
       inspector_applications: Table<{
         user_id: string
+        full_name: string
+        national_id: string | null
+        phone: string | null
+        age: number | null
         experience_years: number
+        experience_details: string
+        has_certificates: boolean | null
+        qualification: string
         cities: string[]
         specialties: string[]
-        qualification: string
         availability: string
         has_equipment: boolean
         notes: string
@@ -136,14 +142,26 @@ export type Database = {
         qualification: string
         availability: string
         has_equipment: boolean
+        full_name?: string
+        national_id?: string | null
+        phone?: string | null
+        age?: number | null
+        experience_details?: string
+        has_certificates?: boolean | null
         notes?: string
         submitted_at?: string
       }, Partial<{
         user_id: string
+        full_name: string
+        national_id: string | null
+        phone: string | null
+        age: number | null
         experience_years: number
+        experience_details: string
+        has_certificates: boolean | null
+        qualification: string
         cities: string[]
         specialties: string[]
-        qualification: string
         availability: string
         has_equipment: boolean
         notes: string
@@ -546,10 +564,16 @@ export type Database = {
       submit_inspector_application: {
         Args: {
           p_user_id: string
+          p_full_name: string
+          p_national_id: string
+          p_phone: string
+          p_age: number
           p_experience_years: number
+          p_experience_details: string
+          p_has_certificates: boolean | null
+          p_qualification: string
           p_cities: string[]
           p_specialties: string[]
-          p_qualification: string
           p_availability: string
           p_has_equipment: boolean
           p_notes: string

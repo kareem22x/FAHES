@@ -2,57 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { clerkMiddleware } from '@clerk/nextjs/server'
 import { logAuditEvent } from '@/lib/audit'
 import { phoneGateDecision } from '@/lib/phone-gate'
+import { isPhoneGatedPath, isProtectedPath } from '@/lib/route-guards'
 
 /**
- * Prefixes that require a signed-in identity. This is an authentication gate
- * only — role authorization (`customer` / `inspector` / `admin`) stays in the
- * server components and API routes, where the Supabase lookup is cheap and
- * where the decision can be made against fresh data. Gating here means an
- * anonymous request never even starts rendering the protected tree.
- */
-const PROTECTED_PREFIXES = ['/admin', '/inspector', '/dashboard', '/account', '/requests', '/support'] as const
-
-function isProtected(pathname: string) {
-  return PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  )
-}
-
-/**
- * Surfaces that additionally require a verified phone number.
+ * The gate's prefix lists live in `lib/route-guards.ts`, not here.
  *
- * `/inspector` (the inspector workspace), `/admin` (the operator console),
- * `/dashboard` (the customer console, the product's `/client/*` equivalent) and
- * `/support` (the ticket system).
+ * They used to be defined in this file, which made "every dashboard is
+ * protected" a claim nobody could check without reading six files. The module is
+ * also read by `lib/route-guards.test.ts`, which walks the real `app/` tree and
+ * fails if a page escapes a guarded layout or a layout loses its guard. Sharing
+ * one definition is what keeps the middleware and that test from disagreeing.
  *
- * `/support` is gated because a ticket is the product's escalation channel: the
- * agent answering it has to be able to reach the requester, and the reply is
- * delivered into the account. Without the phone gate an unverified signup could
- * open a ticket no one can answer. The gate is what makes "open a ticket"
- * mean "registered *and* verified" rather than merely "signed in".
- *
- * `/requests` is deliberately NOT gated: it hosts the public inspection-booking
- * wizard, and walling that off behind verification would block the very first
- * thing a new customer does.
+ * Note the split of responsibility, which is deliberate:
+ *   * this middleware answers "is there a session at all?" — cheap, edge-side;
+ *   * the layouts and API routes answer "may *this* role in?", against fresh data.
  */
-const PHONE_GATE_PREFIXES = ['/inspector', '/admin', '/dashboard', '/support'] as const
-
-/**
- * Routes that must stay reachable while the gate is closed:
- *   * `/verify-phone` — the gate's own target (otherwise: infinite redirect);
- *   * `/account`      — where a phone-less user adds the number they must verify;
- *   * `/admin/gate`   — the admin access-code step, which is a separate concern.
- */
-const PHONE_GATE_EXEMPT = ['/verify-phone', '/account', '/admin/gate'] as const
-
-function isPhoneGated(pathname: string) {
-  if (PHONE_GATE_EXEMPT.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-    return false
-  }
-  return PHONE_GATE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  )
-}
+const isProtected = isProtectedPath
+const isPhoneGated = isPhoneGatedPath
 
 /**
  * A deliberately conservative CSP. It locks down the things that are pure wins

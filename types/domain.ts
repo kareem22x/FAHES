@@ -11,11 +11,28 @@ export const inspectorSpecialties = [
 
 export const inspectorAvailabilities = ['دوام كامل', 'دوام جزئي', 'حسب المواعيد'] as const
 
+/**
+ * What an inspector applicant submits — two steps, one payload.
+ *
+ * Step 1 (identity):    fullName · nationalId · phone · age ·
+ *                       experienceYears + experienceDetails · hasCertificates/qualification
+ * Step 2 (coverage):    cities · specialties · availability · hasEquipment
+ *
+ * `hasCertificates` is tri-state on purpose: `true` / `false` / `null` means the
+ * applicant skipped the question, which the form allows. Collapsing `null` into
+ * `false` would record a "no" nobody said.
+ */
 export type InspectorApplicationInput = {
+  fullName: string
+  nationalId: string
+  phone: string
+  age: number
   experienceYears: number
+  experienceDetails: string
+  hasCertificates: boolean | null
+  qualification: string
   cities: string[]
   specialties: string[]
-  qualification: string
   availability: string
   hasEquipment: boolean
   notes: string
@@ -23,10 +40,16 @@ export type InspectorApplicationInput = {
 
 export type InspectorApplicationRow = {
   user_id: string
+  full_name: string
+  national_id: string | null
+  phone: string | null
+  age: number | null
   experience_years: number
+  experience_details: string
+  has_certificates: boolean | null
+  qualification: string
   cities: string[]
   specialties: string[]
-  qualification: string
   availability: string
   has_equipment: boolean
   notes: string

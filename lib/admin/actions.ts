@@ -29,7 +29,15 @@ const INSPECTOR_STATUSES: InspectorStatus[] = ['approved', 'rejected', 'suspende
 const DECISIONS: ReviewDecision[] = ['approved', 'rejected', 'flagged']
 
 function refreshAdminViews(extra: string[] = []) {
-  for (const path of ['/admin', '/admin/users', '/admin/inspections', '/admin/inspectors', '/admin/audit-logs', ...extra]) {
+  for (const path of [
+    '/admin',
+    '/admin/users',
+    '/admin/inspections',
+    '/admin/inspector-applications',
+    '/admin/inspectors',
+    '/admin/audit-logs',
+    ...extra,
+  ]) {
     revalidatePath(path)
   }
 }

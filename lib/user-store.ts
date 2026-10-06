@@ -130,10 +130,16 @@ export async function submitInspectorApplication(userId: string, application: In
   const { data, error } = await getSupabaseAdmin()
     .rpc('submit_inspector_application', {
       p_user_id: userId,
+      p_full_name: application.fullName,
+      p_national_id: application.nationalId,
+      p_phone: application.phone,
+      p_age: application.age,
       p_experience_years: application.experienceYears,
+      p_experience_details: application.experienceDetails,
+      p_has_certificates: application.hasCertificates,
+      p_qualification: application.qualification,
       p_cities: application.cities,
       p_specialties: application.specialties,
-      p_qualification: application.qualification,
       p_availability: application.availability,
       p_has_equipment: application.hasEquipment,
       p_notes: application.notes,

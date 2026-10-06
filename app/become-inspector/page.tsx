@@ -2,7 +2,7 @@ import Link from 'next/link'
 import BrandMark from '@/components/brand-mark'
 import SiteHeader from '@/components/site-header'
 import { ArrowLeft, BadgeCheck, CheckCircle2, ClipboardList, MapPin, ShieldCheck } from 'lucide-react'
-import { InspectorApplicationForm } from '@/components/modules/inspector/application-form'
+import { InspectorApplicationForm } from '@/components/modules/inspector/application'
 import '../public-pages.css'
 
 const navigation = [

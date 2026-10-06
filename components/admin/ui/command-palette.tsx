@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity,
   CarFront,
+  ClipboardList,
   CornerDownLeft,
   ExternalLink,
   LayoutDashboard,
@@ -51,6 +52,7 @@ export function CommandPalette() {
     return [
       { id: 'overview', label: 'نظرة عامة', group: 'تنقّل', icon: <LayoutDashboard className="size-3.5" />, run: go('/admin') },
       { id: 'inspections', label: 'طلبات الفحص', group: 'تنقّل', icon: <CarFront className="size-3.5" />, run: go('/admin/inspections'), keywords: 'requests orders' },
+      { id: 'inspector-applications', label: 'طلبات التقديم كفاحص', group: 'تنقّل', icon: <ClipboardList className="size-3.5" />, run: go('/admin/inspector-applications'), keywords: 'applications pending join requests' },
       { id: 'inspectors', label: 'الفاحصون', group: 'تنقّل', icon: <ShieldCheck className="size-3.5" />, run: go('/admin/inspectors') },
       { id: 'users', label: 'المستخدمون', group: 'تنقّل', icon: <UsersRound className="size-3.5" />, run: go('/admin/users'), keywords: 'accounts' },
       { id: 'support', label: 'الدعم الفني', group: 'تنقّل', icon: <LifeBuoy className="size-3.5" />, run: go('/admin/support'), keywords: 'support tickets' },
