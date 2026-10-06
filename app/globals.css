@@ -1,29 +1,26 @@
-/* Typography: Inter for Latin, Noto Sans Arabic for Arabic.
+/* Typography: Alexandria.
  *
- * Two families rather than one, because the product is Arabic-first but every
- * screen also carries Latin — emails, VINs, plate numbers, English status
- * labels. Inter has no Arabic coverage and Noto Sans Arabic's Latin is not the
- * face the design calls for, so the stack resolves per *character*: the browser
- * uses the first family that actually has the glyph. Latin lands on Inter,
- * Arabic falls through to Noto Sans Arabic.
+ * One family for the whole product, imported at the five weights the design
+ * system uses (`--text-*`/heading rules go up to 800).
  *
- * Both are imported at the five weights the design system actually uses
- * (`--text-*`/heading rules go up to 800). Subset-specific entry points are
- * deliberate: `latin-*` for Inter and `arabic-*` for Noto keeps each download
- * to the glyphs its family is responsible for. Do not collapse these to the
- * un-suffixed `<weight>.css` files, which pull every subset (cyrillic, greek,
- * vietnamese) into the bundle for no reason.
+ * Alexandria is an Arabic-first face and these are the `arabic-*` subset entry
+ * points, which — unlike most Fontsource subsets — carry no `unicode-range`.
+ * The browser therefore reaches for Alexandria for every character and falls
+ * through to Tahoma/Arial only for glyphs the Arabic subset does not carry,
+ * which in practice means Latin: e-mails, VINs, plate numbers, English status
+ * labels. That is the long-standing behaviour of this stack and the look the
+ * product is signed off on.
+ *
+ * If Latin ever needs to match the Arabic instead of sitting in Tahoma, add the
+ * matching `@fontsource/alexandria/latin-<weight>.css` imports. Do not collapse
+ * these to the un-suffixed `<weight>.css` files, which pull every subset
+ * (cyrillic, greek, vietnamese) into the bundle for no reason.
  */
-@import '@fontsource/inter/latin-400.css';
-@import '@fontsource/inter/latin-500.css';
-@import '@fontsource/inter/latin-600.css';
-@import '@fontsource/inter/latin-700.css';
-@import '@fontsource/inter/latin-800.css';
-@import '@fontsource/noto-sans-arabic/arabic-400.css';
-@import '@fontsource/noto-sans-arabic/arabic-500.css';
-@import '@fontsource/noto-sans-arabic/arabic-600.css';
-@import '@fontsource/noto-sans-arabic/arabic-700.css';
-@import '@fontsource/noto-sans-arabic/arabic-800.css';
+@import '@fontsource/alexandria/arabic-400.css';
+@import '@fontsource/alexandria/arabic-500.css';
+@import '@fontsource/alexandria/arabic-600.css';
+@import '@fontsource/alexandria/arabic-700.css';
+@import '@fontsource/alexandria/arabic-800.css';
 @import 'tailwindcss' source(none);
 @import './theme-dark.css';
 @import "tw-animate-css";
@@ -219,7 +216,7 @@ body {
   margin: 0;
   background-color: var(--color-background);
   color: var(--color-text);
-  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
   font-size: var(--text-base);
   line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
@@ -711,7 +708,7 @@ button, [role='button'] { user-select: none; -webkit-user-select: none; }
   overflow: hidden;
   background: var(--site-paper);
   color: var(--site-ink);
-  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
   font-size: var(--text-base);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
@@ -1024,7 +1021,7 @@ button, [role='button'] { user-select: none; -webkit-user-select: none; }
   min-height: 100vh;
   background: #f6f9ff;
   color: var(--inspector-ink);
-  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
 }
 .inspector-dashboard-layout { display: flex; min-height: 100vh; }
 .inspector-sidebar { position: sticky; top: 0; display: flex; width: 242px; height: 100vh; flex: 0 0 auto; flex-direction: column; border-inline-end: 1px solid var(--inspector-line); background: #fff; padding: 25px 17px 16px; }
@@ -1762,7 +1759,7 @@ button, [role='button'] { user-select: none; -webkit-user-select: none; }
   min-height: 100vh;
   background: var(--admin-bg);
   color: var(--admin-ink);
-  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
 }
 
 /* ── Layout ── */
@@ -2506,7 +2503,7 @@ button, [role='button'] { user-select: none; -webkit-user-select: none; }
      `--font-heading` is kept because `components/ui/card.tsx` and `dialog.tsx`
      reference it, and it is pointed at the product's own face rather than a
      second font family. */
-  --font-heading: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+  --font-heading: 'Alexandria', Tahoma, Arial, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

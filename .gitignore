@@ -61,3 +61,9 @@ cdp-profile/
 
 .vercel
 .env*
+
+# «الخط السعودي» — Ministry of Culture font, placed here manually for a trial.
+# Not used by the app (the typeface is Alexandria), and its EULA §3 forbids
+# redistributing the font files or shipping them as part of a software package,
+# so it must never be committed.
+الخط السعودي/
