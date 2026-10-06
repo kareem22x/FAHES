@@ -1,28 +1,21 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GlassBadge } from '@/components/admin/ui/glass'
 import { DataTable, type Column } from '@/components/admin/ui/data-table'
 import { setInspectorStatusAction } from '@/lib/admin/actions'
 import { inspectorStatusLabels, type Tone } from '@/lib/admin/labels'
 import { maskPhone } from '@/lib/phone'
+import type { InspectorRosterRow } from '@/lib/inspector-roster'
 
-export type InspectorRow = {
-  id: string
-  name: string
-  phone: string | null
-  role: string
-  inspectorStatus: string
-  experienceYears: number | null
-  availability: string | null
-  cities: string[]
-  specialties: string[]
-  qualification: string | null
-  hasEquipment: boolean | null
-  notes: string | null
-  hasApplication: boolean
-}
+/**
+ * The roster row type lives in `lib/inspector-roster.ts` alongside the rule that
+ * decides membership, so the page and the table cannot drift apart. Re-exported
+ * here because this is where the table's consumers already import it from.
+ */
+export type InspectorRow = InspectorRosterRow
 
 const statusTone: Record<string, Tone> = {
   approved: 'good',
@@ -34,8 +27,9 @@ const statusTone: Record<string, Tone> = {
 
 function StatusForm({ row }: { row: InspectorRow }) {
   const [state, formAction, pending] = useActionState(setInspectorStatusAction, null)
+  const [confirming, setConfirming] = useState(false)
 
-  const actions: { value: 'approved' | 'rejected' | 'suspended'; label: string; variant: string }[] = [
+  const decisions: { value: 'approved' | 'rejected' | 'suspended'; label: string; variant: string }[] = [
     { value: 'approved', label: 'اعتماد', variant: 'admin-btn-success' },
     { value: 'rejected', label: 'رفض', variant: 'admin-btn-danger' },
     { value: 'suspended', label: 'إيقاف', variant: 'admin-btn-warn' },
@@ -45,23 +39,53 @@ function StatusForm({ row }: { row: InspectorRow }) {
     <form action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="userId" value={row.id} />
       <div className="flex gap-1">
-        {actions.map((action) => (
+        {decisions.map((decision) => (
           <button
-            key={action.value}
+            key={decision.value}
             type="submit"
             name="status"
-            value={action.value}
-            disabled={pending || row.inspectorStatus === action.value}
-            className={cn('admin-btn admin-btn-sm', action.variant)}
+            value={decision.value}
+            disabled={pending || row.inspectorStatus === decision.value}
+            className={cn('admin-btn admin-btn-sm', decision.variant)}
           >
-            {action.label}
+            {decision.label}
           </button>
         ))}
       </div>
+
+      {/*
+        Removal is two-step. اعتماد and رفض are reconsiderable — the row stays
+        on the roster either way — but إزالة takes the account off it, and a
+        single mis-click should not be able to do that.
+      */}
+      {confirming ? (
+        <div className="flex items-center gap-1">
+          <button
+            type="submit"
+            name="status"
+            value="none"
+            disabled={pending}
+            className="admin-btn admin-btn-sm admin-btn-danger"
+          >
+            تأكيد الإزالة
+          </button>
+          <button type="button" onClick={() => setConfirming(false)} className="admin-btn admin-btn-sm">
+            تراجع
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          title="إزالة من قائمة الفاحصين وإعادة الحساب إلى عميل"
+          className="flex items-center gap-1 self-start text-[10px] text-[#94a3b8] transition-colors hover:text-[#e11d48]"
+        >
+          <Trash2 size={11} /> إزالة
+        </button>
+      )}
+
       {state && (
-        <span className={cn('text-[10px]', state.ok ? 'text-[#15803d]' : 'text-[#e11d48]')}>
-          {state.message}
-        </span>
+        <span className={cn('text-[10px]', state.ok ? 'text-[#15803d]' : 'text-[#e11d48]')}>{state.message}</span>
       )}
     </form>
   )
@@ -115,7 +139,9 @@ export function InspectorsTable({ rows }: { rows: InspectorRow[] }) {
       sortValue: (row) => row.cities.length,
       exportValue: (row) => row.cities.join(' | '),
       render: (row) => (
-        <span className="text-[10px] leading-5 text-[#475569]">{row.cities.length > 0 ? row.cities.join('، ') : '—'}</span>
+        <span className="text-[10px] leading-5 text-[#475569]">
+          {row.cities.length > 0 ? row.cities.join('، ') : '—'}
+        </span>
       ),
       className: 'max-w-[200px]',
     },
@@ -154,7 +180,7 @@ export function InspectorsTable({ rows }: { rows: InspectorRow[] }) {
       pageSize={20}
       exportName="inspectors"
       searchPlaceholder="بحث بالاسم أو المدينة أو المجال…"
-      emptyMessage="لا توجد طلبات فاحصين."
+      emptyMessage="لا يوجد فاحصون معتمدون بعد."
     />
   )
 }

@@ -25,7 +25,13 @@ import type { ReviewDecision } from '@/lib/admin/labels'
  */
 
 const ASSIGNABLE_ROLES: AssignableRole[] = ['customer', 'inspector', 'admin']
-const INSPECTOR_STATUSES: InspectorStatus[] = ['approved', 'rejected', 'suspended', 'pending']
+/**
+ * `'none'` is in this list on purpose. It is the removal operation — the account
+ * returns to `customer` and leaves the roster — and without it there is no way
+ * to take a decided account off `/admin/inspectors`. It is not a status an
+ * operator can set on the intake inbox; only the roster offers it.
+ */
+const INSPECTOR_STATUSES: InspectorStatus[] = ['approved', 'rejected', 'suspended', 'pending', 'none']
 const DECISIONS: ReviewDecision[] = ['approved', 'rejected', 'flagged']
 
 function refreshAdminViews(extra: string[] = []) {
@@ -127,7 +133,10 @@ export async function setInspectorStatusAction(_prev: ActionState, formData: For
 
     await auditAdminAction(session, 'admin.inspector_status_changed', 'user', userId, { status })
     refreshAdminViews()
-    return { ok: true, message: `تم تحديث حالة ${user.name}` }
+    return {
+      ok: true,
+      message: status === 'none' ? `تمت إزالة ${user.name} من قائمة الفاحصين` : `تم تحديث حالة ${user.name}`,
+    }
   } catch (error) {
     return actionError(error)
   }

@@ -1,10 +1,19 @@
-import { InspectorsTable, type InspectorRow } from '@/components/admin/inspectors-table'
+import Link from 'next/link'
+import { InspectorsTable } from '@/components/admin/inspectors-table'
 import { Notice } from '@/components/admin/ui/glass'
 import { requireAdminPage } from '@/lib/admin/rbac'
+import { buildInspectorRoster } from '@/lib/inspector-roster'
 import { inspectorApplicationsTableExists, listInspectorApplications, listUsers } from '@/lib/user-store'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * The inspector roster: accounts a decision has already been taken on.
+ *
+ * Membership is decided by `buildInspectorRoster` rather than here, because a
+ * rule written inside a `force-dynamic` page is a rule nothing can test — see
+ * `lib/inspector-roster.ts` for why admins and pending applicants are excluded.
+ */
 export default async function AdminInspectorsPage() {
   await requireAdminPage()
 
@@ -13,42 +22,26 @@ export default async function AdminInspectorsPage() {
     listInspectorApplications(),
     inspectorApplicationsTableExists(),
   ])
-  const applicationByUser = new Map(applications.map((application) => [application.user_id, application]))
 
-  const inspectors = users.filter((user) => user.inspectorStatus !== 'none' || user.role === 'inspector')
-
-  const rows: InspectorRow[] = inspectors.map((user) => {
-    const application = applicationByUser.get(user.id)
-    return {
-      id: user.id,
-      name: user.name,
-      phone: user.phone,
-      role: user.role,
-      inspectorStatus: user.inspectorStatus,
-      experienceYears: application ? application.experience_years : null,
-      availability: application?.availability ?? null,
-      cities: application?.cities ?? user.inspectorProfile?.cities ?? [],
-      specialties: application?.specialties ?? [],
-      qualification: application?.qualification ?? null,
-      hasEquipment: application ? application.has_equipment : null,
-      notes: application?.notes ?? null,
-      hasApplication: Boolean(application),
-    }
-  })
+  const rows = buildInspectorRoster(users, applications)
 
   return (
     <div className="flex flex-col gap-4">
       {!applicationsTableReady && (
         <Notice tone="warn" title="جدول طلبات الفاحصين غير مُنشأ بعد">
-          لم يُطبَّق ملف الترحيل <span dir="ltr">20260930180200_inspector_applications.sql</span> على قاعدة البيانات، لذلك
-          لا تظهر بيانات الاستبيان (الخبرة، المدن، التخصصات). الاعتماد والرفض يعملان، لكن المدن ستُؤخذ من ملف الفاحص
-          بدل الاستبيان. شغّل ملف الترحيل لتفعيل البيانات الكاملة.
+          لم يُطبَّق ملف الترحيل <span dir="ltr">20261001000004_inspector_applications.sql</span> على قاعدة البيانات،
+          لذلك لا تظهر بيانات الاستبيان (الخبرة، المدن، التخصصات). الاعتماد والرفض يعملان، لكن المدن ستُؤخذ من ملف
+          الفاحص بدل الاستبيان. شغّل ملف الترحيل لتفعيل البيانات الكاملة.
         </Notice>
       )}
+
       <InspectorsTable rows={rows} />
+
       <p className="admin-footnote">
-        اعتماد الفاحص يمنحه دور <code>inspector</code> ويربط مدن التغطية من استبيان الطلب. الاعتماد يتم من
-        الخادم بعد التحقق من جلسة المدير، وكل تغيير حالة يُسجَّل في سجل التدقيق.
+        هذه القائمة تعرض الحسابات التي صدر بحقها قرار (معتمد · مرفوض · موقوف). الطلبات الجديدة التي لم يُبتّ فيها
+        بعد في <Link href="/admin/inspector-applications">طلبات التقديم</Link>. الاعتماد يمنح دور{' '}
+        <code>inspector</code> ويربط مدن التغطية من استبيان الطلب، و«إزالة» تعيد الحساب إلى عميل وتخرجه من هذه
+        القائمة دون حذف طلبه. كل تغيير حالة يُسجَّل في سجل التدقيق.
       </p>
     </div>
   )

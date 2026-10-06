@@ -156,7 +156,7 @@ export async function submitInspectorApplication(userId: string, application: In
 /**
  * Inspector applications, newest first.
  *
- * The table only exists once `20260930180200_inspector_applications.sql` has
+ * The table only exists once `20261001000004_inspector_applications.sql` has
  * been applied. Until then this returns an empty list rather than throwing, so
  * the admin console renders normally and can tell the operator what is missing.
  */
@@ -179,8 +179,25 @@ export async function inspectorApplicationsTableExists(): Promise<boolean> {
   return !isMissingRelationError(error)
 }
 
+/**
+ * Applies an inspector decision to an account.
+ *
+ * ── `'none'` is a decision, not a no-op ─────────────────────────────────────
+ *
+ * This used to open with `if (status === 'none') return null`, which made the
+ * removal operation unreachable: the caller saw `null`, reported «المستخدم غير
+ * موجود أو محمي», and the account stayed on the roster forever. There was no
+ * way — in the console or in SQL — to take a decided account off the roster.
+ * `'none'` now performs that removal: the account returns to `customer` and
+ * drops out of `isRosterMember`. It is reversible, because the application row
+ * is left untouched and the account can re-apply.
+ *
+ * The `.neq('role', 'admin')` guard below is what makes any of this safe, and
+ * it is why the roster must never list an admin: a rule that refuses an action
+ * should not be shown a row it refuses. It also means `'none'` cannot be used
+ * to demote the last admin.
+ */
 export async function setInspectorStatus(userId: string, status: InspectorStatus, actorId: string) {
-  if (status === 'none') return null
   let applicationCities: string[] | undefined
   if (status === 'approved') {
     const { data: application, error: applicationError } = await getSupabaseAdmin()
