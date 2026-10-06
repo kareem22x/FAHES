@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { requireVerifiedSession } from '@/lib/auth'
 import { assertSameOrigin } from '@/lib/origin'
 import { getTicketForRequester, listEvents, listMessages, rateTicket } from '@/lib/support/store'
 
@@ -11,8 +11,9 @@ import { getTicketForRequester, listEvents, listMessages, rateTicket } from '@/l
  * would let an attacker enumerate other users' ticket ids.
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'سجّل الدخول أولًا.' }, { status: 401 })
+  const guard = await requireVerifiedSession()
+  if (!guard.ok) return guard.response
+  const session = guard.session
 
   const { id } = await params
   const ticket = await getTicketForRequester(id, session.sub)
@@ -27,8 +28,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const originError = assertSameOrigin(request)
   if (originError) return originError
 
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'سجّل الدخول أولًا.' }, { status: 401 })
+  const guard = await requireVerifiedSession()
+  if (!guard.ok) return guard.response
+  const session = guard.session
 
   const { id } = await params
   const body = (await request.json().catch(() => null)) as { rating?: unknown; note?: unknown } | null

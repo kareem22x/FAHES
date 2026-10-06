@@ -45,6 +45,10 @@
 .pub-checklist li { display: flex; align-items: flex-start; gap: .55rem; border-top: 1px solid var(--color-border-light); padding-top: .7rem; color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.95; }
 .pub-checklist li:first-child { border-top: 0; padding-top: 0; }
 .pub-checklist svg { flex: 0 0 auto; margin-top: .32rem; color: var(--brand-600); }
+/* The ticket CTA sits full-width above the two-column reference grid. */
+.pub-ticket-band { margin-bottom: 1.1rem; }
+.pub-ticket-band .app-panel-head p { max-width: 60ch; }
+.pub-ticket-band .pub-checklist { margin-top: 1rem; }
 
 /* --- Become an inspector ------------------------------------------------- */
 

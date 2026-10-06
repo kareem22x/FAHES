@@ -510,6 +510,42 @@ export async function updateTicketStatus(
   return true
 }
 
+/**
+ * Re-triages a ticket. Support-only: the requester never picks a priority, so
+ * this is the only way the field is ever set after creation.
+ *
+ * The first-response deadline is *derived* from the priority, so re-triaging has
+ * to move it — otherwise raising a ticket to `critical` would leave the console
+ * painting it green against the old four-hour deadline, and the red SLA highlight
+ * would be meaningless. It is anchored to the original `created_at`, not to now:
+ * a ticket opened thirty minutes ago and only now marked critical is already past
+ * a fifteen-minute SLA, and back-dating the deadline is what makes the console
+ * say so. Once an agent has replied the deadline is settled history — rewriting
+ * it would retroactively invent a breach (or erase one), so it is left alone.
+ */
+export async function updateTicketPriority(
+  ticketId: string,
+  actorId: string,
+  next: TicketPriority,
+): Promise<boolean> {
+  const current = await getTicket(ticketId)
+  if (!current) return false
+
+  const patch: Record<string, Json | undefined> = {
+    priority: next,
+    updated_at: new Date().toISOString(),
+  }
+  if (current.firstResponseAt === null) {
+    patch.sla_due_at = new Date(current.createdAt + SLA_MINUTES[next] * 60_000).toISOString()
+  }
+
+  const { error } = await getSupabaseAdmin().from('support_tickets').update(patch).eq('id', ticketId)
+  if (error) throw new Error(`Supabase ticket priority update failed: ${error.message}`)
+
+  await recordEvent(ticketId, actorId, 'priority_changed', current.priority, next)
+  return true
+}
+
 export async function assignTicket(ticketId: string, actorId: string, adminId: string): Promise<boolean> {
   const current = await getTicket(ticketId)
   if (!current) return false

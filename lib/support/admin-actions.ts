@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { requireAdminAction, actionError, auditAdminAction } from '@/lib/admin/rbac'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 import {
+  TICKET_PRIORITIES,
   TICKET_STATUSES,
   addMessage,
   assignTicket,
@@ -12,8 +13,10 @@ import {
   listCannedResponses,
   markFirstResponse,
   recordEvent,
+  updateTicketPriority,
   updateTicketStatus,
   type EscalationTarget,
+  type TicketPriority,
   type TicketStatus,
 } from '@/lib/support/store'
 
@@ -54,6 +57,38 @@ export async function setTicketStatusAction(
     revalidatePath('/admin/support')
     revalidatePath(`/admin/support/${ticketId}`)
     return { ok: true, message: 'تم تحديث الحالة' }
+  } catch (error) {
+    return toState(actionError(error))
+  }
+}
+
+/**
+ * Re-triages a ticket.
+ *
+ * The requester no longer picks a priority — urgency is a judgement the support
+ * team makes after reading the ticket, not something a customer should be able to
+ * inflate. This is therefore the only way the field changes after creation, and
+ * it is why the console needs it: without it every ticket would sit at the
+ * `medium` default and the priority filter, the distribution bar and the red SLA
+ * highlight would all be inert.
+ */
+export async function setTicketPriorityAction(
+  _prev: SupportActionState,
+  formData: FormData,
+): Promise<SupportActionState> {
+  try {
+    const { session } = await requireAdminAction('support:priority')
+    const ticketId = ticketIdFrom(formData)
+    const priority = String(formData.get('priority') ?? '') as TicketPriority
+    if (!ticketId || !TICKET_PRIORITIES.includes(priority)) return { ok: false, message: 'بيانات غير صالحة' }
+
+    const changed = await updateTicketPriority(ticketId, session.sub, priority)
+    if (!changed) return { ok: false, message: 'التذكرة غير موجودة' }
+
+    await auditAdminAction(session, 'support.ticket_priority_changed', 'support_ticket', ticketId, { priority })
+    revalidatePath('/admin/support')
+    revalidatePath(`/admin/support/${ticketId}`)
+    return { ok: true, message: 'تم تحديث الأولوية' }
   } catch (error) {
     return toState(actionError(error))
   }

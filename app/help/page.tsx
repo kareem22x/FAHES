@@ -9,9 +9,12 @@ import {
   ChevronDown,
   ClipboardList,
   FileCheck2,
-  LifeBuoy,
   LayoutDashboard,
+  LifeBuoy,
+  LogIn,
   MapPin,
+  ShieldCheck,
+  Ticket,
   UserRound,
   Wallet,
 } from 'lucide-react'
@@ -23,6 +26,7 @@ const navigation = [
   { href: '/#how-it-works', label: 'كيف تعمل المنصة؟' },
   { href: '/#services', label: 'خدمات الفحص' },
   { href: '/#faq', label: 'الأسئلة الشائعة' },
+  { href: '/support/tickets', label: 'افتح تذكرة' },
 ]
 
 const steps = [
@@ -55,6 +59,7 @@ export default function HelpPage() {
           <h1>مركز المساعدة</h1>
           <p>كل ما تحتاجه للبدء: خطوات طلب الفحص، إجابات الأسئلة المتكررة، والمدن المشمولة في المنطقة الشرقية.</p>
           <div className="pub-meta">
+            <span className="pub-chip"><Ticket size={14} /> افتح تذكرة دعم من حسابك</span>
             <span className="pub-chip"><ClipboardList size={14} /> خطوات الطلب بالتفصيل</span>
             <span className="pub-chip"><MapPin size={14} /> {SUPPORTED_CITIES.length} مدن متاحة الآن</span>
             <span className="pub-chip"><Wallet size={14} /> الدفع الإلكتروني غير مفعّل حاليًا</span>
@@ -86,8 +91,11 @@ export default function HelpPage() {
           <div className="site-faq-intro reveal">
             <span className="site-eyebrow">إجابات واضحة</span>
             <h2>أسئلة تتكرر<br /><span>على العملاء.</span></h2>
-            <p>إذا ما وجدت جوابك هنا، ابدأ طلبك وتابع التفاصيل من لوحة التحكم.</p>
-            <Link href="/requests/new" className="site-inline-link">ابدأ طلبك <ArrowLeft size={16} /></Link>
+            <p>إذا ما وجدت جوابك هنا، ابدأ طلبك أو افتح تذكرة ويتابعها فريق الدعم معك حتى الحل.</p>
+            <div className="pub-actions">
+              <Link href="/requests/new" className="site-inline-link">ابدأ طلبك <ArrowLeft size={16} /></Link>
+              <Link href="/support/tickets" className="site-inline-link">افتح تذكرة <ArrowLeft size={16} /></Link>
+            </div>
           </div>
           <div className="site-faq-list stagger-on-view">
             {faqs.map((faq) => (
@@ -120,9 +128,39 @@ export default function HelpPage() {
       <section id="contact" className="site-section">
         <div className="site-container">
           <div className="site-section-heading reveal">
-            <div><span className="site-eyebrow">تحتاج مساعدة؟</span><h2>ابدأ من حسابك،<br /><span>كل شيء هناك.</span></h2></div>
-            <p>لا يوجد بريد دعم منشور حاليًا. طلبك وبيانات حسابك هما أسرع طريق للمتابعة.</p>
+            <div><span className="site-eyebrow">تحتاج مساعدة؟</span><h2>افتح تذكرة،<br /><span>ونتابعها معك.</span></h2></div>
+            <p>لم تجد جوابك في الأسئلة الشائعة؟ افتح تذكرة دعم ويتابعها فريقنا معك حتى الحل — أو ابدأ من حسابك لمتابعة طلباتك وتقاريرك.</p>
           </div>
+
+          {/*
+            The escalation path. It sits above the two reference panels because
+            it is the only item here the visitor is meant to *act* on; the others
+            answer questions.
+
+            The panel states the two preconditions out loud (registered account,
+            verified phone) because the gate enforces them by redirect: a visitor
+            who is bounced to /sign-in or /verify-phone should already know why.
+          */}
+          <div id="open-ticket" className="app-panel is-soft pub-ticket-band">
+            <div className="app-panel-head">
+              <span className="app-panel-icon"><Ticket size={20} /></span>
+              <div><h2>تذاكر الدعم الفني</h2><p>ارفع مشكلتك، وأرفق صورة إن احتجت، وتابع الردّ في الصفحة نفسها.</p></div>
+            </div>
+            <ul className="pub-checklist">
+              {[
+                { icon: UserRound, text: 'تحتاج حسابًا مسجّلًا في فاحص — إن لم يكن لديك، ننقلك إلى التسجيل.' },
+                { icon: ShieldCheck, text: 'ورقم جوالك يجب أن يكون موثّقًا — ننقلك إلى صفحة التوثيق ثم نُعيدك إلى تذكرتك.' },
+                { icon: LifeBuoy, text: 'تصلك ردود فريق الدعم داخل التذكرة، مع تحديث حالتها عند كل مرحلة.' },
+              ].map(({ icon: Icon, text }) => (
+                <li key={text}><Icon size={15} />{text}</li>
+              ))}
+            </ul>
+            <div className="pub-actions">
+              <Link href="/support/tickets" className="btn btn-primary">افتح تذكرة <ArrowLeft size={16} /></Link>
+              <Link href="/login" className="btn btn-ghost"><LogIn size={16} /> تسجيل الدخول</Link>
+            </div>
+          </div>
+
           <div className="pub-contact-grid">
             <div className="app-panel is-soft">
               <div className="app-panel-head">

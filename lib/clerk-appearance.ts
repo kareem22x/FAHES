@@ -19,7 +19,7 @@ export const clerkAppearance: Appearance = {
     colorBorder: '#e2eaf4',
     colorRing: 'rgba(13, 116, 227, 0.18)',
     borderRadius: '14px',
-    fontFamily: "'Alexandria', Tahoma, Arial, sans-serif",
+    fontFamily: "'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif",
     fontSize: '15px',
   },
   elements: {

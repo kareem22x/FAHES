@@ -2,9 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Check, Loader2, Paperclip, Send, Star } from 'lucide-react'
-import { categoryLabels, priorityLabels, statusTimeline, ticketStatusLabels, ticketStatusTone } from '@/lib/support/labels'
-import type { SupportEvent, SupportMessage, SupportTicket } from '@/lib/support/store'
+import { ArrowRight, CircleCheck, Loader2, MessageSquare, Paperclip, Send, Sparkles, Star } from 'lucide-react'
+import {
+  categoryLabels,
+  statusTimeline,
+  ticketStatusClass,
+  ticketStatusHint,
+  ticketStatusLabels,
+} from '@/lib/support/labels'
+import { formatArabicDate, formatArabicNumber } from '@/lib/inspection-status'
+import type { SupportMessage, SupportTicket } from '@/lib/support/store'
 
 /**
  * The live ticket thread.
@@ -16,20 +23,15 @@ import type { SupportEvent, SupportMessage, SupportTicket } from '@/lib/support/
  * weaken the schema to enable it, the thread polls its own authenticated endpoint
  * every few seconds. The effect for the user is the same — replies appear without
  * a manual refresh — and the deny-by-default model stays intact.
+ *
+ * ── On the markup ────────────────────────────────────────────────────────────
+ *
+ * The status tracker is the dashboard's own `.app-progress` / `.app-flow`
+ * component rather than the row of pills this screen used to draw, so a ticket's
+ * progress reads the same way as an inspection's.
  */
 
 const POLL_INTERVAL_MS = 8_000
-
-function formatTime(ms: number) {
-  return new Date(ms).toLocaleString('ar-SA', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function toneClass(tone: string) {
-  if (tone === 'good') return 'bg-emerald-50 text-emerald-700'
-  if (tone === 'warn') return 'bg-amber-50 text-amber-700'
-  if (tone === 'bad') return 'bg-rose-50 text-rose-700'
-  return 'bg-slate-100 text-slate-600'
-}
 
 export default function TicketThread({
   ticket: initialTicket,
@@ -156,62 +158,63 @@ export default function TicketThread({
   )
 
   const showCsat = (ticket.status === 'resolved' || ticket.status === 'closed') && !rated
+  const step = statusTimeline.indexOf(ticket.status)
 
   return (
-    <div dir="rtl" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/support/tickets" className="inline-flex items-center gap-1.5 text-[11px] text-[#0b5cad] hover:underline">
-          <ArrowRight size={14} />
-          كل التذاكر
-        </Link>
-        <span className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${toneClass(ticketStatusTone[ticket.status])}`}>
-          {ticketStatusLabels[ticket.status]}
-        </span>
-      </div>
-
-      <div className="rounded-xl border border-[#e3eaf2] bg-white p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-base font-semibold text-[#102444]">{ticket.subject}</h1>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-[#65768d]">{categoryLabels[ticket.category]}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${toneClass(ticketStatusTone[ticket.status])}`}>
-            أولوية {priorityLabels[ticket.priority]}
+    <div className="app-page">
+      <section className="app-page-head">
+        <div>
+          <span className="app-eyebrow"><MessageSquare size={14} /> {ticket.ticketNumber}</span>
+          <h2>{ticket.subject}</h2>
+          <p>
+            {categoryLabels[ticket.category]} · فُتحت في {formatArabicDate(ticket.createdAt)}
+          </p>
+        </div>
+        <div className="app-page-actions">
+          <span className={`app-status ${ticketStatusClass[ticket.status]}`}>
+            {ticketStatusLabels[ticket.status]}
           </span>
+          <Link href="/support/tickets" className="btn btn-ghost btn-sm">
+            <ArrowRight size={16} /> كل التذاكر
+          </Link>
         </div>
-        <p className="mt-1 text-[10px] text-[#94a3b8]" dir="ltr">{ticket.ticketNumber}</p>
+      </section>
 
-        {/* Status timeline (feature 13) */}
-        <div className="mt-4 flex flex-wrap items-center gap-1.5">
-          {statusTimeline.map((status, index) => {
-            const activeIndex = statusTimeline.indexOf(ticket.status)
-            const done = index <= activeIndex
-            return (
-              <span key={status} className="flex items-center gap-1.5">
-                <span className={`rounded-full px-2 py-1 text-[10px] ${done ? toneClass(ticketStatusTone[status]) : 'bg-slate-50 text-[#b6c0cd]'}`}>
-                  {ticketStatusLabels[status]}
-                </span>
-                {index < statusTimeline.length - 1 && <span className={`h-px w-4 ${done ? 'bg-[#c7d6e8]' : 'bg-[#eef3f9]'}`} />}
-              </span>
-            )
-          })}
+      <section className="app-progress" aria-label="مراحل التذكرة">
+        <div className="app-flow" aria-hidden="true">
+          {statusTimeline.map((status, index) => (
+            <span
+              key={status}
+              className={`app-flow-dot ${index < step ? 'is-done' : ''} ${index === step ? 'is-current' : ''}`}
+            />
+          ))}
         </div>
-      </div>
+        <p>
+          <strong>{ticketStatusLabels[ticket.status]}</strong>
+          <span>{ticketStatusHint[ticket.status]}</span>
+        </p>
+      </section>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-[#e3eaf2] bg-white p-4">
-        <div className="flex flex-col gap-3">
-          {messages.length === 0 && <p className="py-6 text-center text-[11px] text-[#94a3b8]">لا توجد رسائل بعد.</p>}
+      <section className="app-panel">
+        <header className="app-panel-head">
+          <span className="app-panel-icon"><MessageSquare size={20} /></span>
+          <div>
+            <h2>المحادثة</h2>
+            <p>ردود فريق الدعم ورسائلك في مكان واحد.</p>
+          </div>
+        </header>
+
+        <div className="app-chat">
+          {messages.length === 0 && <p className="app-faq-empty">لا توجد رسائل بعد.</p>}
           {messages.map((message) => {
             const mine = message.authorRole !== 'admin'
             return (
-              <div key={message.id} className={`flex ${mine ? 'justify-start' : 'justify-end'}`}>
-                <div
-                  className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-[12px] leading-6 ${
-                    mine ? 'bg-[#eef4fb] text-[#102444]' : 'bg-[#0b1f46] text-white'
-                  }`}
-                >
-                  <span className="mb-1 block text-[9px] opacity-70">
-                    {mine ? 'أنت' : 'فريق الدعم'} · {formatTime(message.createdAt)}
+              <div key={message.id} className={`app-chat-msg ${mine ? 'is-mine' : 'is-agent'}`}>
+                <div className="app-chat-bubble">
+                  <span className="app-chat-meta">
+                    {mine ? 'أنت' : 'فريق الدعم'} · {formatArabicDate(message.createdAt)}
                   </span>
-                  {message.body && <p className="whitespace-pre-wrap">{message.body}</p>}
+                  {message.body && <p>{message.body}</p>}
                   {message.attachmentPath && (
                     <AttachmentLink path={message.attachmentPath} name={message.attachmentName ?? 'مرفق'} />
                   )}
@@ -223,18 +226,18 @@ export default function TicketThread({
         </div>
 
         {showCsat && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-            <p className="text-[12px] font-medium text-emerald-800">كيف كانت تجربتك مع الدعم؟</p>
-            <div className="mt-2 flex items-center gap-1.5">
+          <div className="app-csat">
+            <strong>كيف كانت تجربتك مع الدعم؟</strong>
+            <div className="app-csat-stars">
               {[1, 2, 3, 4, 5].map((value) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => void submitRating(value)}
-                  aria-label={`${value} من ٥`}
-                  className="transition hover:scale-110"
+                  aria-label={`${formatArabicNumber(value)} من ٥`}
+                  className={`app-csat-star ${value <= rating ? 'is-on' : ''}`}
                 >
-                  <Star size={22} className={value <= rating ? 'fill-amber-400 text-amber-400' : 'text-[#c7d6e8]'} />
+                  <Star size={24} />
                 </button>
               ))}
             </div>
@@ -242,23 +245,23 @@ export default function TicketThread({
         )}
 
         {rated && ticket.satisfactionRating !== null && (
-          <p className="flex items-center gap-1.5 text-[11px] text-emerald-700">
-            <Check size={14} />
-            تم تسجيل تقييمك ({ticket.satisfactionRating}/٥). شكرًا لك.
+          <p className="app-csat-done">
+            <CircleCheck size={15} />
+            تم تسجيل تقييمك ({formatArabicNumber(ticket.satisfactionRating)}/٥). شكرًا لك.
           </p>
         )}
 
-        <div className="border-t border-[#eef3f9] pt-3">
+        <div className="app-composer">
           <textarea
+            className="app-textarea"
+            rows={3}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            rows={3}
             placeholder="اكتب ردّك…"
-            className="w-full resize-y rounded-lg border border-[#e3eaf2] px-3 py-2 text-[12px] leading-6 text-[#102444] outline-none focus:border-[#93c5fd] focus:ring-2 focus:ring-[#dbeafe]"
           />
-          {notice && <p className="mt-1.5 text-[11px] text-[#0b5cad]">{notice}</p>}
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+          {notice && <p className="app-note"><Sparkles size={14} />{notice}</p>}
+          <div className="app-composer-foot">
+            <div className="app-field-actions">
               <input
                 ref={fileInput}
                 type="file"
@@ -266,27 +269,22 @@ export default function TicketThread({
                 className="hidden"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3eaf2] px-2.5 py-1.5 text-[11px] text-[#475d78] transition hover:bg-slate-50"
-              >
-                <Paperclip size={14} />
-                {file ? file.name.slice(0, 18) : 'إرفاق'}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileInput.current?.click()}>
+                <Paperclip size={15} /> {file ? file.name.slice(0, 18) : 'إرفاق'}
               </button>
             </div>
             <button
               type="button"
+              className="btn btn-primary"
               onClick={() => void send()}
               disabled={sending || (!draft.trim() && !file)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0b1f46] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#1a3563] disabled:opacity-50"
             >
-              {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               إرسال
             </button>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -306,12 +304,8 @@ function AttachmentLink({ path, name }: { path: string; name: string }) {
   }, [path])
 
   return (
-    <button
-      type="button"
-      onClick={() => void open()}
-      className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-white/20 px-2 py-1 text-[10px] underline-offset-2 hover:underline"
-    >
-      <Paperclip size={12} />
+    <button type="button" onClick={() => void open()} className="app-chat-attachment">
+      <Paperclip size={13} />
       {loading ? 'جارٍ الفتح…' : name}
     </button>
   )

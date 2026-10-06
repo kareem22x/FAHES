@@ -1,6 +1,7 @@
 import { auth as clerkAuth, currentUser as clerkCurrentUser } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { NextResponse } from 'next/server'
 import {
   ADMIN_ELEVATION_COOKIE,
   INSPECTOR_VIEW_COOKIE,
@@ -15,7 +16,7 @@ import { isValidSaudiMobile, normalizePhone } from '@/lib/phone'
 import type { Surface } from '@/lib/surfaces'
 import type { Role } from '@/types/domain'
 import { dashboardPath } from '@/lib/post-auth-path'
-import { getUserByClerkId, getUserById, isPlatformAdmin, isPlatformOwner, upsertUserFromClerk } from '@/lib/user-store'
+import { clearsPhoneGate, getUserByClerkId, getUserById, isPlatformAdmin, isPlatformOwner, upsertUserFromClerk } from '@/lib/user-store'
 
 export type AppSession = {
   sub: string
@@ -239,16 +240,59 @@ export async function requireRoles(roles: Role[]) {
  * The proxy drops unverified requests before a protected tree renders; this guard
  * is the authoritative check for the case the proxy cannot cover — a degraded
  * lookup, or a navigation that reaches the layout directly. Both call the same
- * predicate, so they cannot disagree.
- *
- * Operators (owner / admin) are exempt by identity, for the same reason the proxy
- * exempts them: they are provisioned from the environment and some hold no phone.
+ * predicate (`clearsPhoneGate`), so they cannot disagree.
  */
 export async function requirePhoneVerified(session: AppSession): Promise<AppSession> {
-  if (session.phoneVerified) return session
-  const identity = { phone: session.phone, clerkUserId: session.clerkUserId }
-  if (isPlatformOwner(identity) || isPlatformAdmin(identity)) return session
+  if (clearsPhoneGate(session)) return session
   redirect('/verify-phone')
+}
+
+/**
+ * The API counterpart to `requirePhoneVerified`.
+ *
+ * Same predicate, different failure mode. A page guard *redirects*, because a
+ * browser can render the gate; an API caller gets JSON and a status code,
+ * because a 307 into an HTML page is not a response `fetch` can use.
+ *
+ * This exists because the proxy only protects page prefixes. `/api/support/*`
+ * sits outside them, so without this an authenticated-but-unverified account
+ * could open a ticket by calling the endpoint directly and never seeing the
+ * redirect the UI would have given it — the wall would be decorative.
+ *
+ * Returns a result rather than throwing, so each handler keeps its own early
+ * return and the route stays readable:
+ *
+ *   const guard = await requireVerifiedSession()
+ *   if (!guard.ok) return guard.response
+ *
+ * 401 and 403 stay distinct on purpose: "sign in" and "verify your phone" are
+ * different instructions, and the client acts on the difference.
+ */
+export type VerifiedSessionResult =
+  | { ok: true; session: AppSession }
+  | { ok: false; response: NextResponse }
+
+export async function requireVerifiedSession(): Promise<VerifiedSessionResult> {
+  const session = await getSession()
+  if (!session) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'سجّل الدخول أولًا.', reason: 'unauthenticated' },
+        { status: 401 },
+      ),
+    }
+  }
+  if (!clearsPhoneGate(session)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'وثّق رقم جوالك أولًا لتستخدم تذاكر الدعم الفني.', reason: 'phone_unverified' },
+        { status: 403 },
+      ),
+    }
+  }
+  return { ok: true, session }
 }
 
 /**

@@ -6,13 +6,27 @@ import { usePathname } from 'next/navigation'
 import {
   Activity,
   CarFront,
+  ClipboardCheck,
+  Download,
+  FileText,
+  Gavel,
   LayoutDashboard,
   LifeBuoy,
+  MapPinned,
+  Megaphone,
+  MoreHorizontal,
+  Plus,
   ScrollText,
+  Search,
   Settings,
   ShieldCheck,
+  Store,
+  Tag,
+  TrendingUp,
+  TriangleAlert,
   UserRound,
   UsersRound,
+  X,
 } from 'lucide-react'
 import BrandMark from '@/components/brand-mark'
 import { LogoutButton } from '@/components/logout-button'
@@ -21,30 +35,112 @@ import { SurfaceSwitcher } from '@/components/admin/surface-switcher'
 import { NavPending } from '@/components/ui/nav-pending'
 import { SURFACE_LABEL, type Surface } from '@/lib/surfaces'
 
-export type AdminNavKey = 'overview' | 'inspections' | 'inspectors' | 'users' | 'support' | 'audit' | 'security' | 'settings'
+export type AdminNavKey =
+  | 'overview'
+  | 'analytics'
+  | 'inspections'
+  | 'inspector-map'
+  | 'quality-reviews'
+  | 'violations'
+  | 'disputes'
+  | 'inspectors'
+  | 'users'
+  | 'showrooms'
+  | 'broadcasts'
+  | 'reports'
+  | 'support'
+  | 'audit'
+  | 'security'
+  | 'pricing'
+  | 'settings'
 
-const navItems: {
-  key: AdminNavKey
-  href: string
-  label: string
-  subtitle: string
-  icon: typeof LayoutDashboard
-}[] = [
-  { key: 'overview', href: '/admin', label: 'نظرة عامة', subtitle: 'الإدارة المحمية', icon: LayoutDashboard },
-  { key: 'inspections', href: '/admin/inspections', label: 'طلبات الفحص', subtitle: 'متابعة العمليات', icon: CarFront },
-  { key: 'inspectors', href: '/admin/inspectors', label: 'الفاحصون', subtitle: 'إدارة الفريق', icon: ShieldCheck },
-  { key: 'users', href: '/admin/users', label: 'المستخدمون', subtitle: 'إدارة الحسابات', icon: UsersRound },
-  // Placed fifth on purpose: the mobile nav renders `navItems.slice(0, 4)`, so
-  // inserting this higher would push «المستخدمون» off the mobile bar. It was
-  // reachable only by typing the URL before, which is why the support surface
-  // looked missing even though the page and its API were complete.
-  { key: 'support', href: '/admin/support', label: 'الدعم الفني', subtitle: 'تذاكر الدعم والردود', icon: LifeBuoy },
-  { key: 'audit', href: '/admin/audit-logs', label: 'سجل التدقيق', subtitle: 'سجل غير قابل للتعديل', icon: ScrollText },
-  { key: 'security', href: '/admin/security', label: 'الأمان', subtitle: 'وضع الحماية', icon: Activity },
-  // Also unreachable before this: the page, its kill switch and its settings
-  // table all existed, but nothing in the console linked to them.
-  { key: 'settings', href: '/admin/settings', label: 'الإعدادات', subtitle: 'إعدادات المنصة', icon: Settings },
+type NavItem = { key: AdminNavKey; href: string; label: string; icon: typeof LayoutDashboard }
+type NavGroup = { caption: string; items: NavItem[] }
+
+/**
+ * Every page under `app/(admin)/admin/(console)/` appears here exactly once.
+ *
+ * This is not decoration. Before this list was grouped, the console rendered a
+ * flat eight-item nav built by hand, and nine pages that already existed —
+ * analytics, broadcasts, disputes, inspector-map, pricing, quality-reviews,
+ * reports, showrooms, violations — had **no inbound link anywhere in the
+ * codebase**. They were reachable only by typing the URL, so a complete page
+ * looked like a missing feature. Grouping by domain is what lets the list grow
+ * to the real size of the console without becoming an unreadable wall.
+ *
+ * Adding a page means adding it here; `navGroups` is the single source of
+ * truth for both the sidebar and the phone sheet.
+ */
+const navGroups: NavGroup[] = [
+  {
+    caption: 'نظرة عامة',
+    items: [
+      { key: 'overview', href: '/admin', label: 'النظرة العامة', icon: LayoutDashboard },
+      { key: 'analytics', href: '/admin/analytics', label: 'التحليلات', icon: TrendingUp },
+    ],
+  },
+  {
+    caption: 'العمليات',
+    items: [
+      { key: 'inspections', href: '/admin/inspections', label: 'طلبات الفحص', icon: CarFront },
+      { key: 'inspector-map', href: '/admin/inspector-map', label: 'خريطة الفاحصين', icon: MapPinned },
+      { key: 'quality-reviews', href: '/admin/quality-reviews', label: 'مراجعات الجودة', icon: ClipboardCheck },
+      { key: 'violations', href: '/admin/violations', label: 'المخالفات', icon: TriangleAlert },
+      { key: 'disputes', href: '/admin/disputes', label: 'النزاعات', icon: Gavel },
+    ],
+  },
+  {
+    caption: 'الحسابات',
+    items: [
+      { key: 'inspectors', href: '/admin/inspectors', label: 'الفاحصون', icon: ShieldCheck },
+      { key: 'users', href: '/admin/users', label: 'المستخدمون', icon: UsersRound },
+      { key: 'showrooms', href: '/admin/showrooms', label: 'المعارض', icon: Store },
+    ],
+  },
+  {
+    caption: 'المحتوى',
+    items: [
+      { key: 'broadcasts', href: '/admin/broadcasts', label: 'التعميمات', icon: Megaphone },
+      { key: 'reports', href: '/admin/reports', label: 'التقارير', icon: FileText },
+    ],
+  },
+  {
+    caption: 'النظام',
+    items: [
+      { key: 'support', href: '/admin/support', label: 'الدعم الفني', icon: LifeBuoy },
+      { key: 'audit', href: '/admin/audit-logs', label: 'سجل التدقيق', icon: ScrollText },
+      { key: 'security', href: '/admin/security', label: 'الأمان', icon: Activity },
+      { key: 'pricing', href: '/admin/pricing', label: 'التسعير', icon: Tag },
+      { key: 'settings', href: '/admin/settings', label: 'الإعدادات', icon: Settings },
+    ],
+  },
 ]
+
+const navItems = navGroups.flatMap((group) => group.items)
+
+/**
+ * What the bottom bar carries on phones. Declared by key rather than taken from
+ * `navItems.slice(0, 4)`: the flat order is now grouped, so a positional slice
+ * would silently hand the bar «التحليلات» and «خريطة الفاحصين» and drop
+ * «المستخدمون». Everything not listed here stays reachable through «المزيد».
+ */
+const mobileKeys: AdminNavKey[] = ['overview', 'inspections', 'inspectors', 'users']
+
+/**
+ * Three shortcuts above the nav, mirroring the reference layout's action row.
+ *
+ * The reference shows *Search / New / Import*. Two of those have no honest
+ * equivalent here — this console creates no records, so a "New" that opened an
+ * empty form would be a dead end, which is exactly the failure mode the grouped
+ * nav above exists to remove. They are mapped onto the closest real
+ * destinations instead: composing a broadcast is the console's only create
+ * action, and the reports page is where exports live.
+ */
+const quickActions = [
+  { key: 'search', label: 'بحث', icon: Search, href: null },
+  { key: 'broadcasts', label: 'تعميم جديد', icon: Plus, href: '/admin/broadcasts' },
+  { key: 'reports', label: 'التقارير', icon: Download, href: '/admin/reports' },
+] as const
 
 export type ShellQuickStats = {
   users: number
@@ -53,10 +149,21 @@ export type ShellQuickStats = {
   flagged: number
 }
 
+function badgeFor(key: AdminNavKey, stats: ShellQuickStats): number | null {
+  if (key === 'inspectors' && stats.pendingInspectors > 0) return stats.pendingInspectors
+  if (key === 'inspections' && stats.openInspections > 0) return stats.openInspections
+  return null
+}
+
 /**
- * Admin console shell matching the inspector dashboard design language.
- * Uses the same `inspector-*` CSS classes from globals.css — light theme,
- * fixed sidebar, topbar with breadcrumb, bottom mobile nav.
+ * Admin console shell.
+ *
+ * Uses the self-contained `admin-*` design system in `globals.css` — pure white
+ * surfaces, `#e2e8f0` hairlines, airy spacing — rather than the `inspector-*`
+ * namespace it used to borrow. Those two namespaces exist separately on purpose
+ * (`inspector-shell.tsx` renders the inspector panel from the same file), so
+ * restyling the inspector classes would have dragged the inspector surface along
+ * with a change nobody asked for.
  */
 export function AdminShell({
   tier,
@@ -82,9 +189,13 @@ export function AdminShell({
 }) {
   const pathname = usePathname()
   const [lastPathname, setLastPathname] = useState(pathname)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   if (lastPathname !== pathname) {
     setLastPathname(pathname)
+    // The sheet covers the viewport, so leaving it open across a navigation
+    // would hide the page the tap just requested.
+    if (moreOpen) setMoreOpen(false)
   }
 
   // Longest matching href wins, so `/admin/users/<id>` resolves to `users`
@@ -93,109 +204,218 @@ export function AdminShell({
       .sort((left, right) => right.href.length - left.href.length)
       .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)) ?? navItems[0]
 
-  const stats = [
-    { label: 'مستخدم', value: quickStats.users },
-    { label: 'طلب مفتوح', value: quickStats.openInspections },
-    { label: 'بانتظار الاعتماد', value: quickStats.pendingInspectors },
-    { label: 'معلَّم', value: quickStats.flagged },
-  ]
+  const currentGroup = navGroups.find((group) =>
+    group.items.some((item) => item.key === current.key),
+  )
 
   return (
-    <main dir="rtl" className="inspector-dashboard">
+    <main dir="rtl" className="admin-root">
       <CommandPalette />
 
-      <div className="inspector-dashboard-layout">
+      <div className="admin-layout">
         {/* ── Sidebar ── */}
-        <aside className="inspector-sidebar" aria-label="التنقل في لوحة الإدارة">
-          <Link href="/" className="inspector-logo">
-            <BrandMark className="inspector-logo-mark" />
-            <span>فاحص<span>.</span><small>لوحة الإدارة</small></span>
+        <aside className="admin-sidebar" aria-label="التنقل في لوحة الإدارة">
+          <Link href="/" className="admin-logo">
+            <BrandMark className="admin-logo-mark" />
+            <span>
+              فاحص<span>.</span>
+              <small>لوحة الإدارة</small>
+            </span>
           </Link>
 
-          <p className="inspector-nav-caption">مساحة الإدارة</p>
-          <nav>
-            {navItems.map(({ key, href, label, icon: Icon }) => (
-              <Link
-                key={key}
-                href={href}
-                className={current.key === key ? 'is-current' : ''}
-              >
-                <Icon size={17} />{label}
-                <NavPending />
-                {key === 'inspectors' && quickStats.pendingInspectors > 0 && (
-                  <span className="inspector-nav-count">{quickStats.pendingInspectors}</span>
-                )}
-                {key === 'inspections' && quickStats.openInspections > 0 && (
-                  <span className="inspector-nav-count">{quickStats.openInspections}</span>
-                )}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="inspector-sidebar-help">
-            <span><ShieldCheck size={18} /></span>
-            <strong>{tier === 'super_admin' ? 'صلاحيات المالك' : 'جلسة إدارية'}</strong>
-            <p>تتحكم هذه اللوحة في جميع جوانب المنصة. التغييرات تُسجَّل في سجل التدقيق.</p>
-            {/* `Link`, not `<a>`: a bare anchor forces a full document reload, so
-                the console tore down and re-rendered on every visit to the audit
-                log — the exact "route freezing" feel, from the one control in
-                the shell that bypassed client-side routing. */}
-            <Link href="/admin/audit-logs">سجل التدقيق <LayoutDashboard size={14} /></Link>
-            {/* «الملف الشخصي» and «الأمان» are deliberately two links. The
-                profile is a screen inside this console (`/admin/settings` →
-                «حسابي»); credentials, password and national-ID verification are
-                account-level facts that only `/account` can change. Sending
-                both to `/account` is what made the console's profile menu a dead
-                end — the admin left the console to read their own name. */}
-            <Link href="/admin/settings">ملفي الشخصي <UserRound size={14} /></Link>
-            <Link href="/account">إعدادات الأمان والتحقق <ShieldCheck size={14} /></Link>
+          <div className="admin-quick-actions">
+            {quickActions.map(({ key, label, icon: Icon, href }) =>
+              href === null ? (
+                <button
+                  key={key}
+                  type="button"
+                  className="admin-quick-action"
+                  onClick={() => window.dispatchEvent(new Event('admin:command-palette'))}
+                >
+                  <Icon size={15} />
+                  {label}
+                </button>
+              ) : (
+                <Link key={key} href={href} className="admin-quick-action">
+                  <Icon size={15} />
+                  {label}
+                </Link>
+              ),
+            )}
           </div>
 
-          <div className="inspector-sidebar-user">
-            <span className="inspector-user-avatar">{adminName.slice(0, 1)}</span>
-            <span>
-              <strong>{adminName}</strong>
-              <small>
-                {tier === 'super_admin'
-                  ? surface ? `مالك · واجهة ${SURFACE_LABEL[surface]}` : 'مالك المنصة'
-                  : 'مدير'}
-              </small>
-            </span>
-            <LogoutButton />
+          {/* Scrollable: five groups of nav plus the footer card do not fit a
+              laptop viewport, and the sidebar is `height: 100vh`, so without
+              this the last group and the user block would be unreachable. */}
+          <div className="admin-sidebar-scroll">
+            {navGroups.map((group) => (
+              <div key={group.caption}>
+                <p className="admin-nav-section">{group.caption}</p>
+                <nav className="admin-nav">
+                  {group.items.map(({ key, href, label, icon: Icon }) => {
+                    const badge = badgeFor(key, quickStats)
+                    return (
+                      <Link
+                        key={key}
+                        href={href}
+                        className={current.key === key ? 'is-current' : ''}
+                        aria-current={current.key === key ? 'page' : undefined}
+                      >
+                        <Icon size={16} />
+                        {label}
+                        <NavPending />
+                        {badge !== null && <span className="admin-nav-count">{badge}</span>}
+                      </Link>
+                    )
+                  })}
+                </nav>
+              </div>
+            ))}
+          </div>
+
+          <div className="admin-sidebar-footer">
+            <div className="admin-sidebar-help">
+              <span>
+                <ShieldCheck size={17} />
+              </span>
+              <strong>{tier === 'super_admin' ? 'صلاحيات المالك' : 'جلسة إدارية'}</strong>
+              <p>تتحكم هذه اللوحة في جميع جوانب المنصة. التغييرات تُسجَّل في سجل التدقيق.</p>
+              {/* `Link`, not `<a>`: a bare anchor forces a full document reload, so
+                  the console tore down and re-rendered on every visit to the audit
+                  log — the exact "route freezing" feel, from the one control in
+                  the shell that bypassed client-side routing. */}
+              <Link href="/admin/audit-logs">
+                سجل التدقيق <ScrollText size={13} />
+              </Link>
+              {/* «الملف الشخصي» and «الأمان» are deliberately two links. The
+                  profile is a screen inside this console; credentials, password
+                  and national-ID verification are account-level facts that only
+                  `/account` can change. Sending both to `/account` is what made
+                  the console's profile menu a dead end — the admin left the
+                  console to read their own name. */}
+              <Link href="/admin/support/agent-profile">
+                ملفي الشخصي <UserRound size={13} />
+              </Link>
+              <Link href="/account">
+                إعدادات الأمان والتحقق <ShieldCheck size={13} />
+              </Link>
+            </div>
+
+            <div className="admin-sidebar-user">
+              <span className="admin-user-avatar">{adminName.slice(0, 1)}</span>
+              <span>
+                <strong>{adminName}</strong>
+                <small>
+                  {tier === 'super_admin'
+                    ? surface
+                      ? `مالك · واجهة ${SURFACE_LABEL[surface]}`
+                      : 'مالك المنصة'
+                    : 'مدير'}
+                </small>
+              </span>
+              <LogoutButton />
+            </div>
           </div>
         </aside>
 
         {/* ── Workspace ── */}
-        <div className="inspector-workspace">
-          <header className="inspector-topbar">
+        <div className="admin-workspace">
+          <header className="admin-topbar">
             <div>
-              <div className="inspector-breadcrumb">
-                <span>فاحص</span><span>/</span><strong>{current.label}</strong>
+              <div className="admin-breadcrumb">
+                <span>الإدارة</span>
+                <span>/</span>
+                {currentGroup && currentGroup.caption !== current.label && (
+                  <>
+                    <span>{currentGroup.caption}</span>
+                    <span>/</span>
+                  </>
+                )}
+                <strong>{current.label}</strong>
               </div>
-              <p className="inspector-topbar-description">{current.subtitle}</p>
             </div>
-            <div className="inspector-topbar-actions">
+            <div className="admin-topbar-actions">
               {tier === 'super_admin' && <SurfaceSwitcher current={surface} />}
               <CommandPaletteTrigger />
-              <span className="inspector-status-pill is-online">
-                <span />النظام يعمل
+              <span className="admin-status-pill">
+                <span />
+                النظام يعمل
               </span>
             </div>
           </header>
 
-          <div className="inspector-content">
-            {children}
-          </div>
+          <div className="admin-content">{children}</div>
 
-          <nav className="inspector-mobile-nav" aria-label="التنقل السريع">
-            {navItems.slice(0, 4).map(({ href, label, icon: Icon }, index) => (
-              <Link key={href} href={href} className={index === 0 ? 'is-current' : ''}>
-                <Icon size={19} /><span>{label}</span><NavPending />
-              </Link>
-            ))}
+          <nav className="admin-mobile-nav" aria-label="التنقل السريع">
+            {mobileKeys.map((key) => {
+              const item = navItems.find((candidate) => candidate.key === key)
+              if (!item) return null
+              const Icon = item.icon
+              return (
+                <Link
+                  key={key}
+                  href={item.href}
+                  className={current.key === key ? 'is-current' : ''}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                  <NavPending />
+                </Link>
+              )
+            })}
+            <button
+              type="button"
+              className={moreOpen ? 'is-current' : ''}
+              onClick={() => setMoreOpen(true)}
+              aria-expanded={moreOpen}
+            >
+              <MoreHorizontal size={18} />
+              <span>المزيد</span>
+            </button>
           </nav>
         </div>
       </div>
+
+      {/* ── Phone sheet: the groups the bottom bar cannot carry ── */}
+      {moreOpen && (
+        <>
+          <div
+            className="admin-more-backdrop"
+            role="presentation"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="admin-more-sheet" role="dialog" aria-modal="true" aria-label="كل الأقسام">
+            <div className="admin-more-head">
+              <strong>كل الأقسام</strong>
+              <button type="button" onClick={() => setMoreOpen(false)} aria-label="إغلاق">
+                <X size={16} />
+              </button>
+            </div>
+            {navGroups.map((group) => (
+              <div key={group.caption}>
+                <p className="admin-nav-section">{group.caption}</p>
+                <nav className="admin-nav">
+                  {group.items.map(({ key, href, label, icon: Icon }) => {
+                    const badge = badgeFor(key, quickStats)
+                    return (
+                      <Link
+                        key={key}
+                        href={href}
+                        className={current.key === key ? 'is-current' : ''}
+                        onClick={() => setMoreOpen(false)}
+                      >
+                        <Icon size={16} />
+                        {label}
+                        {badge !== null && <span className="admin-nav-count">{badge}</span>}
+                      </Link>
+                    )
+                  })}
+                </nav>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </main>
   )
 }

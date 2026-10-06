@@ -104,3 +104,31 @@ export function isPlatformAdmin(identity: {
 export function isApprovedInspector(user: { inspectorStatus?: string | null } | null | undefined): boolean {
   return user?.inspectorStatus === 'approved'
 }
+
+/**
+ * Whether an account has cleared the phone-verification wall — or is exempt from it.
+ *
+ * This is the single predicate behind every gate on that wall: the edge proxy
+ * (`phoneGateDecision`), the server-side layout guard (`requirePhoneVerified`)
+ * and the API guard (`requireVerifiedSession`). It lives here, pure and free of
+ * `server-only`, so the three cannot drift apart — a gate that disagrees with
+ * another gate is a bug that only shows up as a redirect loop or a silent
+ * bypass, which is exactly the failure this function exists to prevent.
+ *
+ * ── Why the exemption is by identity, not by role ────────────────────────────
+ *
+ * Operators are provisioned from the environment, not by signing up, and some
+ * hold no phone at all — so their `phone_verified` flag reads false. Gating them
+ * would lock the only accounts able to fix the platform out of the surface that
+ * fixes it. The stored role is deliberately not consulted: `admin_pending` is an
+ * authenticated administrator mid-second-factor, and is exempt for the same
+ * reason the proxy exempts them.
+ */
+export function clearsPhoneGate(identity: {
+  phone?: string | null
+  clerkUserId?: string | null
+  phoneVerified?: boolean
+}): boolean {
+  if (identity.phoneVerified) return true
+  return isPlatformAdmin(identity)
+}

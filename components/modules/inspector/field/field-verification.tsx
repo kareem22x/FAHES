@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { AlertTriangle, Camera, Check, CloudUpload, Gauge, ImagePlus, Loader2, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Camera, Check, CloudUpload, Gauge, Loader2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { CameraCapture } from '@/components/ui/camera-capture'
 import { mandatoryPhotoSequence, type VerificationPhoto } from '@/lib/field/types'
 import { useHaptics } from './field-hooks'
 
@@ -42,6 +43,8 @@ export function FieldVerification({
   const [savings, setSavings] = useState<string | null>(null)
   const [error, setError] = useState('')
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  /** The mandatory step whose in-app camera is currently open, or null. */
+  const [cameraStep, setCameraStep] = useState<(typeof mandatoryPhotoSequence)[number] | null>(null)
 
   const odometerValue = Number.parseInt(odometer.replace(/[^\d]/g, ''), 10)
   const odometerValid = Number.isFinite(odometerValue) && odometerValue >= 0 && odometerValue <= 2_000_000
@@ -181,22 +184,40 @@ export function FieldVerification({
                       <span>قيد المزامنة</span>
                     </div>
                   ) : (
-                    <label className="field-shot-target" aria-label={`رفع ${step.label}`}>
-                      {uploading ? <Loader2 size={22} /> : <ImagePlus size={22} />}
-                      <input
-                        ref={(node) => { inputRefs.current[step.key] = node }}
-                        className="field-shot-input"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/heic"
-                        capture="environment"
+                    <div className="field-shot-target-wrap">
+                      {/* Primary path: our own viewfinder, so the inspector can
+                          frame the shot, check it, and retake without leaving
+                          the page. */}
+                      <button
+                        type="button"
+                        className="field-shot-target"
+                        aria-label={`التقاط ${step.label}`}
                         disabled={uploading}
-                        onChange={(event) => {
-                          const file = event.target.files?.[0]
-                          if (file) void upload(step.key, step.category, file)
-                          event.target.value = ''
-                        }}
-                      />
-                    </label>
+                        onClick={() => setCameraStep(step)}
+                      >
+                        {uploading ? <Loader2 size={22} /> : <Camera size={22} />}
+                      </button>
+                      {/* Fallback, not a duplicate. A denied camera permission or
+                          a sensor held by another app must not block a photo the
+                          workflow legally requires, and the system picker also
+                          covers choosing an existing file from the gallery. */}
+                      <label className="field-shot-gallery">
+                        من المعرض
+                        <input
+                          ref={(node) => { inputRefs.current[step.key] = node }}
+                          className="field-shot-input"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/heic"
+                          capture="environment"
+                          disabled={uploading}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0]
+                            if (file) void upload(step.key, step.category, file)
+                            event.target.value = ''
+                          }}
+                        />
+                      </label>
+                    </div>
                   )}
 
                   {photo && (
@@ -232,6 +253,17 @@ export function FieldVerification({
           </p>
         )}
       </div>
+
+      <CameraCapture
+        open={cameraStep !== null}
+        onClose={() => setCameraStep(null)}
+        onCapture={(file) => {
+          if (cameraStep) void upload(cameraStep.key, cameraStep.category, file)
+        }}
+        fileBaseName={cameraStep?.key ?? 'verification'}
+        title={cameraStep?.label ?? 'التقاط صورة'}
+        hint={cameraStep?.hint}
+      />
     </section>
   )
 }

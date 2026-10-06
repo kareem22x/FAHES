@@ -10,6 +10,7 @@ export const metadata = {
   robots: { index: false, follow: false },
 }
 
+/** The shell comes from `app/support/layout.tsx` — see the list page. */
 export default async function SupportTicketPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   await requirePhoneVerified(session)
@@ -20,9 +21,5 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
 
   const messages = await listMessages(id, false)
 
-  return (
-    <main dir="rtl" className="mx-auto w-full max-w-3xl px-4 py-8">
-      <TicketThread ticket={ticket} initialMessages={messages} />
-    </main>
-  )
+  return <TicketThread ticket={ticket} initialMessages={messages} />
 }

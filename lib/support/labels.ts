@@ -56,6 +56,42 @@ export const statusOrder: TicketStatus[] = ['open', 'in_progress', 'waiting_for_
 export const statusTimeline: TicketStatus[] = ['open', 'in_progress', 'waiting_for_user', 'resolved', 'closed']
 
 /**
+ * The `.app-status` tone class for each status.
+ *
+ * Kept here beside `ticketStatusTone` rather than in either component so the
+ * ticket list and the ticket thread cannot render the same status two different
+ * ways. Note this is a *CSS class name for the customer dashboard*, not a
+ * semantic tone: the admin console uses `ticketStatusTone` (good/warn/bad), and
+ * a console screen must not import it.
+ *
+ * `waiting_for_user` is deliberately its own class rather than reusing
+ * `is-open`. Both are amber, but the requester is the one who has to act, so it
+ * is the single status that is filled instead of tinted.
+ */
+export const ticketStatusClass: Record<TicketStatus, string> = {
+  open: 'is-open',
+  in_progress: 'is-progress',
+  waiting_for_user: 'is-waiting',
+  resolved: 'is-done',
+  closed: 'is-cancelled',
+}
+
+/**
+ * What each status means *for the requester*.
+ *
+ * Phrased from their side of the ticket — "we are waiting on you" rather than
+ * "waiting_for_user" — because this line is the only thing on the thread that
+ * tells them whether they need to do something.
+ */
+export const ticketStatusHint: Record<TicketStatus, string> = {
+  open: 'وصلت تذكرتك إلى فريق الدعم، وسيبدأ أحدهم بمراجعتها.',
+  in_progress: 'فريق الدعم يعمل على مشكلتك الآن.',
+  waiting_for_user: 'يحتاج فريق الدعم ردًّا منك للمتابعة.',
+  resolved: 'تم حل المشكلة. يمكنك تقييم التجربة أو الردّ لإعادة الفتح.',
+  closed: 'أُغلقت التذكرة. اردد عليها خلال المهلة لإعادة فتحها.',
+}
+
+/**
  * Arabic labels for the account role of whoever opened the ticket.
  *
  * The admin sidebar used to print the raw column value, so a fully Arabic

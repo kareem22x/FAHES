@@ -21,14 +21,21 @@ function isProtected(pathname: string) {
 /**
  * Surfaces that additionally require a verified phone number.
  *
- * `/inspector` (the inspector workspace), `/admin` (the operator console) and
- * `/dashboard` (the customer console, the product's `/client/*` equivalent).
+ * `/inspector` (the inspector workspace), `/admin` (the operator console),
+ * `/dashboard` (the customer console, the product's `/client/*` equivalent) and
+ * `/support` (the ticket system).
+ *
+ * `/support` is gated because a ticket is the product's escalation channel: the
+ * agent answering it has to be able to reach the requester, and the reply is
+ * delivered into the account. Without the phone gate an unverified signup could
+ * open a ticket no one can answer. The gate is what makes "open a ticket"
+ * mean "registered *and* verified" rather than merely "signed in".
  *
  * `/requests` is deliberately NOT gated: it hosts the public inspection-booking
  * wizard, and walling that off behind verification would block the very first
  * thing a new customer does.
  */
-const PHONE_GATE_PREFIXES = ['/inspector', '/admin', '/dashboard'] as const
+const PHONE_GATE_PREFIXES = ['/inspector', '/admin', '/dashboard', '/support'] as const
 
 /**
  * Routes that must stay reachable while the gate is closed:
@@ -58,6 +65,12 @@ const CONTENT_SECURITY_POLICY = [
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",
+  // Declared for the PWA: `worker-src` names the service worker that makes the
+  // app installable, and `manifest-src` the web app manifest. Neither is
+  // restricted by anything else in this policy (there is no `default-src`), so
+  // listing them documents the requirement rather than tightening it.
+  "worker-src 'self'",
+  "manifest-src 'self'",
 ].join('; ')
 
 /**
@@ -67,24 +80,43 @@ const CONTENT_SECURITY_POLICY = [
  * for the public site — nothing there needs a sensor, and denying by default is
  * free.
  *
- * It is wrong for the inspector's field surface. Capturing a vehicle's position
- * and photographing it from the device camera is the *point* of that screen, and
- * the audit trail is only legally meaningful if the coordinates are real. A
- * bare `geolocation=()` denies the feature to the origin that owns it, so the
- * whole field workflow silently degrades to "location unavailable".
+ * It is wrong for the surfaces that legitimately use them, and the failure is
+ * silent: a denied feature is refused by the browser *before* the user ever sees
+ * a permission prompt, so the code path just looks broken. A bare
+ * `geolocation=()` denies the feature to the origin that owns it.
  *
- * So the restriction is scoped rather than dropped: `self` on the field route
- * only, everything else denied. `camera` is `self` for the same reason — the
- * mandatory-photo step uses `<input capture="environment">`.
+ * Three surfaces need sensors, and each is allowed only what it uses:
+ *
+ *   `/inspector/field/*`        — the field audit trail is only legally
+ *                                 meaningful if the coordinates are real, and
+ *                                 photographing the vehicle is the point of the
+ *                                 screen.
+ *   `/inspector/dashboard/*`    — the report workflow uploads photos and video
+ *                                 taken on the device.
+ *   `/support/*`, `/admin/support/*` — the ticket form attaches the device's
+ *                                 coordinates to a report. This was already
+ *                                 implemented in `tickets-panel.tsx` and was
+ *                                 being refused by this very policy, so the
+ *                                 feature had never worked.
  *
  * Microphone stays denied everywhere: nothing in this product records audio.
  */
 function permissionsPolicy(pathname: string) {
   const isField = pathname === '/inspector/field' || pathname.startsWith('/inspector/field/')
-  if (isField) {
-    return 'camera=(self), microphone=(), geolocation=(self)'
-  }
-  return 'camera=(), microphone=(), geolocation=()'
+  const isInspectorWorkflow = pathname.startsWith('/inspector/dashboard/')
+  const isSupport = pathname === '/support' || pathname.startsWith('/support/')
+  const isAdminSupport = pathname === '/admin/support' || pathname.startsWith('/admin/support/')
+
+  const camera = isField || isInspectorWorkflow
+  const geolocation = isField || isSupport || isAdminSupport
+
+  if (!camera && !geolocation) return 'camera=(), microphone=(), geolocation=()'
+
+  return [
+    `camera=${camera ? '(self)' : '()'}`,
+    'microphone=()',
+    `geolocation=${geolocation ? '(self)' : '()'}`,
+  ].join(', ')
 }
 
 function applySecurityHeaders(response: NextResponse, pathname = '/') {

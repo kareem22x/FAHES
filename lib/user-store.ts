@@ -56,6 +56,7 @@ function throwIfError(error: { message: string } | null): void {
  * module is not. Re-exported here so callers keep importing from the store.
  */
 export {
+  clearsPhoneGate,
   isAdminClerkId,
   isAdminPhone,
   isApprovedInspector,

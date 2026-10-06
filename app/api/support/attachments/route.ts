@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { requireVerifiedSession } from '@/lib/auth'
 import { assertSameOrigin } from '@/lib/origin'
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 
@@ -37,8 +37,9 @@ export async function POST(request: NextRequest) {
   const originError = assertSameOrigin(request)
   if (originError) return originError
 
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'سجّل الدخول أولًا.' }, { status: 401 })
+  const guard = await requireVerifiedSession()
+  if (!guard.ok) return guard.response
+  const session = guard.session
 
   const body = (await request.json().catch(() => null)) as {
     name?: unknown
@@ -82,8 +83,9 @@ export async function POST(request: NextRequest) {
  * answering it.
  */
 export async function GET(request: NextRequest) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'سجّل الدخول أولًا.' }, { status: 401 })
+  const guard = await requireVerifiedSession()
+  if (!guard.ok) return guard.response
+  const session = guard.session
 
   const path = request.nextUrl.searchParams.get('path') ?? ''
   if (!path) return NextResponse.json({ error: 'المسار مطلوب.' }, { status: 400 })

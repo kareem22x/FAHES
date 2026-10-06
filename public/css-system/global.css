@@ -86,8 +86,8 @@
   --color-focus: var(--brand-600);
 
   /* --- 01.5 Typography --------------------------------------------------- */
-  --font-sans: 'Alexandria', system-ui, -apple-system, 'Segoe UI', Tahoma,
-    'Noto Kufi Arabic', sans-serif;
+  --font-sans: 'Inter', 'Noto Sans Arabic', system-ui, -apple-system, 'Segoe UI',
+    Tahoma, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace;
 
   --weight-regular: 400;

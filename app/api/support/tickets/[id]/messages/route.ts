@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { requireVerifiedSession } from '@/lib/auth'
 import { assertSameOrigin } from '@/lib/origin'
 import { addMessage, getTicketForRequester, reopenTicket, type TicketRole } from '@/lib/support/store'
 
@@ -21,8 +21,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const originError = assertSameOrigin(request)
   if (originError) return originError
 
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'سجّل الدخول أولًا.' }, { status: 401 })
+  const guard = await requireVerifiedSession()
+  if (!guard.ok) return guard.response
+  const session = guard.session
 
   const { id } = await params
   const ticket = await getTicketForRequester(id, session.sub)

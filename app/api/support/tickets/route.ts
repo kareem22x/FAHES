@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { requireVerifiedSession } from '@/lib/auth'
 import { getClientIp } from '@/lib/client-ip'
 import { assertSameOrigin } from '@/lib/origin'
 import { consumeRateLimit } from '@/lib/rate-limit'
@@ -22,9 +22,9 @@ function roleOf(role: string): TicketRole {
 }
 
 export async function GET() {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'سجّل الدخول أولًا.' }, { status: 401 })
-  const tickets = await listTicketsForRequester(session.sub)
+  const guard = await requireVerifiedSession()
+  if (!guard.ok) return guard.response
+  const tickets = await listTicketsForRequester(guard.session.sub)
   return NextResponse.json({ tickets })
 }
 
@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
   const originError = assertSameOrigin(request)
   if (originError) return originError
 
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'سجّل الدخول أولًا.' }, { status: 401 })
+  const guard = await requireVerifiedSession()
+  if (!guard.ok) return guard.response
+  const session = guard.session
 
   try {
     const ip = getClientIp(request)

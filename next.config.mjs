@@ -81,16 +81,42 @@ const nextConfig = {
           { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
           {
             key: 'Content-Security-Policy',
-            value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+            value:
+              "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; worker-src 'self'; manifest-src 'self'",
           },
         ],
       },
-      // Field dashboard: allow the sensors the workflow actually uses, on this
-      // origin only. Declared after the catch-all so it takes precedence.
+      // Sensors are granted per route, mirroring `permissionsPolicy()` in
+      // proxy.ts. Middleware does not run for static assets, so the baseline
+      // lives in this file too — and the two must agree, because either can be
+      // the last to set the header on a page route.
+      //
+      // Order matters: Next applies every matching entry in turn, so a broader
+      // rule placed after a narrower one would overwrite it.
       {
         source: '/inspector/field/:path*',
         headers: [
           { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
+        ],
+      },
+      // The report workflow uploads photos and video from the device camera.
+      {
+        source: '/inspector/dashboard/:path*',
+        headers: [
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },
+        ],
+      },
+      // The ticket form attaches the device's coordinates to the report.
+      {
+        source: '/support/:path*',
+        headers: [
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+        ],
+      },
+      {
+        source: '/admin/support/:path*',
+        headers: [
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
         ],
       },
       // Cache static assets aggressively

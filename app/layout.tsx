@@ -8,6 +8,7 @@ import MotionProvider from '@/components/motion-provider'
 import ScrollReveal from '@/components/scroll-reveal'
 import DesignSystemInit from '@/components/design-system-init'
 import PageTransition from '@/components/page-transition'
+import { PwaRegister } from '@/components/pwa-register'
 import './globals.css'
 import './motion.css'
 import './refresh.css'
@@ -28,11 +29,42 @@ export const metadata: Metadata = {
   title: { default: 'فاحص | فحص سيارات الشرقية وأنت في مدينة ثانية', template: '%s | فاحص' },
   description: 'اطلب فحص سيارة في مدن ومحافظات المنطقة الشرقية، واستلم تقرير الفحص أينما كنت.',
   openGraph: { title: 'فاحص | سيارتك بالشرقية؟ نفحصها عنك.', description: 'فاحص يزور موقع السيارة في المنطقة الشرقية ويرسل لك تقريرًا واضحًا وأنت في مدينة ثانية.', locale: 'ar_SA', type: 'website' },
+
+  /* ── PWA ──────────────────────────────────────────────────────────────
+     `manifest` is the one tag PWABuilder hard-requires; everything else it
+     reads comes out of `public/manifest.json`.
+
+     The favicon and the Apple touch icon are NOT listed under `icons` here:
+     `app/icon.png` and `app/apple-icon.png` already make Next emit those
+     `<link>` tags from the file convention. Declaring them again would emit
+     duplicate tags pointing at the same artwork.
+
+     `statusBarStyle: 'default'` rather than `'black-translucent'`: translucent
+     lets page content slide under the iOS status bar, and this app is
+     light-themed with a white topbar, so a black-on-light bar is both the
+     readable choice and the one that needs no extra inset padding. */
+  applicationName: 'Fahes',
+  manifest: '/manifest.json',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Fahes' },
+  /* Next 16 emits the standardised `mobile-web-app-capable` for the `capable`
+     flag above. iOS only started honouring that name in 17.4; anything older
+     still looks for the `apple-` prefixed spelling, and without it a
+     home-screen bookmark opens in Safari with browser chrome instead of
+     full-screen. Emitting both is the standard belt-and-braces: they are
+     distinct meta names, so there is no duplicate-tag problem. */
+  other: { 'apple-mobile-web-app-capable': 'yes' },
+  /* The phone numbers on this site are displayed as text, not as dial links —
+     iOS auto-linking them turned account and order numbers into tel: links. */
+  formatDetection: { telephone: false, date: false, address: false, email: false },
 }
 
 export const viewport: Viewport = {
   colorScheme: 'light',
-  themeColor: '#f5f8fd',
+  /* Near-black, per the PWA spec the product asked for. The app itself stays
+     light: this paints the Android status bar and the browser's own chrome, so
+     an installed app reads as a native one with a dark system bar above a light
+     surface. It matches `theme_color` in the manifest and the icon background. */
+  themeColor: '#09090b',
   // Lock the layout viewport to the device width so the CSS breakpoint ladder
   // (sm/md/lg/xl/2xl) matches the physical screen. `viewportFit: cover` exposes
   // env(safe-area-inset-*) so the notch and home indicator are handled by CSS
@@ -79,6 +111,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <div className="rc-root isolate flex min-h-dvh w-full max-w-full flex-col overflow-x-clip">
                 <ScrollReveal />
                 <DesignSystemInit />
+                <PwaRegister />
                 <PageTransition>{children}</PageTransition>
                 <Toaster position="bottom-center" dir="rtl" theme="light" richColors closeButton />
               </div>

@@ -813,6 +813,24 @@
 
 .field-shot-target:hover { background: rgb(255 255 255 / 8%); color: var(--field-text-muted); }
 
+/* The capture column: our own viewfinder on top, the system picker underneath.
+   Both are full tap targets — the fallback is the only way through when a
+   camera permission has been refused, so it must not be a small link. */
+.field-shot-target-wrap { display: grid; gap: 6px; }
+.field-shot-gallery {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--field-radius-sm);
+  color: var(--field-text-faint);
+  font-size: var(--inspector-text-meta);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.field-shot-gallery:hover { background: rgb(255 255 255 / 6%); color: var(--field-text-muted); }
+
 .field-plate-confirm {
   display: flex;
   min-height: var(--field-tap);

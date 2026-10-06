@@ -23,12 +23,14 @@ import {
   escalateTicketAction,
   replyToTicketAction,
   replyWithCannedAction,
+  setTicketPriorityAction,
   setTicketStatusAction,
   type SupportActionState,
 } from '@/lib/support/admin-actions'
 import {
   categoryLabels,
   priorityLabels,
+  priorityOrder,
   requesterRoleLabels,
   statusOrder,
   ticketStatusLabels,
@@ -152,6 +154,24 @@ export default function AdminTicketDetail({
                   ))}
                 </select>
                 <button type="submit" className="admin-btn admin-btn-sm">تحديث الحالة</button>
+              </ActionForm>
+
+              {/* Re-triage. The requester no longer picks a priority, so this is
+                  the only place it is ever set after creation — and changing it
+                  moves the first-response deadline the console colours red. */}
+              <ActionForm action={setTicketPriorityAction} className="flex items-center gap-2">
+                <input type="hidden" name="ticketId" value={ticket.id} />
+                <select
+                  name="priority"
+                  defaultValue={ticket.priority}
+                  aria-label="أولوية التذكرة"
+                  className="rounded-lg border border-[#e3eaf2] bg-white px-2.5 py-1.5 text-[11px] text-[#33465f] outline-none"
+                >
+                  {priorityOrder.map((value) => (
+                    <option key={value} value={value}>{priorityLabels[value]}</option>
+                  ))}
+                </select>
+                <button type="submit" className="admin-btn admin-btn-sm">تحديث الأولوية</button>
               </ActionForm>
 
               {ticket.assignedTo === null && (

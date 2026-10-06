@@ -1,8 +1,29 @@
-@import '@fontsource/alexandria/arabic-400.css';
-@import '@fontsource/alexandria/arabic-500.css';
-@import '@fontsource/alexandria/arabic-600.css';
-@import '@fontsource/alexandria/arabic-700.css';
-@import '@fontsource/alexandria/arabic-800.css';
+/* Typography: Inter for Latin, Noto Sans Arabic for Arabic.
+ *
+ * Two families rather than one, because the product is Arabic-first but every
+ * screen also carries Latin — emails, VINs, plate numbers, English status
+ * labels. Inter has no Arabic coverage and Noto Sans Arabic's Latin is not the
+ * face the design calls for, so the stack resolves per *character*: the browser
+ * uses the first family that actually has the glyph. Latin lands on Inter,
+ * Arabic falls through to Noto Sans Arabic.
+ *
+ * Both are imported at the five weights the design system actually uses
+ * (`--text-*`/heading rules go up to 800). Subset-specific entry points are
+ * deliberate: `latin-*` for Inter and `arabic-*` for Noto keeps each download
+ * to the glyphs its family is responsible for. Do not collapse these to the
+ * un-suffixed `<weight>.css` files, which pull every subset (cyrillic, greek,
+ * vietnamese) into the bundle for no reason.
+ */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+@import '@fontsource/inter/latin-800.css';
+@import '@fontsource/noto-sans-arabic/arabic-400.css';
+@import '@fontsource/noto-sans-arabic/arabic-500.css';
+@import '@fontsource/noto-sans-arabic/arabic-600.css';
+@import '@fontsource/noto-sans-arabic/arabic-700.css';
+@import '@fontsource/noto-sans-arabic/arabic-800.css';
 @import 'tailwindcss' source(none);
 @import './theme-dark.css';
 @import "tw-animate-css";
@@ -198,7 +219,7 @@ body {
   margin: 0;
   background-color: var(--color-background);
   color: var(--color-text);
-  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
+  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
   font-size: var(--text-base);
   line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
@@ -233,6 +254,92 @@ input:focus, textarea:focus, select:focus {
 }
 
 input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8; }
+
+/* ===== Touch ergonomics =================================================
+   What makes the web build behave like an installed app on a phone. Every rule
+   here is invisible when it works, which is the point. */
+
+/* Removes the ~300 ms the browser waits after a tap to decide whether a
+   double-tap zoom is coming. In a form-heavy flow that delay is the single
+   biggest difference between "web page" and "app".
+   Scoped to interactive elements rather than `*`: applying it to body text also
+   disables double-tap-to-zoom on paragraphs, which is an accessibility
+   regression. Pinch-zoom is unaffected either way, and `manipulation` still
+   allows pan-x/pan-y, so it cannot break a horizontally scrollable region. */
+a, button, [role='button'], input, select, textarea, label, summary, [tabindex] {
+  touch-action: manipulation;
+}
+
+/* Android paints a translucent grey rectangle over every tapped link. This app
+   supplies its own :active and :focus-visible states, so the flash reads as a
+   rendering glitch rather than as feedback. */
+html { -webkit-tap-highlight-color: transparent; }
+
+/* A long-press on a button is the gesture for the context menu, not for
+   highlighting a label, so buttons opt out of text selection. Links do not:
+   selecting and copying text is legitimate in content. */
+button, [role='button'] { user-select: none; -webkit-user-select: none; }
+
+/* Thumb-sized floor for the controls people actually tap.
+   Guarded by `(pointer: coarse)` so it never inflates the admin console's dense
+   desktop toolbars — 32–36px icon buttons there are deliberate, and a mouse does
+   not need the extra pixels. `.admin-btn-sm` is deliberately absent for the same
+   reason: it exists to be small, inside a table toolbar that already scrolls. */
+@media (pointer: coarse) {
+  .btn,
+  .admin-btn,
+  .admin-select,
+  .admin-search-input,
+  .app-input,
+  .app-select,
+  .app-textarea,
+  .inspector-secondary-link {
+    min-height: 44px;
+  }
+
+  /* Marketing shell. These are all *standalone* affordances — a CTA beside a
+     paragraph, a link list in the footer, an icon-only arrow on a service card —
+     never a link inside a sentence, so raising them cannot disturb line rhythm.
+     A link that IS inside running prose is deliberately absent: WCAG 2.5.8
+     exempts inline text links, and inflating them would wreck the typography. */
+  .site-inline-link,
+  .site-text-link,
+  .site-footer-cta,
+  .site-brand,
+  .site-footer-links a {
+    min-height: 44px;
+  }
+
+  /* The footer link list is a plain inline row; `min-height` does nothing until
+     the box becomes a flex container that can centre its label. */
+  .site-footer-links a { display: inline-flex; align-items: center; }
+
+  /* Service cards end in a bare icon-only arrow — 17px of artwork and nothing
+     else to aim at. Give it a real hit box without moving the glyph. */
+  .site-service-card a {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Clerk renders its own auth widget at 35px. These two class names are part
+     of Clerk's documented theming API, so they are safe to target — unlike the
+     hashed `cl-internal-*` ones, which change without notice. */
+  .cl-formButtonPrimary,
+  .cl-socialButtonsBlockButton {
+    min-height: 44px;
+  }
+}
+
+/* Installed only: stop the page rubber-banding past the end of a short list. On
+   iOS that bounce reveals the white document behind the page, which is the most
+   obvious "this is a website" tell. Left alone in a browser tab, where
+   pull-to-refresh is a feature people rely on. */
+@media (display-mode: standalone) {
+  body { overscroll-behavior-y: none; }
+}
 
 /* ===== Primitives ======================================================= */
 
@@ -604,7 +711,7 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   overflow: hidden;
   background: var(--site-paper);
   color: var(--site-ink);
-  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
+  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
   font-size: var(--text-base);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
@@ -917,7 +1024,7 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   min-height: 100vh;
   background: #f6f9ff;
   color: var(--inspector-ink);
-  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
+  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
 }
 .inspector-dashboard-layout { display: flex; min-height: 100vh; }
 .inspector-sidebar { position: sticky; top: 0; display: flex; width: 242px; height: 100vh; flex: 0 0 auto; flex-direction: column; border-inline-end: 1px solid var(--inspector-line); background: #fff; padding: 25px 17px 16px; }
@@ -1655,7 +1762,7 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   min-height: 100vh;
   background: var(--admin-bg);
   color: var(--admin-ink);
-  font-family: 'Alexandria', Tahoma, Arial, sans-serif;
+  font-family: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
 }
 
 /* ── Layout ── */
@@ -1689,6 +1796,46 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .admin-logo small { margin-top: 2px; color: var(--admin-faint); font-size: 9.5px; font-weight: 500; }
 .admin-logo-mark { display: block; width: 40px; height: 40px; flex: 0 0 auto; object-fit: contain; }
 
+/* ── Quick actions ──
+   Three icon-and-label shortcuts above the nav, matching the reference
+   layout's action row. */
+.admin-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.admin-quick-action {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--admin-line);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  padding: 10px 4px;
+  color: var(--admin-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.admin-quick-action:hover { border-color: var(--admin-accent-border); background: var(--admin-accent-light); color: var(--admin-accent); }
+
+/* The sidebar is `height: 100vh`, and five nav groups plus the footer card do
+   not fit a laptop viewport. The nav scrolls; the logo and the user block stay
+   pinned. `min-height: 0` is what lets a flex child actually shrink far enough
+   to overflow — without it the wrapper refuses to go below its content height
+   and the footer is pushed off-screen instead. */
+.admin-sidebar-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.admin-sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.admin-sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.admin-sidebar-scroll::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--admin-line); }
+.admin-sidebar-scroll::-webkit-scrollbar-thumb:hover { background: var(--admin-faint); }
+
 .admin-nav-section { margin: 4px 8px 8px; color: var(--admin-faint); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .admin-nav { display: grid; gap: 3px; }
 .admin-nav a {
@@ -1721,7 +1868,7 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 }
 .admin-nav a.is-current .admin-nav-count { background: var(--admin-accent); color: #fff; }
 
-.admin-sidebar-footer { margin-top: auto; display: grid; gap: 14px; }
+.admin-sidebar-footer { display: grid; flex: 0 0 auto; gap: 14px; margin-top: 4px; }
 .admin-sidebar-help {
   border: 1px solid var(--admin-line);
   border-radius: 12px;
@@ -1859,6 +2006,24 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 
 /* ── Stat cards ── */
 .admin-stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+
+/* Secondary figures, one quiet band under the KPI row. Borderless and smaller
+   than `.admin-stat-card` so the four primary numbers keep their weight — the
+   overview previously carried twelve identically-styled cards, several of them
+   repeating the same figure, which flattened the hierarchy to nothing. */
+.admin-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  background: var(--admin-surface);
+  padding: 18px 20px;
+}
+.admin-mini-stat { display: grid; min-width: 0; gap: 4px; }
+.admin-mini-stat > span { color: var(--admin-muted); font-size: 11px; }
+.admin-mini-stat > strong { color: var(--admin-ink); font-size: 17px; font-weight: 700; }
+
 .admin-stat-card {
   display: flex;
   min-width: 0;
@@ -1974,7 +2139,11 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .admin-event-stream-head h3 { font-size: 12.5px; font-weight: 700; color: var(--admin-ink); }
 .admin-event-list { display: grid; gap: 8px; }
 .admin-event-row { display: flex; align-items: center; gap: 8px; }
-.admin-event-row > span:first-child {
+/* `:where()` zeroes this rule's specificity on purpose. It sets the tag's
+   shape, but the colour has to come from the `.admin-badge-*` family, and at
+   the natural (0,2,1) this selector would have outranked every one of them —
+   silently painting all eight event types the same grey. */
+:where(.admin-event-row > span:first-child) {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--admin-line);
@@ -1986,7 +2155,7 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   color: var(--admin-ink-soft);
   white-space: nowrap;
 }
-.admin-event-row > span:nth-child(2) { min-width: 0; flex: 1; truncate: 1; font-size: 10.5px; color: var(--admin-muted); overflow: hidden; text-overflow: ellipsis; }
+.admin-event-row > span:nth-child(2) { min-width: 0; flex: 1; font-size: 10.5px; color: var(--admin-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-event-row > time { flex: 0 0 auto; font-size: 10px; color: var(--admin-faint); }
 
 /* ── Empty state ── */
@@ -2040,6 +2209,11 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 .admin-table tbody tr:hover { background: var(--admin-line-soft); }
 .admin-table tbody tr:last-child td { border-bottom: 0; }
 
+/* Cell-level emphasis. `td` is already `--admin-ink-soft`; these lift the
+   identifying field and demote the supplementary one without inline hex. */
+.admin-table-strong { font-weight: 600; color: var(--admin-ink); }
+.admin-table-sub { color: var(--admin-faint); font-size: 10.5px; }
+
 /* ── Table toolbar ── */
 .admin-table-toolbar {
   display: flex;
@@ -2053,9 +2227,9 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   position: relative;
   min-width: 0;
   flex: 1;
-  basis: 100%;
+  flex-basis: 100%;
 }
-@media (min-width: 640px) { .admin-search-box { basis: 240px; } }
+@media (min-width: 640px) { .admin-search-box { flex-basis: 240px; } }
 .admin-search-box > svg { position: absolute; inset-block: 0; inset-inline-end: 12px; margin: auto; pointer-events: none; color: var(--admin-faint); }
 .admin-search-input {
   width: 100%;
@@ -2167,8 +2341,80 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
 /* ── Mobile nav ── */
 .admin-mobile-nav { display: none; }
 
+/* ── Phone sheet ──
+   The bottom bar carries four destinations; the rest of the console lives
+   here. It is only ever opened from the mobile nav, which is itself hidden
+   above 680px, so no media query is needed to keep it off desktop. */
+.admin-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgb(15 23 42 / 42%);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.admin-more-sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 31;
+  max-height: 82vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 18px 18px 0 0;
+  border-top: 1px solid var(--admin-line);
+  background: var(--admin-surface);
+  padding: 14px 16px calc(28px + env(safe-area-inset-bottom, 0px));
+  animation: admin-sheet-up .22s var(--ease-out) backwards;
+}
+/* `backwards`, never `both`: a fill-mode of `both` would hold the final frame
+   and pin `opacity`/`transform`, which is the documented way this codebase has
+   silently killed `:hover` before. */
+@keyframes admin-sheet-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.admin-more-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--admin-line);
+  padding-bottom: 10px;
+}
+.admin-more-head strong { font-size: 13px; color: var(--admin-ink); }
+.admin-more-head button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--admin-line);
+  border-radius: 9px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.admin-more-head button:hover { border-color: var(--admin-accent-border); background: var(--admin-accent-light); color: var(--admin-accent); }
+.admin-more-sheet .admin-nav-section { margin-top: 14px; }
+.admin-more-sheet .admin-nav a { min-height: 46px; font-size: 13px; }
+
 /* ── Footnote ── */
 .admin-footnote { font-size: 11px; line-height: 1.8; color: var(--admin-muted); }
+
+/* Inline code chip. This was referenced 27 times across ten console pages and
+   defined in no stylesheet — every one of them was rendering as bare text.
+   `.admin-footnote code` below is the same chip for the nested case; this is the
+   standalone form the pages actually ask for. */
+.admin-code {
+  direction: ltr;
+  display: inline-block;
+  border-radius: 5px;
+  background: var(--admin-line-soft);
+  padding: 1px 6px;
+  color: var(--admin-ink-soft);
+  font-size: 10.5px;
+}
 .admin-footnote code { direction: ltr; display: inline-block; background: var(--admin-line-soft); padding: 1px 5px; border-radius: 4px; font-size: 10.5px; }
 
 /* ── Responsive ── */
@@ -2192,6 +2438,8 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
   .admin-page-header p { font-size: 11px; }
   .admin-page-badge { padding: 6px 10px; font-size: 10px; }
   .admin-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .admin-mini-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 16px; }
+  .admin-mini-stat > strong { font-size: 15px; }
   .admin-stat-card { padding: 16px; }
   .admin-stat-label { margin-top: 12px; font-size: 10px; }
   .admin-stat-card > strong { font-size: 18px; }
@@ -2211,18 +2459,27 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     padding-block: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -4px 20px rgb(15 23 42 / 6%);
   }
-  .admin-mobile-nav a {
+  .admin-mobile-nav a,
+  .admin-mobile-nav button {
     display: flex;
+    min-height: 44px;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
+    border: 0;
+    background: none;
+    padding: 0;
     color: var(--admin-faint);
     font-size: 9px;
     font-weight: 600;
+    cursor: pointer;
   }
-  .admin-mobile-nav a.is-current { color: var(--admin-accent); }
+  .admin-mobile-nav a.is-current,
+  .admin-mobile-nav button.is-current { color: var(--admin-accent); }
   .admin-side-card { grid-template-columns: 1fr; }
   .admin-footer { flex-direction: column; gap: 6px; font-size: 9px; }
   .admin-footer span { text-align: start; }
@@ -2249,7 +2506,7 @@ input::placeholder, textarea::placeholder, select::placeholder { color: #98a6b8;
      `--font-heading` is kept because `components/ui/card.tsx` and `dialog.tsx`
      reference it, and it is pointed at the product's own face rather than a
      second font family. */
-  --font-heading: 'Alexandria', Tahoma, Arial, sans-serif;
+  --font-heading: 'Inter', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

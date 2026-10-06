@@ -1,5 +1,5 @@
 import 'server-only'
-import { isPlatformAdmin, isPlatformOwner } from '@/lib/identity-predicates'
+import { clearsPhoneGate } from '@/lib/identity-predicates'
 import { getUserByClerkId } from '@/lib/user-store'
 
 /**
@@ -34,12 +34,12 @@ export async function phoneGateDecision(clerkUserId: string): Promise<PhoneGateD
     const user = await getUserByClerkId(clerkUserId)
     if (!user) return { action: 'allow', reason: 'unknown_user' }
 
-    const identity = { phone: user.phone, clerkUserId }
-    if (isPlatformOwner(identity) || isPlatformAdmin(identity)) {
-      return { action: 'allow', reason: 'exempt' }
+    // The exemption is checked before the flag so an operator with no phone still
+    // reports as `exempt` rather than as a missing number.
+    if (clearsPhoneGate({ phone: user.phone, clerkUserId, phoneVerified: user.phoneVerified })) {
+      return { action: 'allow', reason: user.phoneVerified ? 'verified' : 'exempt' }
     }
 
-    if (user.phoneVerified) return { action: 'allow', reason: 'verified' }
     return { action: 'block', reason: user.phone === null ? 'no_phone' : 'unverified' }
   } catch (error) {
     console.error('phone_gate_lookup_failed', error)

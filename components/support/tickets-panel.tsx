@@ -3,16 +3,31 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, HelpCircle, LifeBuoy, Loader2, Paperclip, Plus, Search, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  BadgeCheck,
+  ChevronDown,
+  CircleCheck,
+  Clock3,
+  HelpCircle,
+  LifeBuoy,
+  Loader2,
+  MessageSquare,
+  Paperclip,
+  Plus,
+  Search,
+  Tag,
+  X,
+} from 'lucide-react'
 import {
   categoryLabels,
   categoryOrder,
-  priorityLabels,
-  priorityOrder,
+  statusOrder,
+  ticketStatusClass,
   ticketStatusLabels,
-  ticketStatusTone,
 } from '@/lib/support/labels'
-import type { SupportTicket, TicketCategory, TicketPriority } from '@/lib/support/store'
+import { formatArabicDate, formatArabicNumber } from '@/lib/inspection-status'
+import type { SupportTicket, TicketCategory, TicketStatus } from '@/lib/support/store'
 
 /**
  * The requester's support panel: their ticket list, a creation dialog, and a
@@ -22,6 +37,15 @@ import type { SupportTicket, TicketCategory, TicketPriority } from '@/lib/suppor
  * a field bug that cannot be reproduced without the reporter's device is
  * guesswork, and the inspector will have closed the app long before anyone reads
  * the ticket.
+ *
+ * ── On the markup ──────────────────────────────────────────────────────────
+ *
+ * The list is composed from the customer dashboard's own classes (`.app-request`,
+ * `.app-request-meta`, `.app-status`, `.app-tabs`, `.app-kpis`, `.app-empty`)
+ * rather than from bespoke styles. That is the point: the ticket screen used to
+ * be built on hand-written hex values, which left it the one surface that
+ * ignored the token ramp and did not respond to the dark theme. Reusing the
+ * dashboard's classes means the two cannot drift apart again.
  */
 
 type Faq = { q: string; a: string }
@@ -33,6 +57,8 @@ const FAQS: Faq[] = [
   { q: 'كيف أوثّق رقم جوالي؟', a: 'يُرسل رمز مكوّن من ٦ أرقام إلى جوالك عند تسجيل الدخول. أدخله في شاشة التوثيق لفتح حسابك.' },
   { q: 'التقرير لم يصلني', a: 'تظهر التقارير المكتملة في «تقاريري» مباشرة بعد إرسال الفاحص لها. تأكد من اكتمال الفحص أولًا.' },
 ]
+
+type FilterKey = 'all' | TicketStatus
 
 function collectDeviceInfo() {
   if (typeof navigator === 'undefined') return {}
@@ -71,10 +97,10 @@ export default function TicketsPanel({ tickets }: { tickets: SupportTicket[] }) 
   const [faqQuery, setFaqQuery] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState<FilterKey>('all')
 
   const [subject, setSubject] = useState('')
   const [category, setCategory] = useState<TicketCategory>('inspection_issue')
-  const [priority, setPriority] = useState<TicketPriority>('medium')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -85,10 +111,29 @@ export default function TicketsPanel({ tickets }: { tickets: SupportTicket[] }) 
     return FAQS.filter((item) => `${item.q} ${item.a}`.includes(query))
   }, [faqQuery])
 
+  const counts = useMemo(() => {
+    const by = (status: TicketStatus) => tickets.filter((ticket) => ticket.status === status).length
+    return {
+      all: tickets.length,
+      open: by('open'),
+      in_progress: by('in_progress'),
+      waiting_for_user: by('waiting_for_user'),
+      resolved: by('resolved'),
+      closed: by('closed'),
+    } satisfies Record<FilterKey, number>
+  }, [tickets])
+
+  const visible = useMemo(
+    () => (filter === 'all' ? tickets : tickets.filter((ticket) => ticket.status === filter)),
+    [filter, tickets],
+  )
+
+  const activeCount = counts.open + counts.in_progress
+  const closedCount = counts.resolved + counts.closed
+
   const reset = useCallback(() => {
     setSubject('')
     setCategory('inspection_issue')
-    setPriority('medium')
     setDescription('')
     setFile(null)
     setError('')
@@ -110,7 +155,6 @@ export default function TicketsPanel({ tickets }: { tickets: SupportTicket[] }) 
         body: JSON.stringify({
           subject,
           category,
-          priority,
           body: description,
           deviceInfo: collectDeviceInfo(),
           latitude: position?.latitude ?? null,
@@ -174,74 +218,105 @@ export default function TicketsPanel({ tickets }: { tickets: SupportTicket[] }) 
       setError('تعذر الاتصال بالخادم. حاول مجددًا.')
       setSubmitting(false)
     }
-  }, [category, description, file, priority, reset, router, subject])
+  }, [category, description, file, reset, router, subject])
 
   return (
-    <div dir="rtl" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-10 place-items-center rounded-xl bg-[#eef4fb] text-[#0b5cad]">
-            <LifeBuoy size={20} />
-          </span>
-          <div>
-            <h1 className="text-lg font-semibold text-[#102444]">تذاكر الدعم الفني</h1>
-            <p className="text-[11px] text-[#65768d]">تابع مشكلاتك وتواصل مع فريق الدعم مباشرة.</p>
-          </div>
+    <div className="app-page">
+      <section className="app-page-head">
+        <div>
+          <span className="app-eyebrow"><LifeBuoy size={14} /> مركز الدعم</span>
+          <h2>تذاكر الدعم الفني</h2>
+          <p>ارفع مشكلتك، أرفق صورة إن احتجت، وتابع ردّ فريق الدعم معك حتى الحل.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setFaqOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3eaf2] bg-white px-3 py-2 text-[11px] font-medium text-[#475d78] transition hover:bg-slate-50"
-          >
-            <HelpCircle size={14} />
-            الأسئلة الشائعة
+        <div className="app-page-actions">
+          <button type="button" className="btn btn-ghost" onClick={() => setFaqOpen(true)}>
+            <HelpCircle size={16} /> الأسئلة الشائعة
           </button>
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0b1f46] px-3.5 py-2 text-[11px] font-semibold text-white transition hover:bg-[#1a3563]"
-          >
-            <Plus size={14} />
-            تذكرة جديدة
+          <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>
+            <Plus size={17} /> تذكرة جديدة
           </button>
         </div>
-      </div>
+      </section>
 
-      {tickets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#e3eaf2] bg-white px-5 py-14 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-full bg-[#eef4fb] text-[#0b5cad]">
-            <LifeBuoy size={22} />
-          </span>
-          <h2 className="mt-3 text-sm font-medium text-[#102444]">لا توجد تذاكر بعد</h2>
-          <p className="mt-1 text-[11px] text-[#65768d]">افتح تذكرة وسيتابعها فريق الدعم حتى الحل.</p>
+      <section className="app-kpis stagger-on-view" aria-label="ملخص تذاكرك">
+        <article className="app-kpi">
+          <span className="app-kpi-icon"><LifeBuoy size={19} /></span>
+          <strong>{formatArabicNumber(counts.all)}</strong>
+          <p>إجمالي التذاكر</p>
+          <small>كل ما فتحته حتى الآن</small>
+        </article>
+        <article className="app-kpi">
+          <span className="app-kpi-icon"><Clock3 size={19} /></span>
+          <strong>{formatArabicNumber(activeCount)}</strong>
+          <p>قيد المتابعة</p>
+          <small>لم تُحل بعد</small>
+        </article>
+        <article className={`app-kpi ${counts.waiting_for_user > 0 ? 'is-brand' : ''}`}>
+          <span className="app-kpi-icon"><MessageSquare size={19} /></span>
+          <strong>{formatArabicNumber(counts.waiting_for_user)}</strong>
+          <p>بانتظار ردّك</p>
+          <small>{counts.waiting_for_user > 0 ? 'يحتاج فريق الدعم جوابًا منك' : 'لا شيء معلّق عليك'}</small>
+        </article>
+        <article className="app-kpi">
+          <span className="app-kpi-icon"><CircleCheck size={19} /></span>
+          <strong>{formatArabicNumber(closedCount)}</strong>
+          <p>تم حلها</p>
+          <small>مغلقة أو محلولة</small>
+        </article>
+      </section>
+
+      <nav className="app-tabs" aria-label="تصفية التذاكر حسب الحالة">
+        {(['all', ...statusOrder] as FilterKey[]).map((key) => (
+          <button
+            key={key}
+            type="button"
+            className={key === filter ? 'is-current' : undefined}
+            aria-current={key === filter ? 'true' : undefined}
+            onClick={() => setFilter(key)}
+          >
+            {key === 'all' ? 'الكل' : ticketStatusLabels[key]}
+            <span>{formatArabicNumber(counts[key])}</span>
+          </button>
+        ))}
+      </nav>
+
+      {visible.length === 0 ? (
+        <div className="app-empty is-panel">
+          <span><LifeBuoy size={22} /></span>
+          <strong>{filter === 'all' ? 'ما فتحت أي تذكرة بعد' : 'لا توجد تذاكر في هذه الحالة'}</strong>
+          <p>
+            {filter === 'all'
+              ? 'افتح تذكرة واشرح مشكلتك، وسيتابعها فريق الدعم معك حتى الحل — ويمكنك إرفاق صورة أو ملف.'
+              : 'اختر حالة أخرى لرؤية بقية تذاكرك.'}
+          </p>
+          {filter === 'all' && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>
+              <Plus size={16} /> تذكرة جديدة
+            </button>
+          )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#e3eaf2] bg-white">
-          {tickets.map((ticket) => (
-            <Link
-              key={ticket.id}
-              href={`/support/tickets/${ticket.id}`}
-              className="flex items-center gap-3 border-b border-[#eef3f9] px-4 py-3.5 last:border-0 transition hover:bg-[#f8fbff]"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#eef4fb] text-[11px] font-bold text-[#0b5cad]">
-                {ticket.priority === 'critical' ? '!' : ticket.ticketNumber.slice(-2)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2">
-                  <strong className="truncate text-[12px] text-[#102444]">{ticket.subject}</strong>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-[#65768d]">
-                    {categoryLabels[ticket.category]}
-                  </span>
+        <div className="app-request-list stagger-on-view">
+          {visible.map((ticket) => (
+            <Link key={ticket.id} href={`/support/tickets/${ticket.id}`} className="app-request">
+              <div className="app-request-top">
+                <div className="app-vehicle">
+                  <span className="app-vehicle-icon"><MessageSquare size={21} /></span>
+                  <div className="app-vehicle-text">
+                    <small>{ticket.ticketNumber}</small>
+                    <h3>{ticket.subject}</h3>
+                    <p><Tag size={14} />{categoryLabels[ticket.category]}</p>
+                  </div>
+                </div>
+                <span className={`app-status ${ticketStatusClass[ticket.status]}`}>
+                  {ticketStatusLabels[ticket.status]}
                 </span>
-                <span className="mt-0.5 block text-[10px] text-[#94a3b8]" dir="ltr">
-                  {ticket.ticketNumber}
-                </span>
-              </span>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${toneClass(ticketStatusTone[ticket.status])}`}>
-                {ticketStatusLabels[ticket.status]}
-              </span>
-              <ArrowLeft size={15} className="shrink-0 text-[#9aa7b8]" />
+              </div>
+
+              <dl className="app-request-meta is-pair">
+                <div><dt><Clock3 size={14} /> آخر تحديث</dt><dd>{formatArabicDate(ticket.updatedAt)}</dd></div>
+                <div><dt><BadgeCheck size={14} /> تاريخ الفتح</dt><dd>{formatArabicDate(ticket.createdAt)}</dd></div>
+              </dl>
             </Link>
           ))}
         </div>
@@ -249,156 +324,134 @@ export default function TicketsPanel({ tickets }: { tickets: SupportTicket[] }) 
 
       {/* ── Create dialog ─────────────────────────────────────────────────── */}
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-lg rounded-2xl border border-white/70 bg-white/95 p-5 shadow-2xl backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-[#102444]">تذكرة دعم جديدة</h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق" className="text-[#9aa7b8] hover:text-[#102444]">
+        <div className="app-modal-overlay" role="dialog" aria-modal="true" aria-label="تذكرة دعم جديدة" onClick={() => setOpen(false)}>
+          <div className="app-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="app-modal-head">
+              <span className="app-panel-icon"><Plus size={20} /></span>
+              <div>
+                <h2>تذكرة دعم جديدة</h2>
+                <p>اشرح المشكلة بوضوح — كل تفصيل يقرّب الحل.</p>
+              </div>
+              <button type="button" className="app-modal-close" onClick={() => setOpen(false)} aria-label="إغلاق">
                 <X size={18} />
               </button>
-            </div>
+            </header>
 
-            <div className="mt-4 flex flex-col gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] font-medium text-[#475d78]">عنوان المشكلة</span>
+            <div className="app-modal-body">
+              <label className="app-field">
+                <span>عنوان المشكلة</span>
                 <input
+                  className="app-input"
                   value={subject}
                   onChange={(event) => setSubject(event.target.value)}
                   placeholder="مثال: لم يصل تقرير الفحص"
-                  className="rounded-lg border border-[#e3eaf2] px-3 py-2 text-[12px] text-[#102444] outline-none focus:border-[#93c5fd] focus:ring-2 focus:ring-[#dbeafe]"
                 />
               </label>
 
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1">
-                  <span className="text-[11px] font-medium text-[#475d78]">الفئة</span>
-                  <select
-                    value={category}
-                    onChange={(event) => setCategory(event.target.value as TicketCategory)}
-                    className="rounded-lg border border-[#e3eaf2] bg-white px-3 py-2 text-[12px] text-[#102444] outline-none focus:border-[#93c5fd]"
-                  >
-                    {categoryOrder.map((value) => (
-                      <option key={value} value={value}>{categoryLabels[value]}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-[11px] font-medium text-[#475d78]">الأولوية</span>
-                  <select
-                    value={priority}
-                    onChange={(event) => setPriority(event.target.value as TicketPriority)}
-                    className="rounded-lg border border-[#e3eaf2] bg-white px-3 py-2 text-[12px] text-[#102444] outline-none focus:border-[#93c5fd]"
-                  >
-                    {priorityOrder.map((value) => (
-                      <option key={value} value={value}>{priorityLabels[value]}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+              {/* The requester does not choose a priority: urgency is a triage
+                  decision the support team makes after reading the ticket. A
+                  customer picking "حرجة" for a cosmetic issue only skews the
+                  first-response SLA that the console paints red. */}
+              <label className="app-field">
+                <span>الفئة</span>
+                <select className="app-select" value={category} onChange={(event) => setCategory(event.target.value as TicketCategory)}>
+                  {categoryOrder.map((value) => (
+                    <option key={value} value={value}>{categoryLabels[value]}</option>
+                  ))}
+                </select>
+              </label>
 
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] font-medium text-[#475d78]">وصف المشكلة</span>
+              <label className="app-field">
+                <span>وصف المشكلة</span>
                 <textarea
+                  className="app-textarea"
+                  rows={4}
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
-                  rows={4}
                   placeholder="اشرح ما حدث بالتفصيل…"
-                  className="resize-y rounded-lg border border-[#e3eaf2] px-3 py-2 text-[12px] leading-6 text-[#102444] outline-none focus:border-[#93c5fd] focus:ring-2 focus:ring-[#dbeafe]"
                 />
               </label>
 
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInput.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3eaf2] px-3 py-2 text-[11px] text-[#475d78] transition hover:bg-slate-50"
-                >
-                  <Paperclip size={14} />
-                  {file ? file.name : 'إرفاق صورة أو ملف'}
-                </button>
-                {file && (
-                  <button type="button" onClick={() => setFile(null)} className="text-[11px] text-rose-600">
-                    إزالة
+              <div className="app-field">
+                <span>مرفق (اختياري)</span>
+                <div className="app-field-actions">
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  />
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileInput.current?.click()}>
+                    <Paperclip size={15} /> {file ? file.name : 'إرفاق صورة أو ملف'}
                   </button>
-                )}
+                  {file && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFile(null)}>
+                      <X size={15} /> إزالة
+                    </button>
+                  )}
+                </div>
+                <p className="app-field-note">يُرفق تلقائيًا نوع جهازك وموقعك التقريبي وقت الإرسال لتسريع التشخيص.</p>
               </div>
 
-              {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[11px] text-rose-700">{error}</p>}
-
-              <div className="mt-1 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="rounded-lg px-3 py-2 text-[11px] text-[#65768d] hover:bg-slate-100"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void submit()}
-                  disabled={submitting}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#0b1f46] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#1a3563] disabled:opacity-50"
-                >
-                  {submitting && <Loader2 size={14} className="animate-spin" />}
-                  {submitting ? 'جارٍ الإرسال…' : 'إرسال التذكرة'}
-                </button>
-              </div>
+              {error && <p className="app-field-error">{error}</p>}
             </div>
+
+            <footer className="app-modal-foot">
+              <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>إلغاء</button>
+              <button type="button" className="btn btn-primary" onClick={() => void submit()} disabled={submitting}>
+                {submitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                {submitting ? 'جارٍ الإرسال…' : 'إرسال التذكرة'}
+              </button>
+            </footer>
           </div>
         </div>
       )}
 
       {/* ── FAQ drawer ────────────────────────────────────────────────────── */}
       {faqOpen && (
-        <div className="fixed inset-0 z-[80] flex justify-start bg-slate-950/50 backdrop-blur-sm" onClick={() => setFaqOpen(false)}>
-          <div
-            className="h-full w-full max-w-sm overflow-y-auto bg-white p-5 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-[#102444]">الأسئلة الشائعة</h2>
-              <button type="button" onClick={() => setFaqOpen(false)} aria-label="إغلاق" className="text-[#9aa7b8] hover:text-[#102444]">
+        <div className="app-drawer-overlay" role="dialog" aria-modal="true" aria-label="الأسئلة الشائعة" onClick={() => setFaqOpen(false)}>
+          <aside className="app-drawer" onClick={(event) => event.stopPropagation()}>
+            <div className="app-drawer-head">
+              <span className="app-panel-icon"><HelpCircle size={20} /></span>
+              <div>
+                <h2>الأسئلة الشائعة</h2>
+                <p>أغلب المشكلات لها جواب جاهز هنا.</p>
+              </div>
+              <button type="button" className="app-modal-close" onClick={() => setFaqOpen(false)} aria-label="إغلاق">
                 <X size={18} />
               </button>
             </div>
-            <div className="relative mt-4">
-              <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa7b8]" />
+
+            <div className="app-search">
+              <Search size={15} />
               <input
+                className="app-input"
                 value={faqQuery}
                 onChange={(event) => setFaqQuery(event.target.value)}
                 placeholder="ابحث عن حل سريع…"
-                className="w-full rounded-lg border border-[#e3eaf2] py-2 pr-9 pl-3 text-[12px] outline-none focus:border-[#93c5fd]"
               />
             </div>
-            <div className="mt-3 flex flex-col gap-2">
+
+            <div className="app-faq">
               {filteredFaqs.length === 0 ? (
-                <p className="py-6 text-center text-[11px] text-[#94a3b8]">لا نتائج مطابقة. افتح تذكرة وسنساعدك.</p>
+                <p className="app-faq-empty">لا نتائج مطابقة. افتح تذكرة وسنساعدك.</p>
               ) : (
                 filteredFaqs.map((item) => (
-                  <details key={item.q} className="rounded-lg border border-[#e3eaf2] px-3 py-2.5">
-                    <summary className="cursor-pointer text-[12px] font-medium text-[#102444]">{item.q}</summary>
-                    <p className="mt-2 text-[11px] leading-6 text-[#65768d]">{item.a}</p>
+                  <details key={item.q}>
+                    <summary>{item.q}<ChevronDown size={17} /></summary>
+                    <p>{item.a}</p>
                   </details>
                 ))
               )}
             </div>
-          </div>
+
+            <button type="button" className="btn btn-primary" onClick={() => { setFaqOpen(false); setOpen(true) }}>
+              <Plus size={17} /> لم أجد جوابي — افتح تذكرة
+            </button>
+          </aside>
         </div>
       )}
     </div>
   )
-}
-
-function toneClass(tone: string) {
-  if (tone === 'good') return 'bg-emerald-50 text-emerald-700'
-  if (tone === 'warn') return 'bg-amber-50 text-amber-700'
-  if (tone === 'bad') return 'bg-rose-50 text-rose-700'
-  return 'bg-slate-100 text-slate-600'
 }

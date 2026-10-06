@@ -14,9 +14,12 @@ export const metadata = {
 /**
  * The one route a phone-unverified user is allowed to see.
  *
- * It is intentionally outside every gated prefix (`/inspector`, `/admin`,
- * `/dashboard`, `/requests`) so the proxy's redirect target is itself reachable —
+ * It is intentionally outside every *phone-gated* prefix (`/inspector`, `/admin`,
+ * `/dashboard`, `/support`) so the proxy's redirect target is itself reachable —
  * otherwise the gate would redirect to a page that redirects to the gate.
+ *
+ * `/requests` is authenticated but not phone-gated, so it is deliberately absent
+ * from that list.
  */
 export default async function VerifyPhonePage({
   searchParams,
