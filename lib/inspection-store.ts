@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase/server'
 import type { InspectionOfferRow, InspectionRow, Json } from '@/lib/supabase/database.types'
+import type { PaymentStatus } from '@/lib/payments/payment-rules'
 import { randomId } from '@/lib/web-crypto'
 
 export type InspectionStatus = 'open' | 'assigned' | 'on_the_way' | 'arrived' | 'inspecting' | 'completed' | 'cancelled'
@@ -38,6 +39,19 @@ export type StoredInspection = {
   status: InspectionStatus
   assignedInspectorId: string | null
   acceptedOfferId: string | null
+  // ── الدفع (ترحيل 20261007000000) ─────────────────────────────────────────
+  //
+  // بُعد موازٍ لـ`status` لا جزء منه. السبب موثَّق في الترحيل: مفردات
+  // `status` مقيّدة بـCHECK ومكرّرة في ثلاثة أماكن، فإضافة `'paid'` إليها
+  // كانت ستُبقي كل مقارنة `=== 'open'` في حالة خاطئة بصمت.
+  paymentStatus: PaymentStatus
+  paymentId: string | null
+  /** بالريال (الوحدات الكبرى) — مطابق لـ`offers.price` مباشرةً. */
+  paymentAmount: number | null
+  paymentCurrency: string
+  paymentMethod: string | null
+  paymentFailureReason: string | null
+  paidAt: string | null
   offers: InspectionOffer[]
   createdAt: number
 }
@@ -127,9 +141,29 @@ function toInspection(row: InspectionRow, offers: InspectionOffer[] = []): Store
     status: row.status,
     assignedInspectorId: row.assigned_inspector_id,
     acceptedOfferId: row.accepted_offer_id,
+    paymentStatus: row.payment_status,
+    paymentId: row.payment_id,
+    paymentAmount: toAmount(row.payment_amount),
+    paymentCurrency: row.payment_currency,
+    paymentMethod: row.payment_method,
+    paymentFailureReason: row.payment_failure_reason,
+    paidAt: row.paid_at,
     offers,
     createdAt: Date.parse(row.created_at),
   }
+}
+
+/**
+ * PostgREST يعيد `numeric` كسلسلة نصّية («125.50») لا كرقم.
+ *
+ * و`Number('')` تساوي `0` لا `NaN`، فالسلسلة الفارغة كانت ستصبح مبلغًا صفريًا
+ * يبدو حقيقيًا. لذلك الفحص على النصّ قبل التحويل، ثم على `Number.isFinite`.
+ */
+function toAmount(value: number | string | null): number | null {
+  if (value === null) return null
+  if (typeof value === 'string' && value.trim() === '') return null
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 async function listOffers(inspectionIds: string[]) {
@@ -156,7 +190,25 @@ async function mapInspections(rows: InspectionRow[]) {
 }
 
 export async function createInspection(
-  input: Omit<StoredInspection, 'id' | 'status' | 'assignedInspectorId' | 'acceptedOfferId' | 'offers' | 'createdAt' | 'termsAcceptedAt'>,
+  input: Omit<
+    StoredInspection,
+    | 'id'
+    | 'status'
+    | 'assignedInspectorId'
+    | 'acceptedOfferId'
+    | 'offers'
+    | 'createdAt'
+    | 'termsAcceptedAt'
+    // حقول الدفع يملكها الخادم وحده: طلب جديد يبدأ دائمًا `unpaid` بلا معرّف
+    // دفعة ولا مبلغ. إتاحتها في المُدخَل كانت ستسمح بنموذج تقديم يعلن نفسه مدفوعًا.
+    | 'paymentStatus'
+    | 'paymentId'
+    | 'paymentAmount'
+    | 'paymentCurrency'
+    | 'paymentMethod'
+    | 'paymentFailureReason'
+    | 'paidAt'
+  >,
 ) {
   const row = {
     id: `FH-${new Date().getFullYear()}-${randomId().slice(0, 8).toUpperCase()}`,

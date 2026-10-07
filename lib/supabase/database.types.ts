@@ -53,6 +53,17 @@ export type InspectionRow = {
   status: 'open' | 'assigned' | 'on_the_way' | 'arrived' | 'inspecting' | 'completed' | 'cancelled'
   assigned_inspector_id: string | null
   accepted_offer_id: string | null
+  // Added by 20261007000000_moyasar_payments.sql — a dimension *parallel* to
+  // `status`, deliberately not folded into it: the order-status vocabulary is
+  // CHECK-constrained and triplicated, so a `'paid'` status would have silently
+  // broken every `=== 'open'` comparison in the app.
+  payment_status: 'unpaid' | 'initiated' | 'paid' | 'failed' | 'refunded' | 'voided'
+  payment_id: string | null
+  payment_amount: number | null
+  payment_currency: string
+  payment_method: string | null
+  payment_failure_reason: string | null
+  paid_at: string | null
   created_at: string
 }
 
@@ -732,6 +743,24 @@ export type Database = {
       }
       list_customer_inspections: {
         Args: { p_customer_id: string }
+        Returns: Json
+      }
+      // ── Moyasar payments (20261007000000) ──────────────────────────────────
+      //
+      // First-writer-wins settlement on one row. Reads the expected amount from
+      // the accepted offer, and refuses to move a row out of `paid`. Called only
+      // from `lib/payments/payment-store.ts`; granted to `service_role` alone.
+      settle_inspection_payment: {
+        Args: {
+          p_payment_id: string | null
+          p_payment_status: string
+          p_amount: number | null
+          p_currency: string | null
+          p_method: string | null
+          p_failure_reason: string | null
+          p_paid_at: string | null
+          p_inspection_id: string | null
+        }
         Returns: Json
       }
     }

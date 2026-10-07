@@ -1,0 +1,299 @@
+/*
+ * صفحة الدفع الإلكتروني.
+ *
+ * قواعد هذا الملف **غير مُطبَّقة في `@layer`** مثل `refresh.css`، فهي تهزم أدوات
+ * Tailwind. لذلك كل صنف هنا مُكتفٍ بذاته: لا تعتمد عليه مع أداة Tailwind على
+ * نفس العنصر، ولا تُعلن فيه خاصية يملكها المستدعي بأداة.
+ *
+ * كل الألوان تُقرأ من رموز (`var(--…)`) لا من قيم حرفية، لأن رموز المشروع
+ * تُعاد نقطتها تحت `[data-theme='dark']` في `theme-dark.css` — فالعناصر التي
+ * تقرأ من الرموز تنقلب وحدها. الاستثناء الوحيد: خلفيات النتائج الملوّنة، فقد
+ * وُضع لها بديل داكن صريح أدناه (الرموز `--mint-*` و`--amber-*` لا تنقلب).
+ *
+ * ── نموذج Moyasar ──────────────────────────────────────────────────────────
+ *
+ * لا يُعاد تنسيق حقول Moyasar هنا. الحزمة تُصدر ورقة أنماط كاملة مُنَطّقة على
+ * `div#mysr`، ومحدِّدها يحمل **معرّفًا** فيتقدّم على أي صنف نكتبه بلا معرّف.
+ * فبدل مصارعتها، يُمنح النموذج سطحًا فاتحًا مقصودًا داخل بطاقة (`.pay-form-mount`)
+ * يقرأ كأداة دفع مدمجة — وهو العُرف المتّبع في بوابات الدفع، ويضمن أن حقول
+ * البطاقة تبدو سليمة في الوضعين. تغيير داخلها يحتاج قياسًا في متصفح أولًا.
+ */
+
+.pay-page {
+  --pay-tint-success: var(--mint-100);
+  --pay-ink-success: #145f45;
+  --pay-line-success: #bfe3d3;
+  --pay-tint-error: #fdeceb;
+  --pay-ink-error: #9d2c20;
+  --pay-line-error: #f3c9c4;
+  --pay-tint-info: var(--amber-100);
+  --pay-ink-info: #8a5c12;
+  --pay-line-info: #ecd6ab;
+  --pay-form-surface: #ffffff;
+}
+
+[data-theme='dark'] .pay-page {
+  --pay-tint-success: #0d2b21;
+  --pay-ink-success: #86e3bd;
+  --pay-line-success: #1d4a39;
+  --pay-tint-error: #33161a;
+  --pay-ink-error: #ffb3ab;
+  --pay-line-error: #55272a;
+  --pay-tint-info: #2e2415;
+  --pay-ink-info: #f0c67d;
+  --pay-line-info: #4c3c1d;
+  --pay-form-surface: #f7fafd;
+}
+
+/* ── التخطيط ─────────────────────────────────────────────────────────────── */
+
+.pay-columns {
+  display: grid;
+  gap: 1.1rem;
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .pay-columns {
+    /* الملخّص أضيق من منطقة الدفع: النموذج يحتاج عرضًا أكبر لسطر البطاقة. */
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+}
+
+/* ── ملخّص الطلب ─────────────────────────────────────────────────────────── */
+
+.pay-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  padding: 0.9rem 1.1rem;
+}
+
+.pay-total > span {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.pay-total > strong {
+  color: var(--color-text);
+  font-size: var(--text-2xl, 1.5rem);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.pay-total > strong small {
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.pay-receipt {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 0.9rem;
+}
+
+.pay-receipt li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: var(--text-2xs);
+}
+
+.pay-receipt li > span {
+  color: var(--color-text-muted);
+}
+
+.pay-receipt li > strong {
+  color: var(--color-text);
+  font-weight: 700;
+  text-align: end;
+}
+
+.pay-receipt li > strong.is-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: var(--radius-xs);
+  background: var(--pay-tint-success);
+  padding: 0.2rem 0.5rem;
+  color: var(--pay-ink-success);
+}
+
+/* معرّفات الدفع لاتينية وأرقام ⇒ خط ثابت العرض يمنع التباعد في الوضع RTL. */
+.pay-receipt li > strong.is-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-2xs);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ── النتائج ─────────────────────────────────────────────────────────────── */
+
+.pay-outcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+}
+
+.pay-outcome > div:not(.pay-outcome-actions) {
+  min-width: 0;
+  flex: 1;
+}
+
+.pay-outcome strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+
+.pay-outcome p {
+  color: inherit;
+  font-size: var(--text-2xs);
+  line-height: 1.9;
+  opacity: 0.92;
+}
+
+.pay-outcome-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--pay-icon-bg, transparent);
+  color: var(--pay-ink, currentColor);
+}
+
+.pay-outcome.is-success {
+  --pay-ink: var(--pay-ink-success);
+  --pay-icon-bg: var(--pay-line-success);
+  border-color: var(--pay-line-success);
+  background: var(--pay-tint-success);
+  color: var(--pay-ink-success);
+}
+
+.pay-outcome.is-error {
+  --pay-ink: var(--pay-ink-error);
+  --pay-icon-bg: var(--pay-line-error);
+  border-color: var(--pay-line-error);
+  background: var(--pay-tint-error);
+  color: var(--pay-ink-error);
+}
+
+.pay-outcome.is-info {
+  --pay-ink: var(--pay-ink-info);
+  --pay-icon-bg: var(--pay-line-info);
+  border-color: var(--pay-line-info);
+  background: var(--pay-tint-info);
+  color: var(--pay-ink-info);
+}
+
+.pay-outcome-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── نموذج الدفع ─────────────────────────────────────────────────────────── */
+
+.pay-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.pay-form-mount {
+  /* سطح فاتح مقصود: أنماط Moyasar فاتحة بطبيعتها، وهذا يجعلها مقروءة في
+     الوضعين بدل أن تبدو معطوبة على خلفية داكنة. */
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--pay-form-surface);
+  padding: 0.35rem;
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.07);
+}
+
+[data-theme='dark'] .pay-form-mount {
+  border-color: #2b3d59;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.pay-form-mount:empty {
+  display: none;
+}
+
+.pay-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.pay-secure {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  line-height: 1.9;
+}
+
+.pay-secure svg {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--color-success);
+}
+
+.pay-note {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 0.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  line-height: 1.9;
+}
+
+.pay-last-failure {
+  margin-top: 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--pay-tint-error);
+  padding: 0.6rem 0.85rem;
+  color: var(--pay-ink-error);
+  font-size: var(--text-2xs);
+  line-height: 1.9;
+}
+
+/* تنبيه الوضع التجريبي: يسبق النموذج، لأنه يجب أن يُقرأ قبل إدخال أي بطاقة. */
+.pay-mode-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+  border: 1px solid var(--pay-line-info);
+  border-radius: var(--radius-sm);
+  background: var(--pay-tint-info);
+  padding: 0.65rem 0.85rem;
+  color: var(--pay-ink-info);
+  font-size: var(--text-2xs);
+  line-height: 1.9;
+}
+
+.pay-mode-notice svg {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+}

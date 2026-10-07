@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { CarFront, Check, Clock3, FileText, Gauge, MapPin, Sparkles, Wrench } from 'lucide-react'
+import { AlertTriangle, CarFront, Check, Clock3, FileText, Gauge, MapPin, ShieldCheck, Sparkles, Wallet, Wrench } from 'lucide-react'
 import { CustomerOfferActions } from '@/components/modules/customer/offer-actions'
 import { formatArabicDate, formatArabicNumber, inspectionFlow, statusOf } from '@/lib/inspection-status'
+import { paymentMethodLabel } from '@/lib/payments/payment-outcomes'
 import type { StoredInspection } from '@/lib/inspection-store'
 
 function Flow({ step }: { step: number }) {
@@ -62,6 +63,36 @@ export default function RequestCard({
 
       {isAssigned && acceptedOffer && (
         <p className="app-assigned"><Check size={15} /> تم اختيار الفاحص <strong>{acceptedOffer.inspectorName}</strong> بمبلغ {formatArabicNumber(acceptedOffer.price)} ر.س</p>
+      )}
+
+      {/*
+        الدفع يظهر فقط بعد قبول عرض، لأن المبلغ المتّفق عليه هو ما يستطيع الخادم
+        التحقّق منه. الطلب المدفوع يعرض إيصالًا مختصرًا بدل الزر — وإخفاء الزر
+        مقصود: تكرار الدفع ليس إجراءً يجب أن يكون على بُعد نقرة واحدة.
+      */}
+      {isAssigned && acceptedOffer && (
+        <div className="app-pay-cta">
+          {request.paymentStatus === 'paid' ? (
+            <span className="app-pay-chip is-paid">
+              <ShieldCheck size={15} /> مدفوع {formatArabicNumber(request.paymentAmount ?? acceptedOffer.price)} ر.س
+              {request.paymentMethod ? ` · ${paymentMethodLabel(request.paymentMethod)}` : ''}
+            </span>
+          ) : (
+            <>
+              <span className={`app-pay-chip ${request.paymentStatus === 'failed' ? 'is-failed' : 'is-due'}`}>
+                {request.paymentStatus === 'failed'
+                  ? <><AlertTriangle size={15} /> لم تكتمل آخر محاولة دفع</>
+                  : <><Wallet size={15} /> المبلغ المستحق {formatArabicNumber(acceptedOffer.price)} ر.س</>}
+              </span>
+              <Link
+                href={`/dashboard/requests/${encodeURIComponent(request.id)}/pay`}
+                className="btn btn-primary btn-sm"
+              >
+                <Wallet size={15} /> {request.paymentStatus === 'failed' ? 'أعد المحاولة' : 'ادفع الآن'}
+              </Link>
+            </>
+          )}
+        </div>
       )}
 
       {showOffers && visibleOffers.length > 0 && (
