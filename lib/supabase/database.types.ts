@@ -693,6 +693,26 @@ export type Database = {
         }
         Returns: Json
       }
+      // ── Live inspector locations (20261003180000, module 1) ────────────────
+      //
+      // Feeds the admin console's map. Called only from
+      // `app/api/inspector/field/location/route.ts`, never from the browser:
+      // the function is granted to `service_role` alone, and whether a fix is
+      // believable is decided server-side before it is passed in here.
+      upsert_inspector_location: {
+        Args: {
+          p_inspector_id: string
+          p_latitude: number
+          p_longitude: number
+          p_heading: number
+          p_speed: number
+          p_status: string
+          p_battery_level: number | null
+          p_is_mock_location: boolean
+          p_accuracy_m: number | null
+        }
+        Returns: Json
+      }
       // ── Region coverage & offer eligibility (20261001000012) ───────────────
       //
       // ملاحظة: هذه الدوال موجودة في الترحيل لكن قد لا تكون مُطبَّقة على القاعدة

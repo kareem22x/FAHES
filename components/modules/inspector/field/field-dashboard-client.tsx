@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { FieldClaimFeed } from './field-claim-feed'
 import { FieldMap } from './field-map'
+import { FieldLocationReporter } from './field-location-reporter'
 import { FieldBadges, FieldAnalyticsPanel, FieldWallet, FieldQrArchive } from './field-panels'
 import { FieldPreferencesPanel, FieldSupport } from './field-support'
 import { useFieldLocation } from './use-field-location'
@@ -239,6 +240,10 @@ export function FieldDashboardClient({
 
   return (
     <>
+      {/* Renders nothing. Mounted here because this is the one surface an
+          inspector has open all shift, and the console's map is fed from it. */}
+      <FieldLocationReporter orders={orders} isOnline={isOnline} />
+
       <FieldMap
         orders={mapOrders}
         inspectorFix={fix ? { latitude: fix.latitude, longitude: fix.longitude } : null}

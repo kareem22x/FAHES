@@ -34,7 +34,7 @@ export async function listInspectorLocations(): Promise<{
 }> {
   const { data, error } = await getSupabaseAdmin()
     .from('inspector_locations')
-    .select('*, inspector:inspector_id(full_name, phone)')
+    .select('*, inspector:inspector_id(name, phone)')
     .order('updated_at', { ascending: false })
     .limit(200)
 
@@ -44,7 +44,7 @@ export async function listInspectorLocations(): Promise<{
   const locations = (data ?? []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     inspector_id: row.inspector_id as string,
-    inspector_name: (row.inspector as { full_name?: string } | null)?.full_name ?? 'فاحص',
+    inspector_name: (row.inspector as { name?: string } | null)?.name ?? 'فاحص',
     inspector_phone: (row.inspector as { phone?: string } | null)?.phone ?? '',
     latitude: row.latitude as number,
     longitude: row.longitude as number,
@@ -87,7 +87,7 @@ export async function listInspectorViolations(filter?: {
 }): Promise<{ violations: InspectorViolation[]; migrationPending: boolean }> {
   let query = getSupabaseAdmin()
     .from('inspector_violations')
-    .select('*, inspector:inspector_id(full_name, phone)')
+    .select('*, inspector:inspector_id(name, phone)')
     .order('created_at', { ascending: false })
     .limit(300)
 
@@ -103,7 +103,7 @@ export async function listInspectorViolations(filter?: {
   const violations = (data ?? []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     inspector_id: row.inspector_id as string,
-    inspector_name: (row.inspector as { full_name?: string } | null)?.full_name ?? 'فاحص',
+    inspector_name: (row.inspector as { name?: string } | null)?.name ?? 'فاحص',
     inspection_id: (row.inspection_id as string | null) ?? null,
     violation_type: row.violation_type as InspectorViolation['violation_type'],
     severity: (row.severity as InspectorViolation['severity']) ?? 'medium',
@@ -142,7 +142,7 @@ export async function listDisputes(filter?: {
 }): Promise<{ disputes: Dispute[]; migrationPending: boolean }> {
   let query = getSupabaseAdmin()
     .from('disputes')
-    .select('*, client:client_id(full_name)')
+    .select('*, client:client_id(name)')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -157,7 +157,7 @@ export async function listDisputes(filter?: {
     id: row.id as string,
     inspection_id: row.inspection_id as string,
     client_id: row.client_id as string,
-    client_name: (row.client as { full_name?: string } | null)?.full_name ?? 'عميل',
+    client_name: (row.client as { name?: string } | null)?.name ?? 'عميل',
     reason: row.reason as string,
     status: (row.status as Dispute['status']) ?? 'open',
     refund_amount: Number(row.refund_amount ?? 0),
@@ -192,7 +192,7 @@ export async function listInspectionAudits(filter?: {
 }): Promise<{ audits: InspectionAudit[]; migrationPending: boolean }> {
   let query = getSupabaseAdmin()
     .from('inspection_audits')
-    .select('*, auditor:auditor_id(full_name)')
+    .select('*, auditor:auditor_id(name)')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -207,7 +207,7 @@ export async function listInspectionAudits(filter?: {
     id: row.id as string,
     inspection_id: row.inspection_id as string,
     auditor_id: (row.auditor_id as string | null) ?? null,
-    auditor_name: (row.auditor as { full_name?: string } | null)?.full_name ?? '',
+    auditor_name: (row.auditor as { name?: string } | null)?.name ?? '',
     status: (row.status as InspectionAudit['status']) ?? 'pending',
     audit_notes: (row.audit_notes as string) ?? '',
     flagged_categories: (row.flagged_categories as string[]) ?? [],
@@ -418,7 +418,7 @@ export async function listInspectorStats(): Promise<{
 }> {
   const { data, error } = await getSupabaseAdmin()
     .from('inspector_stats')
-    .select('*, inspector:inspector_id(full_name, phone)')
+    .select('*, inspector:inspector_id(name, phone)')
     .order('total_inspections', { ascending: false })
     .limit(200)
 
@@ -427,7 +427,7 @@ export async function listInspectorStats(): Promise<{
 
   const stats = (data ?? []).map((row: Record<string, unknown>) => ({
     inspector_id: row.inspector_id as string,
-    inspector_name: (row.inspector as { full_name?: string } | null)?.full_name ?? 'فاحص',
+    inspector_name: (row.inspector as { name?: string } | null)?.name ?? 'فاحص',
     total_inspections: (row.total_inspections as number) ?? 0,
     completed_count: (row.completed_count as number) ?? 0,
     cancelled_count: (row.cancelled_count as number) ?? 0,
@@ -602,7 +602,7 @@ export async function listSupportTickets(filter?: {
 }): Promise<SupportTicket[]> {
   let query = getSupabaseAdmin()
     .from('inspector_support_tickets')
-    .select('*, inspector:inspector_id(full_name, phone)')
+    .select('*, inspector:inspector_id(name, phone)')
     .order('created_at', { ascending: false })
     .limit(300)
 
@@ -618,7 +618,7 @@ export async function listSupportTickets(filter?: {
   return (data ?? []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     inspector_id: row.inspector_id as string,
-    inspector_name: (row.inspector as { full_name?: string } | null)?.full_name ?? 'فاحص',
+    inspector_name: (row.inspector as { name?: string } | null)?.name ?? 'فاحص',
     inspector_phone: (row.inspector as { phone?: string } | null)?.phone ?? '',
     inspection_id: (row.inspection_id as string | null) ?? null,
     claim_id: (row.claim_id as string | null) ?? null,
@@ -716,7 +716,7 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
     supabase.from('inspector_violations').select('*', { count: 'exact', head: true }).eq('resolved', false),
     supabase.from('disputes').select('*', { count: 'exact', head: true }).in('status', ['open', 'under_review']),
     supabase.from('inspector_support_tickets').select('*', { count: 'exact', head: true }).in('status', ['open', 'in_review']),
-    supabase.from('inspector_stats').select('inspector:inspector_id(full_name), total_inspections, completed_count, avg_rating').order('total_inspections', { ascending: false }).limit(10),
+    supabase.from('inspector_stats').select('inspector:inspector_id(name), total_inspections, completed_count, avg_rating').order('total_inspections', { ascending: false }).limit(10),
   ])
 
   const totalInspections = inspectionsResult.count ?? 0
@@ -762,7 +762,7 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
 
   // Inspector performance from inspector_stats (if table exists)
   const inspectorPerformance = (inspectorStatsResult.data ?? []).map((row: Record<string, unknown>) => ({
-    name: (row.inspector as { full_name?: string } | null)?.full_name ?? 'فاحص',
+    name: (row.inspector as { name?: string } | null)?.name ?? 'فاحص',
     total: (row.total_inspections as number) ?? 0,
     completed: (row.completed_count as number) ?? 0,
     rating: (row.avg_rating as number | null) ?? null,

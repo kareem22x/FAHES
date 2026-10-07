@@ -1,174 +1,256 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import type { InspectorLocation } from '@/lib/admin/extended-store'
-import { inspectorLocationStatusLabels, inspectorLocationStatusTone } from '@/lib/admin/labels'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { Crosshair, MapPin, RefreshCw, TriangleAlert } from 'lucide-react'
+import { GlassCard, GlassPanel, StatusDot, EmptyState } from '@/components/admin/ui/glass'
+import { MapShell } from '@/components/maps/map-shell'
+import { inspectorLocationStatusLabels, type Tone } from '@/lib/admin/labels'
+import {
+  LOCATION_STALE_AFTER_MS,
+  ageOf,
+  formatArabicAgo,
+  inspectorMarkers,
+  type InspectorPlot,
+} from '@/lib/maps/inspector-markers'
+import { isPlottable, type MapTone } from '@/lib/maps/types'
 
-const statusColors: Record<string, string> = {
-  available: '#10b981',
-  en_route: '#f59e0b',
-  inspecting: '#3b82f6',
-  offline: '#94a3b8',
+/**
+ * The live inspector map.
+ *
+ * ── Why the client owns the marker list ────────────────────────────────────
+ * `inspectorMarkers` is pure, so it can run on either side. It runs here
+ * because of one field: «آخر تحديث». A pin's age is the difference between a map
+ * that is live and a map that merely looks live, and computing it on the server
+ * freezes it at render time — an inspector whose phone died would keep reading
+ * «قبل دقيقة» until someone reloaded the page. The browser clock keeps it
+ * honest, and `router.refresh()` only has to move the coordinates.
+ *
+ * The rows arrive as `InspectorPlot`, a structural type, rather than as the
+ * store's own row type: `lib/admin/extended-store.ts` is `server-only`, and the
+ * page's rows satisfy this shape already, so nothing has to be adapted and no
+ * server module leaks into this bundle.
+ */
+
+/** How often the ages are recomputed from the browser clock. */
+const AGE_TICK_MS = 15_000
+
+/**
+ * How often the coordinates are re-fetched.
+ *
+ * `inspector_locations` is not on the Realtime publication yet, so this is a
+ * poll. Thirty seconds is the compromise the reporter's own interval is built
+ * around: faster than the staleness threshold, slow enough that a console left
+ * open all day is not a meaningful query load.
+ */
+const REFRESH_MS = 30_000
+
+const LEGEND: ReadonlyArray<{ tone: MapTone; label: string }> = [
+  { tone: 'good', label: inspectorLocationStatusLabels.available },
+  { tone: 'warn', label: inspectorLocationStatusLabels.en_route },
+  { tone: 'info', label: inspectorLocationStatusLabels.inspecting },
+  { tone: 'neutral', label: inspectorLocationStatusLabels.offline },
+]
+
+/** Matches `inspectorLocationStatusTone`, for the list's status dot. */
+const STATUS_DOT_TONE: Record<string, Tone> = {
+  available: 'good',
+  en_route: 'warn',
+  inspecting: 'neutral',
+  offline: 'bad',
 }
 
-const statusDot: Record<string, string> = {
-  available: 'bg-emerald-500',
-  en_route: 'bg-amber-500',
-  inspecting: 'bg-sky-500',
-  offline: 'bg-slate-400',
-}
+export function InspectorMapClient({ locations }: { locations: ReadonlyArray<InspectorPlot> }) {
+  const router = useRouter()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [fitToken, setFitToken] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  const [isPending, startTransition] = useTransition()
 
-// Eastern Province, Saudi Arabia rough bounds
-// Lat: 24.5 - 27.5, Lng: 48.5 - 51.5
-const MAP_BOUNDS = {
-  minLat: 24.0,
-  maxLat: 28.0,
-  minLng: 48.0,
-  maxLng: 52.0,
-}
-
-function project(lat: number, lng: number, width: number, height: number) {
-  const x = ((lng - MAP_BOUNDS.minLng) / (MAP_BOUNDS.maxLng - MAP_BOUNDS.minLng)) * width
-  const y = height - ((lat - MAP_BOUNDS.minLat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat)) * height
-  return { x, y }
-}
-
-export function InspectorMapClient({ locations }: { locations: InspectorLocation[] }) {
-  const [selected, setSelected] = useState<string | null>(null)
-  const [tick, setTick] = useState(0)
-
-  // Auto-refresh indicator pulse
+  // Ages move on their own; the data behind them does not.
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 5000)
-    return () => clearInterval(interval)
+    const timer = setInterval(() => setNow(Date.now()), AGE_TICK_MS)
+    return () => clearInterval(timer)
   }, [])
 
-  const width = 600
-  const height = 300
+  useEffect(() => {
+    const timer = setInterval(() => router.refresh(), REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [router])
 
-  const selectedLocation = locations.find((l) => l.id === selected)
+  const markers = useMemo(() => inspectorMarkers(locations, now), [locations, now])
+
+  // Keyed by id so the list and the map can never disagree about which pins
+  // exist — the list is built from the markers, not from the raw rows. The two
+  // lookups carry what a pin deliberately does not: the raw status enum and the
+  // raw age, which the list renders as a label and a warning badge.
+  const ages = useMemo(
+    () => new Map(locations.map((location) => [location.id, ageOf(location.updated_at, now)])),
+    [locations, now],
+  )
+
+  const statuses = useMemo(
+    () => new Map(locations.map((location) => [location.id, location.status])),
+    [locations],
+  )
+
+  const selected = markers.find((marker) => marker.id === selectedId) ?? null
+  const focus = selected ? { latitude: selected.latitude, longitude: selected.longitude } : null
+
+  const unplottable = useMemo(
+    () => locations.filter((location) => !isPlottable(location)).length,
+    [locations],
+  )
+
+  const refit = useCallback(() => setFitToken((token) => token + 1), [])
+  const refreshNow = useCallback(() => startTransition(() => router.refresh()), [router])
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Map SVG */}
-      <div className="relative overflow-hidden rounded-lg border border-[#e3eaf2] bg-gradient-to-b from-sky-50 to-slate-50">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ minHeight: '250px' }}>
-          {/* Background grid */}
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e3eaf2" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width={width} height={height} fill="url(#grid)" />
-
-          {/* City markers — Eastern Province cities */}
-          {[
-            { name: 'الدمام', lat: 26.42, lng: 50.10 },
-            { name: 'الخبر', lat: 26.28, lng: 50.21 },
-            { name: 'الجبيل', lat: 27.00, lng: 49.66 },
-            { name: 'القطيف', lat: 26.52, lng: 50.01 },
-            { name: 'الأحساء', lat: 25.38, lng: 49.58 },
-          ].map((city) => {
-            const pos = project(city.lat, city.lng, width, height)
-            return (
-              <g key={city.name}>
-                <circle cx={pos.x} cy={pos.y} r="4" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="1" />
-                <text x={pos.x + 8} y={pos.y + 4} fontSize="10" fill="#64748b" fontWeight="500">
-                  {city.name}
-                </text>
-              </g>
-            )
-          })}
-
-          {/* Inspector location markers */}
-          {locations.map((loc) => {
-            const pos = project(loc.latitude, loc.longitude, width, height)
-            const color = statusColors[loc.status] ?? '#94a3b8'
-            const isMock = loc.is_mock_location
-            return (
-              <g key={loc.id} onClick={() => setSelected(loc.id)} style={{ cursor: 'pointer' }}>
-                {/* Pulse ring for active inspectors */}
-                {(loc.status === 'inspecting' || loc.status === 'en_route') && (
-                  <circle cx={pos.x} cy={pos.y} r="12" fill={color} opacity="0.2">
-                    <animate attributeName="r" values="8;16;8" dur="2s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite" />
-                  </circle>
-                )}
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={selected === loc.id ? 8 : 6}
-                  fill={isMock ? '#ef4444' : color}
-                  stroke="white"
-                  strokeWidth="2"
-                />
-                {isMock && (
-                  <text x={pos.x + 10} y={pos.y - 5} fontSize="9" fill="#ef4444" fontWeight="bold">
-                    ⚠
-                  </text>
-                )}
-              </g>
-            )
-          })}
-        </svg>
-
-        {/* Legend overlay */}
-        <div className="absolute bottom-2 right-2 rounded-lg border border-[#e3eaf2] bg-white/90 px-3 py-2 backdrop-blur">
-          <div className="flex flex-col gap-1 text-[10px]">
-            {Object.entries(statusColors).map(([status, color]) => (
-              <div key={status} className="flex items-center gap-1.5">
-                <span className="inline-block size-2 rounded-full" style={{ background: color }} />
-                <span className="text-[#475d78]">{inspectorLocationStatusLabels[status] ?? status}</span>
-              </div>
-            ))}
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block size-2 rounded-full bg-red-500" />
-              <span className="text-[#475d78]">موقع مزيف</span>
-            </div>
-          </div>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={refit}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3eaf2] bg-white px-3 py-1.5 text-[11px] font-medium text-[#33465f] transition hover:bg-[#f4f8fd]"
+          >
+            <Crosshair size={13} />
+            ملاءمة العرض
+          </button>
+          <button
+            type="button"
+            onClick={refreshNow}
+            disabled={isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3eaf2] bg-white px-3 py-1.5 text-[11px] font-medium text-[#33465f] transition hover:bg-[#f4f8fd] disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={isPending ? 'animate-spin' : undefined} />
+            تحديث
+          </button>
         </div>
 
-        {/* Live indicator */}
-        <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] text-emerald-700 ring-1 ring-emerald-200">
-          <span className="relative inline-flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-[#65768d]">
+            {markers.length} على الخريطة
+            {unplottable > 0 && <span className="text-amber-600"> · {unplottable} بدون إحداثيات</span>}
           </span>
-          مباشر
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] text-emerald-700 ring-1 ring-emerald-200">
+            <StatusDot tone="good" pulse />
+            تحديث كل {REFRESH_MS / 1000} ثانية
+          </span>
         </div>
       </div>
 
-      {/* Selected inspector detail */}
-      {selectedLocation && (
-        <div className="rounded-lg border border-[#e3eaf2] bg-white px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-[#102444]">{selectedLocation.inspector_name}</p>
-              <p className="text-[11px] text-[#65768d]">
-                {selectedLocation.inspector_phone || 'لا رقم'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {selectedLocation.is_mock_location && (
-                <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700 ring-1 ring-rose-200">
-                  موقع مزيف
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        {/* Map */}
+        <GlassCard
+          title="المواقع اللحظية"
+          className="lg:col-span-3"
+          hint={selected ? <span className="text-[11px] text-[#65768d]">{selected.title}</span> : undefined}
+        >
+          {markers.length === 0 ? (
+            <EmptyState>
+              <span className="flex flex-col items-center gap-2">
+                <MapPin size={20} className="text-[#94a3b8]" />
+                <span className="font-medium text-[#33465f]">لا مواقع مُبلَّغة بعد</span>
+                <span className="max-w-[34ch] text-[11px] leading-relaxed text-[#65768d]">
+                  يظهر هنا موقع الفاحص لحظة إرساله من واجهة الميدان. الخريطة جاهزة وتعمل — تنتظر أول إشارة.
                 </span>
-              )}
-              <span
-                className={`inline-block size-2 rounded-full ${statusDot[selectedLocation.status] ?? 'bg-slate-400'}`}
-              />
-              <span className="text-[11px] text-[#475d78]">
-                {inspectorLocationStatusLabels[selectedLocation.status] ?? selectedLocation.status}
               </span>
+            </EmptyState>
+          ) : (
+            <MapShell
+              markers={markers}
+              onSelect={setSelectedId}
+              focus={focus}
+              fitToken={fitToken}
+              minHeight={430}
+            />
+          )}
+
+          {/* Legend */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#eef3f9] pt-3">
+            {LEGEND.map((entry) => (
+              <span key={entry.tone} className="inline-flex items-center gap-1.5 text-[10px] text-[#475d78]">
+                <span className="fahes-legend-swatch" data-tone={entry.tone} />
+                {entry.label}
+              </span>
+            ))}
+            <span className="inline-flex items-center gap-1.5 text-[10px] text-[#475d78]">
+              <TriangleAlert size={11} className="text-rose-600" />
+              موقع مزيف
+            </span>
+          </div>
+        </GlassCard>
+
+        {/* Roster */}
+        <GlassCard title="الفاحصون" className="lg:col-span-2" bodyClassName="max-h-[520px] overflow-y-auto">
+          {markers.length === 0 ? (
+            <EmptyState>لا فاحصين متصلين حاليًا</EmptyState>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {markers.map((marker) => {
+                const age = ages.get(marker.id) ?? null
+                const stale = age === null || age > LOCATION_STALE_AFTER_MS
+                const isSelected = marker.id === selectedId
+                return (
+                  <button
+                    key={marker.id}
+                    type="button"
+                    onClick={() => setSelectedId(marker.id)}
+                    className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-right transition ${
+                      isSelected
+                        ? 'border-[#bfd7f5] bg-[#f2f7fe]'
+                        : 'border-[#e3eaf2] bg-slate-50/50 hover:bg-[#f7fafd]'
+                    }`}
+                  >
+                    <StatusDot
+                      tone={marker.flagged ? 'bad' : STATUS_DOT_TONE[statuses.get(marker.id) ?? ''] ?? 'neutral'}
+                      pulse={marker.pulse === true}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-medium text-[#102444]">{marker.title}</span>
+                      <span className="block text-[10px] text-[#65768d]">
+                        {marker.subtitle || 'لا رقم'}
+                        {age !== null && ` · ${formatArabicAgo(age)}`}
+                      </span>
+                    </span>
+                    {marker.flagged && (
+                      <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700 ring-1 ring-rose-200">
+                        مزيف
+                      </span>
+                    )}
+                    {!marker.flagged && stale && (
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200">
+                        قديم
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
+          )}
+        </GlassCard>
+      </div>
+
+      {selected && (
+        <GlassPanel className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-[#102444]">{selected.title}</p>
+              <p className="text-[11px] text-[#65768d]">{selected.subtitle || 'لا رقم مسجّل'}</p>
+            </div>
+            <span className="text-[10px] text-[#94a3b8]">اختر «ملاءمة العرض» للعودة إلى جميع الفاحصين</span>
           </div>
-          <div className="mt-2 grid grid-cols-4 gap-2 text-[10px] text-[#65768d]">
-            <div><span className="block text-[#94a3b8]">الإحداثيات</span><span className="font-mono text-[#475d78]">{selectedLocation.latitude.toFixed(4)}، {selectedLocation.longitude.toFixed(4)}</span></div>
-            <div><span className="block text-[#94a3b8]">السرعة</span><span className="text-[#475d78]">{selectedLocation.speed.toFixed(1)} كم/س</span></div>
-            <div><span className="block text-[#94a3b8]">الاتجاه</span><span className="text-[#475d78]">{selectedLocation.heading.toFixed(0)}°</span></div>
-            <div><span className="block text-[#94a3b8]">البطارية</span><span className="text-[#475d78]">{selectedLocation.battery_level != null ? `${selectedLocation.battery_level}%` : '—'}</span></div>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {selected.details?.slice(0, 4).map((detail) => (
+              <div key={detail.label}>
+                <span className="block text-[10px] text-[#94a3b8]">{detail.label}</span>
+                <span className="text-[11px] font-medium text-[#33465f]">{detail.value}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        </GlassPanel>
       )}
     </div>
   )

@@ -2,27 +2,32 @@
 
 import { useMemo, useState } from 'react'
 import { CarFront, MapPin, ShieldCheck, Signal } from 'lucide-react'
+import { MapShell } from '@/components/maps/map-shell'
+import { plottableMarkers, type MapMarker } from '@/lib/maps/types'
 import type { FieldOrderWithClaim } from '@/lib/field/types'
 
 /**
  * Map of active orders in the inspector's zones.
  *
- * ── Why this is not Leaflet ─────────────────────────────────────────────────
- * The spec asks for a Leaflet/Mapbox map. Shipping a tile stack means an API
- * key, a third-party request on every load over a metered field connection, and
- * an external dependency the app cannot control — and the *only* thing this
- * screen actually needs is "which orders are near me and which are mine". So
- * this renders a deterministic plot: order coordinates are projected into a
- * fixed-aspect box with a city grid behind them, and a marker tap opens the
- * same detail the list shows.
+ * ── What changed, and why the old version was replaced ─────────────────────
+ * This used to project order coordinates into a fixed box with a grid behind
+ * them. The projection was honest about relative positions, but the component
+ * said so in its own caption — "المواضع نسبية حسب الإحداثيات المتاحة دون خرائط
+ * أساس" — and a caption admitting there is no map is not a map. An inspector
+ * deciding whether two jobs fit in one afternoon needs streets, not a scatter
+ * plot.
  *
- * The projection is real — it uses the actual lat/lng bounding box of the
- * orders being displayed — so relative positions are geographically honest.
- * What is missing is basemap imagery, which is a deliberate trade and is
- * stated in the caption rather than pretended away.
+ * The replacement is Leaflet against open tiles: no API key, no third-party
+ * script, and the basemap swaps with the theme. The props are unchanged, which
+ * is what the old docblock predicted — "swapping in Leaflet later means
+ * replacing this component only".
  *
- * Swapping in Leaflet later means replacing this component only: the props are
- * already the shape a map library wants.
+ * ── The two honesty rules survive ──────────────────────────────────────────
+ * Coordinates here are still the *city centre* when an order has no position of
+ * its own, so the legend and the note still say which is which, and the
+ * "approx" flag still travels with the order. A real basemap makes a
+ * city-centre pin look far more precise than it is, which is precisely why the
+ * caption has to stay.
  */
 export function FieldMap({
   orders,
@@ -35,129 +40,107 @@ export function FieldMap({
   maxDistance: number | null
   onSelect: (inspectionId: string) => void
 }) {
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const plotted = useMemo(() => {
-    const points = orders
+  const markers = useMemo<MapMarker[]>(() => {
+    const orderMarkers: MapMarker[] = orders
       .filter((order) => order.cityLatitude !== null && order.cityLongitude !== null)
-      .map((order) => ({
-        order,
-        latitude: order.cityLatitude as number,
-        longitude: order.cityLongitude as number,
-      }))
-    if (inspectorFix) points.push({ order: null as unknown as FieldOrderWithClaim, latitude: inspectorFix.latitude, longitude: inspectorFix.longitude })
+      .map((order) => {
+        const claimed = order.claim !== null
+        return {
+          id: order.inspectionId,
+          latitude: order.cityLatitude as number,
+          longitude: order.cityLongitude as number,
+          // Green is a job anyone can take; amber is one already assigned to the
+          // inspector reading the screen.
+          tone: claimed ? 'warn' : 'good',
+          glyph: claimed ? '✓' : undefined,
+          title: `${order.vehicle.make} ${order.vehicle.model} ${order.vehicle.year}`,
+          subtitle: `${order.city}، ${order.district}`,
+          details: [
+            {
+              label: 'المسافة',
+              value:
+                order.distanceMeters === null
+                  ? 'غير معروفة'
+                  : order.distanceMeters < 1000
+                    ? `${Math.round(order.distanceMeters)} م من موقعك`
+                    : `${(order.distanceMeters / 1000).toFixed(1)} كم من موقعك`,
+            },
+            { label: 'الحالة', value: claimed ? 'مسند إليك' : 'متاح' },
+            ...(order.cityCentreApproximation
+              ? [{ label: 'الموقع', value: 'مركز المدينة (تقريبي)' }]
+              : []),
+          ],
+          pulse: claimed,
+        } satisfies MapMarker
+      })
 
-    const latitudes = points.map((point) => point.latitude)
-    const longitudes = points.map((point) => point.longitude)
-
-    // A single point has no extent; give the box a ~6 km span so one order does
-    // not fill the whole plot.
-    const minLat = Math.min(...latitudes)
-    const maxLat = Math.max(...latitudes)
-    const minLng = Math.min(...longitudes)
-    const maxLng = Math.max(...longitudes)
-    const latSpan = Math.max(maxLat - minLat, 0.05)
-    const lngSpan = Math.max(maxLng - minLng, 0.05)
-
-    const project = (latitude: number, longitude: number) => ({
-      // North is up, so the latitude axis is inverted.
-      top: 8 + ((maxLat + (latSpan - (maxLat - minLat)) / 2 - latitude) / latSpan) * 84,
-      left: 8 + ((longitude - (minLng - (lngSpan - (maxLng - minLng)) / 2)) / lngSpan) * 84,
-    })
-
-    return {
-      markers: points
-        .filter((point) => point.order)
-        .map((point) => ({ order: point.order, position: project(point.latitude, point.longitude) })),
-      me: inspectorFix ? project(inspectorFix.latitude, inspectorFix.longitude) : null,
+    // The inspector's own position is drawn last so it sits on top, and in blue
+    // so it is never confused with a job.
+    if (inspectorFix) {
+      orderMarkers.push({
+        id: '__self__',
+        latitude: inspectorFix.latitude,
+        longitude: inspectorFix.longitude,
+        tone: 'info',
+        glyph: '+',
+        title: 'موقعك الحالي',
+        details: [
+          { label: 'الإحداثيات', value: `${inspectorFix.latitude.toFixed(4)}، ${inspectorFix.longitude.toFixed(4)}` },
+        ],
+      })
     }
+
+    return plottableMarkers(orderMarkers)
   }, [orders, inspectorFix])
 
-  const open = plotted.markers.find((marker) => marker.order.inspectionId === openId) ?? null
-  const withCoordinates = plotted.markers.length
+  const withCoordinates = markers.filter((marker) => marker.id !== '__self__').length
+  const approximate = orders.filter((order) => order.cityCentreApproximation).length
 
   return (
     <div className="field-map">
-      <div className="field-map-plot" dir="ltr">
-        {plotted.markers.map(({ order, position }) => {
-          const claimed = order.claim !== null
-          return (
-            <button
-              key={order.inspectionId}
-              type="button"
-              className={`field-map-marker ${claimed ? 'is-claimed' : ''}`}
-              style={{ top: `${position.top}%`, left: `${position.left}%` }}
-              onClick={() => setOpenId(openId === order.inspectionId ? null : order.inspectionId)}
-              aria-label={`${order.vehicle.make} ${order.vehicle.model} في ${order.city}`}
-              aria-expanded={openId === order.inspectionId}
-            >
-              <CarFront size={19} />
-            </button>
-          )
-        })}
-
-        {plotted.me && (
-          <span
-            className="field-map-marker"
-            style={{
-              top: `${plotted.me.top}%`,
-              left: `${plotted.me.left}%`,
-              borderColor: 'rgb(59 130 246 / 70%)',
-              color: '#60a5fa',
-              pointerEvents: 'none',
-            }}
-            aria-hidden="true"
-          >
-            <Signal size={17} />
-          </span>
-        )}
-
-        {open && (
-          <div
-            className="field-map-popover"
-            style={{
-              top: `${plotted.markers.find((marker) => marker.order.inspectionId === openId)?.position.top ?? 50}%`,
-              left: `${plotted.markers.find((marker) => marker.order.inspectionId === openId)?.position.left ?? 50}%`,
-            }}
-          >
-            <strong dir="rtl">
-              {open.order.vehicle.make} {open.order.vehicle.model} {open.order.vehicle.year}
-            </strong>
-            <span dir="rtl">
-              <MapPin size={12} /> {open.order.city}، {open.order.district}
-            </span>
-            {open.order.distanceMeters !== null && (
-              <span dir="rtl">
-                {open.order.distanceMeters < 1000
-                  ? `${Math.round(open.order.distanceMeters)} م من موقعك`
-                  : `${(open.order.distanceMeters / 1000).toFixed(1)} كم من موقعك`}
-              </span>
-            )}
-            <button
-              type="button"
-              className="inspector-primary-link"
-              // `marginTop`/`width` are layout-only and safe to inline; the
-              // height is not — an inline value would outrank the 48px
-              // ergonomics floor set by
-              // `.inspector-dashboard.is-field .inspector-primary-link`.
-              style={{ marginTop: 8, width: '100%' }}
-              onClick={() => onSelect(open.order.inspectionId)}
-            >
-              فتح الطلب
-            </button>
-          </div>
-        )}
-      </div>
+      <MapShell
+        markers={markers}
+        onSelect={(id) => {
+          if (id === '__self__') return
+          setSelectedId(id)
+          onSelect(id)
+        }}
+        focus={
+          selectedId
+            ? (() => {
+                const marker = markers.find((entry) => entry.id === selectedId)
+                return marker ? { latitude: marker.latitude, longitude: marker.longitude } : null
+              })()
+            : null
+        }
+        minHeight={280}
+      />
 
       <div className="field-map-legend">
-        <span className="field-chip is-ok"><CarFront size={13} /> متاح</span>
-        <span className="field-chip is-info"><ShieldCheck size={13} /> مسند إليك</span>
+        <span className="field-chip is-ok">
+          <CarFront size={13} /> متاح
+        </span>
+        <span className="field-chip is-info">
+          <ShieldCheck size={13} /> مسند إليك
+        </span>
+        <span className="field-chip">
+          <Signal size={13} /> موقعك
+        </span>
       </div>
 
       <p className="field-map-note" dir="rtl">
-        {withCoordinates === 0
-          ? 'لا توجد إحداثيات مسجّلة للطلبات المعروضة.'
-          : `عرض ${withCoordinates} طلبًا على إحداثيات مدنها${maxDistance ? ` ضمن ${(maxDistance / 1000).toFixed(0)} كم` : ''}. المواضع نسبية حسب الإحداثيات المتاحة دون خرائط أساس.`}
+        {withCoordinates === 0 ? (
+          <span>
+            <MapPin size={12} /> لا توجد إحداثيات مسجّلة للطلبات المعروضة.
+          </span>
+        ) : (
+          `عرض ${withCoordinates} طلبًا على الخريطة${maxDistance ? ` ضمن ${(maxDistance / 1000).toFixed(0)} كم` : ''}.` +
+          (approximate > 0
+            ? ` ${approximate} منها موضوعة على مركز مدينتها لا على موقع السيارة، فالمسافة إليها تقريبية.`
+            : '')
+        )}
       </p>
     </div>
   )

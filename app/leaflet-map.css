@@ -1,0 +1,255 @@
+/*
+ * Leaflet chrome.
+ *
+ * ── Why this is a stylesheet and not Tailwind utilities ────────────────────
+ * Leaflet's own `leaflet.css` is plain, unlayered CSS shipped by a third party.
+ * In this project unlayered rules beat Tailwind utilities — that is the
+ * documented governing rule of `globals.css` — so any attempt to restyle a
+ * Leaflet element with a utility class silently loses to Leaflet's own rule.
+ * The map's internals are therefore styled here, in the same unlayered world as
+ * the thing being overridden, and this file is imported immediately *after*
+ * `leaflet/dist/leaflet.css` so that equal specificity resolves our way.
+ *
+ * ── The stacking context is not optional ───────────────────────────────────
+ * Leaflet numbers its panes up to 700 and its controls at 1000. The console's
+ * command palette and surface switcher sit at 50. Left alone, a zoom button
+ * floats above a modal backdrop. `isolation: isolate` on the frame contains
+ * every one of those numbers inside the map, so the overlays win again without
+ * any of them needing to know a map exists.
+ */
+
+.fahes-map-frame {
+  position: relative;
+  /* Creates the stacking context that contains Leaflet's z-index scale. */
+  isolation: isolate;
+  z-index: 0;
+  height: 100%;
+  /*
+   * Set by the caller as an inline custom property. Inline styles outrank every
+   * stylesheet, so this is the one lever a Tailwind height utility cannot pull
+   * — and the reason the height is a variable rather than a fixed rule.
+   */
+  min-height: var(--fahes-map-min-height, 320px);
+  overflow: hidden;
+  border-radius: 10px;
+  background: #eef3f9;
+}
+
+.fahes-map-canvas {
+  height: 100%;
+  width: 100%;
+  /* Leaflet's geometry assumes LTR; the Arabic text lives inside popups. */
+  direction: ltr;
+  font-family: inherit;
+  background: #eef3f9;
+}
+
+[data-theme='dark'] .fahes-map-frame,
+[data-theme='dark'] .fahes-map-canvas {
+  background: #0b1220;
+}
+
+/* Leaflet hard-codes its own font stack; the product uses Alexandria. */
+.fahes-map-canvas .leaflet-container,
+.fahes-map-canvas.leaflet-container {
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* ── Markers ──────────────────────────────────────────────────────────────── */
+
+/*
+ * `L.divIcon` replaces Leaflet's default class entirely, so the stock
+ * white-square `leaflet-div-icon` styling never applies. That is deliberate:
+ * it is also why no marker image asset is requested, which is the usual way a
+ * Leaflet integration breaks under a bundler — the default icon resolves its
+ * PNGs by relative URL and 404s.
+ */
+.fahes-pin-anchor {
+  background: transparent;
+  border: 0;
+}
+
+.fahes-pin {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgb(16 36 68 / 38%);
+  background: var(--fahes-pin-color, #64748b);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 600;
+  /* The pin is a decoration; the popup carries the accessible name. */
+  user-select: none;
+}
+
+[data-theme='dark'] .fahes-pin {
+  border-color: #0b1220;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 60%);
+}
+
+/*
+ * Tone to colour, declared once for both consumers.
+ *
+ * The legend swatch and the pin read the same custom property from the same
+ * rule, so a palette change cannot leave the legend describing colours the map
+ * no longer uses — which is the usual way a map legend goes quietly wrong.
+ */
+.fahes-pin[data-tone='good'],
+.fahes-legend-swatch[data-tone='good'] { --fahes-pin-color: #10b981; }
+
+.fahes-pin[data-tone='warn'],
+.fahes-legend-swatch[data-tone='warn'] { --fahes-pin-color: #f59e0b; }
+
+.fahes-pin[data-tone='bad'],
+.fahes-legend-swatch[data-tone='bad'] { --fahes-pin-color: #ef4444; }
+
+.fahes-pin[data-tone='info'],
+.fahes-legend-swatch[data-tone='info'] { --fahes-pin-color: #3b82f6; }
+
+.fahes-pin[data-tone='neutral'],
+.fahes-legend-swatch[data-tone='neutral'] { --fahes-pin-color: #64748b; }
+
+/* The legend's copy of a tone. Same variable, no pin geometry. */
+.fahes-legend-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--fahes-pin-color, #64748b);
+}
+
+/* A flagged fix gets a dashed ring so it is legible without colour alone. */
+.fahes-pin[data-flagged='true'] {
+  outline: 2px dashed #ef4444;
+  outline-offset: 2px;
+}
+
+.fahes-pin-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--fahes-pin-color, #64748b);
+  opacity: 0.35;
+  animation: fahes-pin-pulse 2.2s ease-out infinite;
+}
+
+@keyframes fahes-pin-pulse {
+  0% { transform: scale(1); opacity: 0.4; }
+  70% { transform: scale(2.1); opacity: 0; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* Respect a reduced-motion preference: the halo is decoration, not information. */
+@media (prefers-reduced-motion: reduce) {
+  .fahes-pin-ring { animation: none; opacity: 0.2; }
+}
+
+/* ── Popups ───────────────────────────────────────────────────────────────── */
+
+.fahes-map-canvas .leaflet-popup-content-wrapper {
+  border-radius: 10px;
+  border: 1px solid #e3eaf2;
+  box-shadow: 0 10px 30px rgb(16 36 68 / 18%);
+  background: #ffffff;
+  color: #102444;
+  padding: 0;
+}
+
+.fahes-map-canvas .leaflet-popup-content {
+  margin: 0;
+  padding: 10px 12px;
+  /* Leaflet sets a fixed width; the popup body needs to be able to wrap. */
+  width: auto !important;
+  min-width: 190px;
+  max-width: 280px;
+  direction: rtl;
+  text-align: right;
+}
+
+.fahes-map-canvas .leaflet-popup-tip {
+  background: #ffffff;
+  border: 1px solid #e3eaf2;
+}
+
+.fahes-map-canvas .leaflet-popup-close-button {
+  color: #94a3b8;
+  padding: 6px 6px 0 0;
+}
+
+.fahes-map-canvas .leaflet-popup-close-button:hover {
+  color: #102444;
+}
+
+[data-theme='dark'] .fahes-map-canvas .leaflet-popup-content-wrapper {
+  background: #111a2b;
+  border-color: #23324a;
+  color: #e6edf7;
+}
+
+[data-theme='dark'] .fahes-map-canvas .leaflet-popup-tip {
+  background: #111a2b;
+  border-color: #23324a;
+}
+
+[data-theme='dark'] .fahes-map-canvas .leaflet-popup-close-button:hover {
+  color: #e6edf7;
+}
+
+/* ── Controls and attribution ─────────────────────────────────────────────── */
+
+.fahes-map-canvas .leaflet-control-zoom a {
+  background: #ffffff;
+  color: #33465f;
+  border-color: #e3eaf2;
+  width: 28px;
+  height: 28px;
+  line-height: 26px;
+  font-size: 16px;
+}
+
+.fahes-map-canvas .leaflet-control-zoom a:hover {
+  background: #f4f8fd;
+  color: #102444;
+}
+
+[data-theme='dark'] .fahes-map-canvas .leaflet-control-zoom a {
+  background: #111a2b;
+  color: #cbd8ea;
+  border-color: #23324a;
+}
+
+[data-theme='dark'] .fahes-map-canvas .leaflet-control-zoom a:hover {
+  background: #182840;
+}
+
+.fahes-map-canvas .leaflet-control-attribution {
+  background: rgb(255 255 255 / 82%);
+  color: #64748b;
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.fahes-map-canvas .leaflet-control-attribution a {
+  color: #475d78;
+}
+
+[data-theme='dark'] .fahes-map-canvas .leaflet-control-attribution {
+  background: rgb(11 18 32 / 82%);
+  color: #93a4bb;
+}
+
+[data-theme='dark'] .fahes-map-canvas .leaflet-control-attribution a {
+  color: #b7c7dd;
+}
+
+/* Leaflet's own focus outline is invisible on the light tiles. */
+.fahes-map-canvas .leaflet-interactive:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

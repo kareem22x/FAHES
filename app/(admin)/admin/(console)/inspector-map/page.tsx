@@ -1,106 +1,67 @@
 import { requireAdminPage } from '@/lib/admin/rbac'
 import { listInspectorLocations } from '@/lib/admin/extended-store'
-import { GlassPanel, GlassCard, GlassBadge, EmptyState, Notice, StatusDot } from '@/components/admin/ui/glass'
-import { inspectorLocationStatusLabels, inspectorLocationStatusTone } from '@/lib/admin/labels'
+import { GlassPanel, Notice } from '@/components/admin/ui/glass'
 import { InspectorMapClient } from '@/components/admin/inspector-map-client'
-import { MapPin, Battery, AlertTriangle, Navigation } from 'lucide-react'
+import { Navigation, MapPin, TriangleAlert, Satellite } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Live inspector positions.
+ *
+ * The map itself is a client component and owns its own toolbar, legend and
+ * roster, because all three are views of one selection: picking a name has to
+ * move the map, and clicking a pin has to highlight the name. Splitting them
+ * across the server/client boundary would mean lifting that selection back into
+ * the page and re-rendering the whole console on every click.
+ *
+ * What stays here is what the server knows and the client does not: who is
+ * allowed to look, and whether the table this page depends on exists at all.
+ */
 export default async function AdminInspectorMapPage() {
   await requireAdminPage()
 
   const { locations, migrationPending } = await listInspectorLocations()
 
-  const onlineCount = locations.filter((l) => l.status !== 'offline').length
-  const inspectingCount = locations.filter((l) => l.status === 'inspecting').length
-  const mockGpsCount = locations.filter((l) => l.is_mock_location).length
+  const onlineCount = locations.filter((location) => location.status !== 'offline').length
+  const inspectingCount = locations.filter((location) => location.status === 'inspecting').length
+  const mockGpsCount = locations.filter((location) => location.is_mock_location).length
+
+  const kpis = [
+    { icon: Navigation, label: 'فاحصون متصلون', value: onlineCount, className: 'text-[#102444]' },
+    { icon: MapPin, label: 'يفحص الآن', value: inspectingCount, className: 'text-emerald-600' },
+    { icon: TriangleAlert, label: 'مواقع مزيفة', value: mockGpsCount, className: 'text-rose-600' },
+    { icon: Satellite, label: 'إجمالي على الخريطة', value: locations.length, className: 'text-[#102444]' },
+  ]
 
   return (
     <div className="flex flex-col gap-4">
       {migrationPending && (
         <Notice tone="warn" title="الترحيل معلَّق">
-          جدول <code className="admin-code">inspector_locations</code> غير موجود في قاعدة البيانات.
-          طبّق ترحيل الـ40 وحدة عبر لوحة Supabase أو زوّد PAT لتطبيقه آليًا.
+          جدول <code className="admin-code">inspector_locations</code> غير موجود في قاعدة البيانات. طبّق ملف
+          المخطط الكامل <code className="admin-code">supabase/FAHES_FULL_SCHEMA.sql</code> من محرر SQL، وستعمل
+          الخريطة فورًا.
         </Notice>
       )}
 
-      {/* Status KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <GlassPanel className="p-4">
-          <div className="flex items-center gap-2 text-[#65768d]">
-            <Navigation size={15} />
-            <span className="text-[11px]">فاحصون متصلون</span>
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-[#102444]">{onlineCount}</p>
-        </GlassPanel>
-        <GlassPanel className="p-4">
-          <div className="flex items-center gap-2 text-[#65768d]">
-            <MapPin size={15} />
-            <span className="text-[11px]">يفحص الآن</span>
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-emerald-600">{inspectingCount}</p>
-        </GlassPanel>
-        <GlassPanel className="p-4">
-          <div className="flex items-center gap-2 text-[#65768d]">
-            <AlertTriangle size={15} />
-            <span className="text-[11px]">مواقع مزيفة</span>
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-rose-600">{mockGpsCount}</p>
-        </GlassPanel>
-        <GlassPanel className="p-4">
-          <div className="flex items-center gap-2 text-[#65768d]">
-            <Battery size={15} />
-            <span className="text-[11px]">إجمالي على الخريطة</span>
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-[#102444]">{locations.length}</p>
-        </GlassPanel>
-      </div>
-
-      {/* Map placeholder + live table */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <GlassCard title="خريطة المواقع اللحظية" className="lg:col-span-3" bodyClassName="min-h-[300px]">
-          {locations.length === 0 ? (
-            <EmptyState>لا فاحصين متصلين حاليًا</EmptyState>
-          ) : (
-            <InspectorMapClient locations={locations} />
-          )}
-        </GlassCard>
-
-        <GlassCard title="قائمة الفاحصين" className="lg:col-span-2" bodyClassName="max-h-[400px] overflow-y-auto">
-          {locations.length === 0 ? (
-            <EmptyState>لا مواقع</EmptyState>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {locations.map((loc) => (
-                <div key={loc.id} className="flex items-center gap-3 rounded-lg border border-[#e3eaf2] bg-slate-50/50 px-3 py-2.5">
-                  <StatusDot
-                    tone={inspectorLocationStatusTone[loc.status] ?? 'neutral'}
-                    pulse={loc.status === 'inspecting'}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-[#102444]">{loc.inspector_name}</p>
-                    <p className="text-[10px] text-[#65768d]">
-                      {inspectorLocationStatusLabels[loc.status] ?? loc.status}
-                      {loc.battery_level != null && ` · بطارية ${loc.battery_level}%`}
-                    </p>
-                  </div>
-                  {loc.is_mock_location && (
-                    <GlassBadge tone="bad">موقع مزيف</GlassBadge>
-                  )}
-                  <span className="text-[10px] text-[#94a3b8]">
-                    {loc.latitude.toFixed(4)}، {loc.longitude.toFixed(4)}
-                  </span>
-                </div>
-              ))}
+        {kpis.map((kpi) => (
+          <GlassPanel key={kpi.label} className="p-4">
+            <div className="flex items-center gap-2 text-[#65768d]">
+              <kpi.icon size={15} />
+              <span className="text-[11px]">{kpi.label}</span>
             </div>
-          )}
-        </GlassCard>
+            <p className={`mt-2 text-2xl font-semibold ${kpi.className}`}>{kpi.value}</p>
+          </GlassPanel>
+        ))}
       </div>
+
+      <InspectorMapClient locations={locations} />
 
       <p className="admin-footnote">
-        تُحدَّث المواقع عبر دالة <code className="admin-code">upsert_inspector_location</code> من تطبيق الفاحص.
-        اكتشاف الموقع المزيّف آلي ويُنشئ مخالفة في جدول <code className="admin-code">inspector_violations</code>.
+        تُحدَّث المواقع عبر <code className="admin-code">/api/inspector/field/location</code> من واجهة الميدان،
+        وتُثبَّت في القاعدة بدالة <code className="admin-code">upsert_inspector_location</code>. اكتشاف الموقع
+        المزيّف آلي ويُنشئ مخالفة في جدول <code className="admin-code">inspector_violations</code>.
       </p>
     </div>
   )
