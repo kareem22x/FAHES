@@ -2,16 +2,14 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { AccountPhoneVerification } from '@/components/modules/account/account-phone-verification'
+import { AccountPhoneForm } from '@/components/modules/account/account-phone-form'
 
 export function VerifyIdentityForm({
   phoneVerified,
-  verifiedPhone,
-  databasePhone,
+  currentPhone,
 }: {
   phoneVerified: boolean
-  verifiedPhone: string | null
-  databasePhone: string | null
+  currentPhone: string | null
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -63,7 +61,7 @@ export function VerifyIdentityForm({
           <p className="mt-3 text-sm text-green-600 font-medium">تم توثيق رقم الجوال بنجاح.</p>
         ) : (
           <div className="mt-4">
-            <AccountPhoneVerification verifiedPhone={verifiedPhone} databasePhone={databasePhone} />
+            <AccountPhoneForm currentPhone={currentPhone} />
           </div>
         )}
       </div>

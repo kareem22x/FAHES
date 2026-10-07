@@ -1,13 +1,12 @@
 import { redirect } from 'next/navigation'
 import PhoneVerificationGate from '@/components/modules/auth/phone-verification-gate'
 import { getSession, postAuthPath } from '@/lib/auth'
-import { maskPhone } from '@/lib/phone'
 import { safeReturnPath } from '@/lib/safe-return-path'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'توثيق رقم الجوال · فاحص',
+  title: 'إدخال رقم الجوال · فاحص',
   robots: { index: false, follow: false },
 }
 
@@ -38,8 +37,7 @@ export default async function VerifyPhonePage({
 
   return (
     <PhoneVerificationGate
-      maskedPhone={maskPhone(session.phone)}
-      hasPhone={session.phone !== null}
+      currentPhone={session.phone}
       redirectTo={redirectTo}
     />
   )

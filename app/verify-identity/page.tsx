@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation'
-import { currentUser as clerkCurrentUser } from '@clerk/nextjs/server'
-import { getSession, postAuthPath } from '@/lib/auth'
-import { isValidSaudiMobile, normalizePhone } from '@/lib/phone'
 import { VerifyIdentityForm } from '@/components/modules/account/verify-identity-form'
+import { getSession, postAuthPath } from '@/lib/auth'
 
 export default async function VerifyIdentityPage() {
   const session = await getSession()
@@ -17,17 +15,6 @@ export default async function VerifyIdentityPage() {
   if (session.isVerified) {
     redirect('/account')
   }
-
-  // Get Clerk's verified phone (if any) to pass to the phone verification component.
-  const clerkUser = await clerkCurrentUser()
-  const verifiedSaudiPhone = (() => {
-    if (!clerkUser) return null
-    const primary = clerkUser.phoneNumbers.find((p) => p.id === clerkUser.primaryPhoneNumberId)
-    const candidate = primary?.verification?.status === 'verified'
-      ? primary
-      : clerkUser.phoneNumbers.find((p) => p.verification?.status === 'verified')
-    return candidate && isValidSaudiMobile(candidate.phoneNumber) ? normalizePhone(candidate.phoneNumber) : null
-  })()
 
   return (
     <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f9fc] px-5 py-10 text-[#0b1f46]">
@@ -45,8 +32,7 @@ export default async function VerifyIdentityPage() {
         <div className="mt-8">
           <VerifyIdentityForm
             phoneVerified={session.phone !== null}
-            verifiedPhone={verifiedSaudiPhone}
-            databasePhone={session.phone}
+            currentPhone={session.phone}
           />
         </div>
       </section>

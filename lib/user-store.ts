@@ -405,8 +405,10 @@ export function isValidSaudiNationalId(id: string): boolean {
  * Saves the customer's national ID and marks it as verified.
  *
  * The national ID is a soft verification — the user enters it, we store it,
- * and we stamp `national_id_verified_at`. Unlike phone (which goes through
- * Clerk's SMS flow), there is no external authority to check against here.
+ * and we stamp `national_id_verified_at`. There is no external authority to
+ * check it against, and since the OTP wall was removed that is now true of the
+ * phone as well: both fields are "verified" on entry, and the only real check
+ * either one carries is the uniqueness of the stored value.
  *
  * A unique-partial index on `national_id` prevents duplicates: if another
  * account already holds this ID, the INSERT/UPDATE will fail with a 23505
@@ -442,6 +444,64 @@ export async function saveNationalId(userId: string, nationalId: string): Promis
     resourceType: 'user',
     resourceId: userId,
     metadata: {},
+  })
+
+  return { ok: true, user: toAppUser(data) }
+}
+
+/**
+ * Saves the account's phone number and marks it verified in the same write.
+ *
+ * ── Why there is no code to check ────────────────────────────────────────────
+ *
+ * This replaces the OTP wall. The product decision is that typing the number is
+ * the whole step: it is stored and `phone_verified` flips in the same UPDATE, so
+ * the route gatekeeper (`clearsPhoneGate`) opens on the very next request and no
+ * redirect loop is possible.
+ *
+ * The trade-off is deliberate and worth stating plainly: **nothing here proves
+ * the caller owns the number.** Anyone signed in can claim any Saudi mobile that
+ * is not already taken. What survives is the property the rest of the product
+ * actually leans on — the unique index on `user_profiles.phone` means one number
+ * belongs to exactly one account, so an inspector dialling the number on an
+ * order still reaches the person who placed it. If ownership ever needs to be
+ * real again, it has to come back as device attestation or an OTP, not as a flag.
+ *
+ * Re-saving the same number is idempotent, and the audit row records that this
+ * account cleared the wall without a code.
+ */
+export type AccountPhoneResult =
+  | { ok: true; user: AppUser }
+  | { ok: false; reason: 'invalid_phone' | 'duplicate' | 'not_found' }
+
+export async function saveAccountPhone(userId: string, phone: string): Promise<AccountPhoneResult> {
+  const normalized = normalizePhone(phone)
+  if (!/^5\d{8}$/.test(normalized)) return { ok: false, reason: 'invalid_phone' }
+
+  const { data, error } = await getSupabaseAdmin()
+    .from('user_profiles')
+    .update({
+      phone: normalized,
+      phone_verified: true,
+      phone_verified_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .select('*')
+    .maybeSingle()
+
+  if (error) {
+    // 23505 = unique_violation, here always the unique index on `phone`.
+    if (error.code === '23505') return { ok: false, reason: 'duplicate' }
+    throwIfError(error)
+  }
+  if (!data) return { ok: false, reason: 'not_found' }
+
+  await logAuditEvent({
+    actorId: userId,
+    eventType: 'user.phone_saved',
+    resourceType: 'user',
+    resourceId: userId,
+    metadata: { verifiedWithoutOtp: true },
   })
 
   return { ok: true, user: toAppUser(data) }

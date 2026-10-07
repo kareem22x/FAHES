@@ -11,10 +11,9 @@ import {
   ShieldCheck,
   UserRound,
 } from 'lucide-react'
-import { AccountPhoneVerification } from '@/components/modules/account/account-phone-verification'
+import { AccountPhoneForm } from '@/components/modules/account/account-phone-form'
 import { dashboardPath, requireSession } from '@/lib/auth'
 import { formatArabicDate } from '@/lib/inspection-status'
-import { normalizePhone } from '@/lib/phone'
 import { getUserById } from '@/lib/user-store'
 import { currentUser as getClerkUser } from '@clerk/nextjs/server'
 
@@ -64,12 +63,6 @@ export default async function AccountProfile() {
   const isInspector = session.role === 'inspector'
   const dashboardHref = dashboardPath(session)
   const email = clerkUser?.primaryEmailAddress?.emailAddress
-  const verifiedClerkPhone = clerkUser?.phoneNumbers.find(
-    (item) => item.id === clerkUser.primaryPhoneNumberId && item.verification?.status === 'verified',
-  ) ?? clerkUser?.phoneNumbers.find((item) => item.verification?.status === 'verified')
-  const verifiedSaudiPhone = verifiedClerkPhone && /^5\d{8}$/.test(normalizePhone(verifiedClerkPhone.phoneNumber))
-    ? normalizePhone(verifiedClerkPhone.phoneNumber)
-    : null
   const canApply = !isInspector && user.inspectorStatus !== 'pending' && user.inspectorStatus !== 'suspended'
 
   return (
@@ -94,10 +87,7 @@ export default async function AccountProfile() {
       </section>
 
       <aside className="app-aside">
-        <AccountPhoneVerification
-          verifiedPhone={verifiedSaudiPhone}
-          databasePhone={session.phone}
-        />
+        <AccountPhoneForm currentPhone={session.phone} />
 
         <section className="app-panel is-soft">
           <span className="app-panel-icon"><ShieldCheck size={20} /></span>
