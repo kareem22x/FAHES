@@ -45,8 +45,38 @@ describe('tileSourceFor', () => {
   it('always carries attribution, because the tiles are licensed', () => {
     for (const theme of ['light', 'dark']) {
       expect(tileSourceFor(theme).attribution).toContain('OpenStreetMap')
-      expect(tileSourceFor(theme).attribution).toContain('CARTO')
+      expect(tileSourceFor(theme).attribution).toContain('Esri')
     }
+  })
+
+  it('requests tiles as {z}/{y}/{x}, which is the order Esri serves them in', () => {
+    // Esri is row-before-column. Swapping to {x}/{y} still yields a valid-looking
+    // map of the wrong part of the world, which is why this is asserted rather
+    // than left to review.
+    for (const theme of ['light', 'dark']) {
+      const { url } = tileSourceFor(theme)
+      expect(url).toContain('{z}/{y}/{x}')
+      expect(url).not.toContain('{z}/{x}/{y}')
+    }
+  })
+
+  it('never asks for a zoom the provider does not serve', () => {
+    // Esri's Canvas services answer z17+ with a 200 and a blank tile, so an
+    // over-large maxZoom shows empty grey exactly when the user zooms in.
+    for (const theme of ['light', 'dark']) {
+      expect(tileSourceFor(theme).maxZoom).toBeLessThanOrEqual(16)
+      expect(tileSourceFor(theme).maxZoom).toBeGreaterThanOrEqual(13)
+    }
+  })
+
+  it('gives both themes a label overlay, so neither map loses its place names', () => {
+    for (const theme of ['light', 'dark']) {
+      const source = tileSourceFor(theme)
+      expect(source.labelsUrl).toBeTruthy()
+      // The overlay is a separate service, so it must not be the base itself.
+      expect(source.labelsUrl).not.toBe(source.url)
+    }
+    expect(tileSourceFor('dark').labelsUrl).not.toBe(tileSourceFor('light').labelsUrl)
   })
 
   it('lets the endpoint be overridden without losing attribution or sharding', () => {
@@ -57,9 +87,17 @@ describe('tileSourceFor', () => {
     expect(source.subdomains.length).toBeGreaterThan(0)
   })
 
+  it('drops the label overlay when the base is overridden', () => {
+    // A custom base will not line up with Esri's place names, and drawing
+    // foreign labels over someone else's imagery is worse than drawing none.
+    process.env.NEXT_PUBLIC_MAP_TILE_URL = 'https://tiles.example.com/{z}/{x}/{y}.png'
+    expect(tileSourceFor('light').labelsUrl).toBeUndefined()
+  })
+
   it('ignores a blank override rather than emitting an empty tile URL', () => {
     process.env.NEXT_PUBLIC_MAP_TILE_URL = '   '
     expect(tileSourceFor('light').url).toBe(TILE_SOURCES.light.url)
+    expect(tileSourceFor('light').labelsUrl).toBe(TILE_SOURCES.light.labelsUrl)
   })
 })
 

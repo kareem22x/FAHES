@@ -231,6 +231,16 @@ export default function LeafletCanvas({
           maxZoom={source.maxZoom}
         />
 
+        {/*
+          Place names ride above the base as their own transparent layer. It is
+          keyed separately so switching themes swaps the labels with the
+          imagery, and it carries no attribution of its own — the base already
+          credits Esri, and a second credit would only repeat it.
+        */}
+        {source.labelsUrl && (
+          <TileLayer key={source.labelsUrl} url={source.labelsUrl} maxZoom={source.maxZoom} />
+        )}
+
         {markers.map((marker) => (
           <Marker
             key={marker.id}

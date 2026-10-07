@@ -35,7 +35,26 @@
   background: #eef3f9;
 }
 
+/*
+ * The canvas fills the frame by *absolute* positioning, not by `height: 100%`.
+ *
+ * That distinction is the difference between a working map and a blank one, and
+ * it cost a debugging session. `height: 100%` resolves against the parent's
+ * `height` *property* — not its used height. The frame declares
+ * `height: 100%`, and callers mount it inside an auto-height card
+ * (`GlassCard`), so the frame's own `height` computes to `auto` and its real
+ * height comes from `min-height`. A child asking for `100%` of `auto` gets
+ * `auto`, and since every Leaflet pane is absolutely positioned and contributes
+ * no intrinsic height, the canvas collapses to **0px** — tiles and pins load,
+ * the DOM looks perfect, and nothing is visible.
+ *
+ * `inset: 0` measures against the frame's padding box instead, so the canvas
+ * matches whatever height the frame ended up with, however it was arrived at.
+ * The frame is already `position: relative`, which is what anchors this.
+ */
 .fahes-map-canvas {
+  position: absolute;
+  inset: 0;
   height: 100%;
   width: 100%;
   /* Leaflet's geometry assumes LTR; the Arabic text lives inside popups. */
