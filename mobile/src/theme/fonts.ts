@@ -69,13 +69,23 @@ export const fontFamilyByWeight = {
 /**
  * تحميل الخطوط.
  *
- * تُنادى مرّة واحدة في `_layout.tsx` الجذر. تُرجع `loaded` فقط — النداء
- * يعرف أيضًا `error`، لكننا لا نُسقط التطبيق إن فشل تحميل الخط: يُعرض
- * بخط النظام، وهذا أفضل من شاشة فارغة. (الويب يفعل العكس: ينتظر الخط ثم
- * يظهر، لأن انزياح الخط أخطر هناك.)
+ * تُنادى مرّة واحدة في `_layout.tsx` الجذر.
+ *
+ * ── 🩸 لماذا تُرجع `failed` لا `loaded` وحدها ──────────────────────────────
+ *
+ * `_layout` يُخفي شاشة البداية **بعد** استقرار الخط، وإلا ظهر النصّ بخط
+ * النظام ثم انزاح عند وصول الخط — وهو أوضح عيب بصري في تطبيق عربي. لكن
+ * انتظار `loaded` وحدها يعني **تعليقًا أبديًّا** إن فشل التحميل (ملف تالف،
+ * شبكة، منصّة لا تدعم `expo-font`). فالحالتان معًا تعنيان «استقرّ»:
+ * نجح أو فشل، وكلاهما سبب كافٍ لإخفاء شاشة البداية.
+ *
+ * و`failed` لا تُسقط التطبيق: يُعرض بخط النظام، وهذا أفضل من شاشة فارغة.
+ *
+ * ⚠️ **لا تستدعِ `useFonts` في أكثر من موضع.** كل نداء يحمّل المجموعة من
+ * جديد ويعيد حالة مستقلة، فيصير عندنا مصدرا حقيقة للخط نفسه.
  */
-export function useAppFonts(): boolean {
-  const [loaded] = useFonts({
+export function useAppFonts(): { loaded: boolean; failed: boolean } {
+  const [loaded, error] = useFonts({
     Alexandria_400Regular,
     Alexandria_500Medium,
     Alexandria_600SemiBold,
@@ -83,5 +93,5 @@ export function useAppFonts(): boolean {
     Alexandria_800ExtraBold,
   })
 
-  return loaded
+  return { loaded, failed: Boolean(error) }
 }

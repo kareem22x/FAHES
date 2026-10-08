@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AppAuthProvider } from '@/lib/auth'
 import { assertEnv } from '@/lib/env'
 import { enforceRTL } from '@/lib/rtl'
+import { useAppFonts } from '@/theme/fonts'
 import { useTheme } from '@/theme'
 
 /**
@@ -52,13 +53,36 @@ export default function RootLayout() {
  *
  *   1. `useTheme()` يجب أن يكون **داخل** `SafeAreaProvider` لا في مكوّن الجذر
  *      الذي يُركّب المزوّدات.
- *   2. إخفاء شاشة البداية يجب أن يحدث **بعد** أن تُركَّب الشاشة الأولى — وإلا
- *      ظهر فراغ أسود لحظةً. الفصل يجعل هذه اللحظة واضحة.
+ *   2. تحميل الخط وإخفاء شاشة البداية يجب أن يحدثا **بعد** أن تُركَّب الشاشة
+ *      الأولى — وإلا ظهر فراغ أسود لحظةً. الفصل يجعل هذه اللحظة واضحة.
+ *
+ * ── 🩸 الخطّ: كان يُعرَّف ولا يُنادى ────────────────────────────────────────
+ *
+ * `useAppFonts()` كانت مكتوبة وموثَّقة بـ«تُنادى في `_layout` الجذر» —
+ * ولم تكن تُنادى في أي موضع. فلم تُسجَّل أي `@font-face`، وسقط كل نصّ إلى خطّ
+ * النظام بصمت: لا خطأ ولا تحذير، فقط شكل مختلف. والفحوصات الساكنة تمرّ على
+ * ذلك كله. الإثبات الوحيد هو `document.fonts` — لا `getComputedStyle`.
  */
 function ThemedNavigator() {
   const t = useTheme()
+  const { loaded: fontsLoaded, failed: fontsFailed } = useAppFonts()
+
+  // «استقرّ الخط» = نجح أو فشل. انتظار النجاح وحده يُنتج تعليقًا أبديًّا.
+  const fontsReady = fontsLoaded || fontsFailed
 
   useEffect(() => {
+    // شبكة أمان: شاشة البداية المحجوبة تُنتج تطبيقًا **فارغًا** لا شاشة
+    // رديئة. فلا يجوز أن يتوقّف إخفاؤها على أي شيء قد لا يصل.
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {
+        /* لا شيء. */
+      })
+    }, 4000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!fontsReady) return
     // `requestAnimationFrame` يضمن أن الإطار الأول جاهز فعلًا قبل الإخفاء.
     const frame = requestAnimationFrame(() => {
       SplashScreen.hideAsync().catch(() => {
@@ -66,7 +90,7 @@ function ThemedNavigator() {
       })
     })
     return () => cancelAnimationFrame(frame)
-  }, [])
+  }, [fontsReady])
 
   // ثيم الملّاحة مبنيّ من رموزنا لا من ثيم المكتبة الافتراضي (أبيض/أسود
   // صريح) — وإلا ظهرت خلفية الرأس بيضاء في تطبيق داكن.

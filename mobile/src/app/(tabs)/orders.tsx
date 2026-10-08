@@ -33,8 +33,12 @@ import { useTheme } from '@/theme'
 
 export default function OrdersScreen() {
   const t = useTheme()
-  const { displayName } = useSession()
-  const { requests, loading, refreshing, error, retryable, refresh } = useCustomerRequests(true)
+  const { displayName, isSignedIn } = useSession()
+  // ⚠️ `isSignedIn` لا `true`. المجموعة محروسة في `_layout` فالقيمة ستكون
+  // `true` دائمًا عند الرسم — لكن تمرير `true` حرفيًّا كان يجعل الخطّاف يندفع
+  // إلى الشبكة بلا جلسة إن نُقلت الشاشة خارج المجموعة يومًا، وينتهي إلى
+  // «انتهت الجلسة» بدل أن يبقى ساكنًا.
+  const { requests, loading, refreshing, error, retryable, refresh } = useCustomerRequests(isSignedIn)
 
   /** الجارية أولًا، ثم الأحدث داخل كل مجموعة. */
   const sorted = useMemo(() => {

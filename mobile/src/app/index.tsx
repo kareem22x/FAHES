@@ -3,6 +3,7 @@ import { Redirect } from 'expo-router'
 import { LoadingState } from '@/components/ui/states'
 import { Screen } from '@/components/ui/screen'
 import { useSession } from '@/lib/auth'
+import { sessionGate } from '@/lib/session-gate'
 
 /**
  * بوابة الدخول — تقرّر إلى أين يذهب المستخدم.
@@ -20,11 +21,15 @@ import { useSession } from '@/lib/auth'
  * `isSignedIn` تساوي `false` ولو كان المستخدم مسجّلًا فعلًا. عرض الشاشة في
  * هذه اللحظة يعني قذف مستخدم مسجّل إلى صفحة الدخول عند كل إقلاع — وهو أكثر
  * خطأ شائع في تطبيقات Clerk على الجوال.
+ * هذه الشاشة تعمل عند `/` وحده. الوصول المباشر إلى `/orders` لا يمرّ بها —
+ * فحرس مجموعة التبويبات في `app/(tabs)/_layout.tsx` هو ما يسدّ ذلك. والقرار
+ * نفسه في الاثنين يأتي من `sessionGate` فلا يتباعدان.
  */
 export default function EntryGate() {
   const { isLoaded, isSignedIn } = useSession()
+  const gate = sessionGate(isLoaded, isSignedIn)
 
-  if (!isLoaded) {
+  if (gate === 'loading') {
     return (
       <Screen>
         <LoadingState label="جارٍ التحقق من الجلسة…" />
@@ -32,7 +37,7 @@ export default function EntryGate() {
     )
   }
 
-  if (!isSignedIn) return <Redirect href="/sign-in" />
+  if (gate === 'signed-out') return <Redirect href="/sign-in" />
 
   return <Redirect href="/(tabs)/orders" />
 }
