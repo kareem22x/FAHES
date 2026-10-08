@@ -37,6 +37,8 @@
     "deepseek-harness",
     "deepseek-harness/**",
     "design-backup",
-    "design-backup/**"
+    "design-backup/**",
+    "mobile",
+    "mobile/**"
   ]
 }

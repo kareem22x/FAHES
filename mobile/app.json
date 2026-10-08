@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "فاحص",
+    "slug": "fahes",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "fahes",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.fahes.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleDisplayName": "فاحص",
+        "CFBundleDevelopmentRegion": "ar",
+        "NSLocationWhenInUseUsageDescription": "نستخدم موقعك لعرض الفاحص القريب منك وتتبّع وصوله.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "يحتاج الفاحص إلى إرسال موقعه أثناء العمل في الميدان حتى يتتبّعه العميل.",
+        "NSCameraUsageDescription": "نستخدم الكاميرا لتصوير السيارة وإرفاق الصور بتقرير الفحص."
+      }
+    },
+    "android": {
+      "package": "com.fahes.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b1220",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0b1220",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

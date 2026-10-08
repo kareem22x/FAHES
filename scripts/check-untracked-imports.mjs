@@ -30,8 +30,31 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
-/** Directories that are never part of a deployment. */
-const SKIP_DIRS = new Set(['node_modules', '.next', '.git', 'deepseek-harness', '.vercel', '.workbuddy-ai'])
+/**
+ * Directories that are never part of a deployment.
+ *
+ * `mobile/` is the React Native app. It is a separate deployment target built by
+ * EAS, not by Vercel, so the rule this script enforces — "the Vercel clone only
+ * contains tracked files" — does not apply to it. It has to be skipped for a
+ * second, sharper reason too: its own `@/…` alias points inside `mobile/`, but
+ * this script resolves every specifier against the repo root, so a mobile import
+ * would be looked up in the wrong tree and mis-checked.
+ */
+const SKIP_DIRS = new Set(['node_modules', '.next', '.git', 'deepseek-harness', '.vercel', '.workbuddy-ai', 'mobile'])
+
+/**
+ * True when a tracked path lives inside a skipped tree.
+ *
+ * Needed separately from `SKIP_DIRS` because the main loop iterates `git
+ * ls-files` output, not a directory walk — so skipping the directory alone would
+ * still leave every tracked file under it in scope.
+ */
+function isSkipped(rel) {
+  for (const dir of SKIP_DIRS) {
+    if (rel.startsWith(`${dir}/`)) return true
+  }
+  return false
+}
 
 const SUFFIXES = ['', '.ts', '.tsx', '.js', '.jsx', '.mjs', '/index.ts', '/index.tsx']
 const IMPORT_RE = /from\s+['"](@\/[^'"]+)['"]/g
@@ -61,6 +84,7 @@ function findProblems(root) {
 
   const problems = []
   for (const rel of tracked) {
+    if (isSkipped(rel)) continue
     if (!rel.endsWith('.ts') && !rel.endsWith('.tsx')) continue
 
     let source

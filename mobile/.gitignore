@@ -1,0 +1,54 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env*.local
+
+# The template must stay committable.
+#
+# The repo-root `.gitignore` ignores `.env*` and then negates `!.env.example` —
+# but that negation has no `**/`, so it only matches the repo root. Without the
+# line below, `mobile/.env.example` is silently ignored by the parent pattern
+# and never reaches a clone: a new developer gets no env template for the app,
+# with nothing in any check to say so. A deeper `.gitignore` takes precedence
+# over a shallower one for the same path, which is what makes this work.
+!.env.example
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android

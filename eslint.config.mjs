@@ -11,5 +11,8 @@ export default defineConfig([
     'deepseek-harness/**',
     '.shots*/**',
     'next-env.d.ts',
+    // The React Native app is a separate toolchain with its own lint config.
+    // This config loads `eslint-config-next`, whose rules do not apply to it.
+    'mobile/**',
   ]),
 ])
