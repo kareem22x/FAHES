@@ -128,10 +128,21 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/*
+        ⚠️ `header` صار **داخل** منطقة التمرير لا في شريط ثابت — لأن الدرج الآن
+        `@gorhom/bottom-sheet`، ومحتواه كله قابل للتمرير. النتيجة: العنوان
+        يتلاشى عند السحب للأعلى، وهو سلوك تطبيقات التوصيل لا عطب.
+
+        و`paddingTop` على الجسم يفصل بداية المحتوى عن العنوان، وإلا ظهر صفّ
+        أنواع الفحص **مقصوصًا في منتصفه** في وضع `peek` — يبدو عطلًا لا دعوةً
+        إلى السحب. و`flex: 1` أُزيل عن الرأس والجسم معًا: كانا داخل درج بارتفاع
+        ثابت، والآن هما داخل منطقة بارتفاع تلقائي و`flex: 1` هناك يُنهي ارتفاعهما
+        إلى صفر بلا أي خطأ.
+      */}
       <BottomSheet
         peekHeight={SHEET_PEEK_HEIGHT}
         header={
-          <View style={styles.sheetHeader}>
+          <View>
             <View style={[styles.headerRow, { gap: t.space[2] }]}>
               <AppText variant="heading" weight="heavy" numberOfLines={1} style={styles.grow}>
                 {current ? 'طلبك الجاري' : 'طلب فحص جديد'}
@@ -144,7 +155,7 @@ export default function HomeScreen() {
           </View>
         }
       >
-        <View>
+        <View style={{ paddingTop: t.space[5] }}>
           {/* ── الطلب الجاري: بطاقة ملخّص حقيقية ──────────────────────── */}
           {current ? (
             <Pressable
@@ -292,7 +303,6 @@ const styles = StyleSheet.create({
   topBar: { position: 'absolute', top: 0, left: 0, right: 0 },
   topRow: { flexDirection: 'row', alignItems: 'center' },
   searchWrap: { flex: 1, minWidth: 0 },
-  sheetHeader: { flex: 1, justifyContent: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   grow: { flex: 1, minWidth: 0 },
   currentCard: { borderWidth: 1 },
