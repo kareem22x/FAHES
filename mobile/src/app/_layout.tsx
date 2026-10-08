@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { SideDrawer, SideDrawerProvider } from '@/components/navigation/side-drawer'
@@ -31,8 +32,22 @@ import { useTheme } from '@/theme'
  * ── ترتيب المزوّدات ───────────────────────────────────────────────────────
  *
  * `GestureHandlerRootView` **الأب outermost** (تشترطه مكتبة الإيماءات لكل
- * شجرة)، ثم `SafeAreaProvider` (يوفّر الهوامش لكل شاشة)، ثم المصادقة، ثم
- * الثيم. عكس الترتيب يجعل `useSafeAreaInsets` يرمي في أول شاشة.
+ * شجرة)، ثم `KeyboardProvider`، ثم `SafeAreaProvider` (يوفّر الهوامش لكل
+ * شاشة)، ثم المصادقة، ثم الثيم. عكس الترتيب يجعل `useSafeAreaInsets` يرمي في
+ * أول شاشة.
+ *
+ * ── ⚠️ `KeyboardProvider` شرط لا تحسين ────────────────────────────────────
+ *
+ * كل مكوّنات `react-native-keyboard-controller` تقرأ سياقًا يُنشئه هذا المزوّد،
+ * وبدونه تُطلق المكتبة تحذيرًا («Couldn't find real values for
+ * `KeyboardContext`») وتبقى بلا أثر. وهو يُرسم بـ`flex: 1` (متحقَّق من المصدر
+ * لا بالافتراض) فلا يخنق الشجرة.
+ *
+ * وعلى الويب يسقط إلى `View` عاديّة: كل استدعاءات الوحدة الأصلية في
+ * `bindings.ts` مُعرَّفة بـ`NOOP` أصلًا، والمكتبة تحرس `useNativeDriver` بـ
+ * `Platform.OS !== "web"` صراحةً ⇒ آمن بلا فصل منصّي عند الجذر. أما
+ * `KeyboardAvoidingView` فلها فصل منصّي في `components/ui/keyboard.tsx` لأن
+ * نسختها على الويب بلا أي إزاحة (انظر رأس ذلك الملفّ).
  */
 
 enforceRTL()
@@ -46,11 +61,13 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AppAuthProvider>
-          <ThemedNavigator />
-        </AppAuthProvider>
-      </SafeAreaProvider>
+      <KeyboardProvider>
+        <SafeAreaProvider>
+          <AppAuthProvider>
+            <ThemedNavigator />
+          </AppAuthProvider>
+        </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   )
 }

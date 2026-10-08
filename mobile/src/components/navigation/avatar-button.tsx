@@ -1,5 +1,6 @@
 import { useUser } from '@clerk/clerk-expo'
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { Image } from 'expo-image'
+import { Pressable, StyleSheet, View } from 'react-native'
 
 import { GlassSurface } from '@/components/ui/glass'
 import { AppText } from '@/components/ui/text'
@@ -22,6 +23,13 @@ import { useSideDrawer } from './side-drawer'
  * `source={{ uri: '' }}` ليس «صورة ناقصة» بل طلب بلا عنوان. وفي الويب تحديدًا
  * `<img src="">` يجعل المتصفّح يعيد تحميل **الصفحة كصورة** — عطل صامت ومكلف.
  * فالفحص `.trim() || null` قبل العرض، لا بعده.
+ *
+ * ── ولماذا `expo-image` لا `Image` ────────────────────────────────────────
+ *
+ * نفس الصورة تُعرض في الشاشة الرئيسية وفي القائمة الجانبية في كل تنقّل.
+ * و`Image` في React Native **بلا ذاكرة قرص**: تُطلب من الشبكة في كل مرّة
+ * فتومض. و`expo-image` تُخزّنها وتنتقل إليها بتلاشٍ (`transition`) — وهذا
+ * الفرق البصري بين تطبيق يبدو سريعًا وتطبيق يبدو مرتجًّا.
  */
 
 /** أول حرفين من الاسم — بديل الصورة. */
@@ -53,7 +61,15 @@ export function AvatarButton({ size = 52 }: { size?: number }) {
           ]}
         >
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={{ width: size, height: size }} />
+            <Image
+              source={imageUrl}
+              style={{ width: size, height: size }}
+              contentFit="cover"
+              // ذاكرة على القرص: صورة البروفايل نفسها في كل شاشة، وبلا هذا
+              // تُطلب من الشبكة عند كل تنقّل وتومض.
+              cachePolicy="memory-disk"
+              transition={180}
+            />
           ) : (
             <AppText variant="label" weight="bold" tone="accent">
               {initialsOf(displayName)}

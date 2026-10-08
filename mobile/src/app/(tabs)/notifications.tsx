@@ -1,11 +1,12 @@
+import { FlashList } from '@shopify/flash-list'
 import * as WebBrowser from 'expo-web-browser'
 import { BellOff, CheckCheck } from 'lucide-react-native'
 import { useCallback } from 'react'
-import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native'
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native'
 
 import { Screen } from '@/components/ui/screen'
 import { ScreenHeader } from '@/components/ui/screen-header'
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { EmptyState, ErrorState, SkeletonList } from '@/components/ui/states'
 import { AppText } from '@/components/ui/text'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useSession } from '@/lib/auth'
@@ -39,6 +40,11 @@ import { useTheme } from '@/theme'
  * النقر يُعلّم مقروءًا محليًّا فورًا ثم يُبلّغ الخادم (في `useNotifications`).
  * لو انتظرنا الخادم لبقي الإشعار «غير مقروء» 300ms+ بعد نقرة صريحة، وهو ما
  * يُشعر المستخدم أن النقر لم يعمل.
+ *
+ * ── `FlashList` لا `FlatList` ─────────────────────────────────────────────
+ *
+ * إعادة تدوير الخلايا (recycling) بدل إبقاء حاوية لكل صفّ مرّ. والتفصيل في
+ * `orders.tsx` — وهو نفس السبب ونفس التحذير: **v2 حذفت `estimatedItemSize`**.
  */
 
 /** شريط الخطورة على حافة البداية — يميّز النوع بلا استعمال شارة كاملة. */
@@ -155,7 +161,7 @@ export default function NotificationsScreen() {
     return (
       <Screen padded={false}>
         {header}
-        <LoadingState label="جارٍ تحميل التنبيهات…" />
+        <SkeletonList count={4} />
       </Screen>
     )
   }
@@ -172,7 +178,7 @@ export default function NotificationsScreen() {
   return (
     <Screen padded={false}>
       {header}
-      <FlatList
+      <FlashList
         data={notifications}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}

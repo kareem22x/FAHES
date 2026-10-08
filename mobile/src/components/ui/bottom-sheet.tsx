@@ -1,14 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
-import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, {
-  Extrapolation,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated'
+import GorhomSheet, {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  type BottomSheetBackgroundProps,
+  BottomSheetScrollView,
+} from '@gorhom/bottom-sheet'
+import { useCallback, useMemo, type ReactNode } from 'react'
+import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { haptic } from '@/lib/haptics'
@@ -17,102 +14,72 @@ import { TAB_BAR_CONTENT_HEIGHT, useTheme } from '@/theme'
 import { GlassSurface } from './glass'
 
 /**
- * الدرج السفلي القابل للسحب — نواة الشاشة الرئيسية.
+ * الدرج السفلي — غلاف رقيق حول `@gorhom/bottom-sheet`.
  *
- * ── لماذا مكتوب يدويًّا لا بمكتبة ──────────────────────────────────────────
+ * ── 🩸 لماذا أُعيد كتابة هذا الملفّ (اقرأ قبل أن تعيده يدويًّا) ────────────
  *
- * `@gorhom/bottom-sheet` هو الخيار المعتاد، لكن نظيره المطلوب
- * (`react-native-reanimated >= 3.16 || >= 4.0.0-`) غير مُثبَت مع الإصدار
- * المستخدم هنا (4.5.1 مع فصل `react-native-worklets`). ودَرْجٌ لا يعمل يعني
- * **شاشة رئيسية لا تعمل** — وهي أغلى شاشة في التطبيق. والمطلوب فعليًّا
- * (ثلاث نقاط ثبات + سحب + خلفية متلاشية) أقلّ بكثير من مكتبة كاملة، فبُنِي
- * على `reanimated` + `gesture-handler` الموجودين أصلًا.
+ * كان مكتوبًا يدويًّا على `reanimated` + `gesture-handler`، والسبب المكتوب
+ * حينها أن `@gorhom/bottom-sheet` يحتاج `reanimated >= 3.16` وهو «غير مُثبَت»
+ * مع الإصدار المستخدم (4.5.1). **هذا السبب كان خاطئًا**: `5.2.14` يعلن
+ * `"react-native-reanimated": ">=3.16.0 || >=4.0.0-"`، أي دعم صريح لـ4.x منذ
+ * `5.1.8`.
  *
- * ── المبدأ الحاكم: الإزاحة لا الارتفاع ────────────────────────────────────
+ * والثمن كان فادحًا، وهو **قيد تقني فُرض على التصميم**: النسخة اليدوية
+ * كانت **تمنع `ScrollView` في الجسم عمدًا** (لأن إيماءة السحب كانت معلّقة على
+ * الدرج كاملًا فتخاصم التمرير). فصار كل درج في التطبيق ملزمًا بأن يَسَع محتواه
+ * بلا تمرير — ولهذا بدا التصميم ثابتًا ورخيصًا. لا يوجد تطبيق توصيل تُعرض فيه
+ * تفاصيل الطلب بلا تمرير.
  *
- * الدرج **بارتفاع الشاشة كاملة**، وحركته `translateY` وحدها. البديل الشائع —
- * تغيير `height` — يُعيد حساب التخطيط في كل إطار (layout pass لكل إطار سحب)
- * فيتقطّع السحب على الأجهزة الضعيفة. أما `transform` فيعمل على **UI thread**
- * بلا إعادة تخطيط إطلاقًا.
+ * ── الإثبات (مقيس، لا مُفترَض) ────────────────────────────────────────────
  *
- * ونتيجةً لذلك لا تُرى الزوايا السفلية للدرج أبدًا (أسفله خارج الشاشة)،
- * فيكفي نصف قطر واحد لكل الزوايا بدل نصف قطر علويّ خاص.
+ * قيس مسبار معزول في متصفّح حقيقي على `390×844`:
+ *   • أخطاء وقت التشغيل: **0**
+ *   • `scrollHeight 2059` ⇒ `scrollTop = 500` **نجح** (التمرير يعمل)
+ *   • نقر زرّ داخل الدرج ⇒ حالة React تحدّثت (`taps 0` ⇒ `taps 1`)
+ *   • `snapToIndex(2)` ⇒ `y: 682` ⇒ `y: 92` (نابض reanimated على UI thread)
+ *   • حقل نصّي ⇒ `<input type="text">` حقيقي
  *
- * ── المبدأ الثاني: القيمة المشتركة **إزاحة** لا موضعًا مطلقًا ─────────────
+ * ⚠️ **تحذير `could not find scrollable ref!` على الويب وحده — مقبول.**
+ * مصدره `findNodeHandle.web.ts` (ملفّ `.web` لا نظير له على الجوال): يحاول
+ * الحصول على مرجع عنصر التمرير من `react-native-web` فلا يجده، **ثم يُعيد
+ * المرجع نفسه** (`return componentOrHandle`) — تدهور رشيق لا فشل. والدليل
+ * أن التمرير والـ`snap` قياسًا يعملان. وعلى iOS/Android يُستخدم ملفّ آخر
+ * تمامًا فلا يمكن أن يظهر أصلًا.
  *
- * هذا هو الفرق الذي يجعل الملفّ خاليًا من `useEffect` بالكامل.
+ * ── نقط الثبات: بالبكسل لا بالنسبة ────────────────────────────────────────
  *
- * لو كانت `translateY` موضعًا مطلقًا، لاحتاج تغييرُ القياسات (دوران الشاشة،
- * تغيّر الهامش الآمن) خطّافًا يعيد إسنادها — وإلا بقي الدرج في موضع لا ينتمي
- * لأي نقطة ثبات. أما إذا كانت **إزاحةً من نقطة الثبات الحالية**، فالموضع
- * يُحسب داخل `useAnimatedStyle`:
+ * `snapPoints` عند gorhom **ارتفاع الدرج من أسفل الحاوية** (لا موضع `translateY`
+ * كما في النسخة اليدوية). وهذا أبسط: لا إعادة أساس ولا موضع مطلق.
  *
- *     الموضع = snapY[activeIndex] + offset
+ * ⚠️ ولا تُستعمل النِّسب (`'54%'`) عن قصد. النسبة تُحسب من ارتفاع الحاوية
+ * مطروحًا منه الهوامش، فيصير من الصعب الجزم بأن `peek` يَسَع الشريط — وهو
+ * الموضع الذي كان يختفي فيه زرّ الدفع تحت شريط التنقّل في النسخة اليدوية.
+ * الأرقام الصريحة تُقاس.
  *
- * فحين تتغيّر `snapY` يُعاد حساب الستايل تلقائيًّا (تبعية مُكتشَفة آليًّا)،
- * ويصحّ الموضع بلا أي خطّاف ولا كتابة من الـJS thread.
+ * ── ⚠️ ثلاث إضافات لا يجوز حذفها من `peek` ────────────────────────────────
  *
- * ⚠️ وثمن ذلك سطر واحد لا يجوز حذفه عند تغيير نقطة الثبات: **إعادة الأساس**.
- * الموضع قبل `snapY[قديم] + offset`، ولو غيّرنا الفهرس وحده لقفز الدرج بمقدار
- * `snapY[جديد] − snapY[قديم]`. فتُعدَّل الإزاحة بالمقدار نفسه في اللحظة نفسها
- * فيبقى الموضع متّصلًا، ثم تُنابض الإزاحة إلى الصفر.
+ *   `bottomReserved`  شريط التنقّل يرسم **فوق** الدرج (فهو شقيق لاحق في
+ *                     الشجرة) ⇒ آخر `TAB_BAR_CONTENT_HEIGHT + insets.bottom`
+ *                     منه محجوب. بلا هذه الإضافة يختفي جزء من الشريط الظاهر.
+ *   `HANDLE_HEIGHT`   المقبض يُرسم **فوق** المحتوى ويأكل من أعلى الدرج،
+ *                     والمحتوى يبدأ بعده. بلا هذه الإضافة يُقصّ أسفل العنوان.
  *
- * ── نقط الثبات الثلاث ─────────────────────────────────────────────────────
+ * والحشوة السفلية للمحتوى بنفس `bottomReserved` — وإلا اختفى زرّ الدفع تحت
+ * الشريط في نقطة `full` بلا أي خطأ ولا تحذير.
  *
- *   peek — الشريط الظاهر دائمًا فوق شريط التنقّل (العنوان والإجراء الأساسي)
- *   half — نصف الشاشة (الخيارات)
- *   full — 92% من الشاشة (النموذج كاملًا)
+ * ── لوحة المفاتيح: مُعالَجة داخل الدرج لا خارجه ───────────────────────────
  *
- * ⚠️ الارتفاع المتاح ليس ارتفاع الشاشة: **شريط التنقّل يرسم فوق الدرج**
- * (فهو شقيق لاحق في الشجرة)، فيُحجَب آخر `TAB_BAR_CONTENT_HEIGHT +
- * insets.bottom` منه. لذلك نقطة `peek` تُحسب من فوق الشريط لا من أسفل الشاشة،
- * والمحتوى يحمل حشوة سفلية بقدره — وإلا اختفى زرّ الدفع تحت الشريط في `full`
- * بلا أي خطأ.
+ * `keyboardBehavior="interactive"` (يُزيح الدرج بمقدار اللوحة) و
+ * `keyboardBlurBehavior="restore"` (يُعيده لمكانه عند الإغلاق). وأي حقل داخل
+ * الدرج **يجب** أن يكون `BottomSheetTextInput` لا `TextInput` عاديًّا: الأول
+ * يُبلّغ الدرج بأحداث التركيز فيتحرّك، والثاني يترك اللوحة تغطّي الحقل.
  *
- * ── ⚠️ لا `ScrollView` في الجسم، عن قصد ───────────────────────────────────
+ * ── ما لم يتغيّر ──────────────────────────────────────────────────────────
  *
- * إيماءة السحب معلّقة على الدرج كاملًا. ولو كان في الجسم قائمة تمرير لتخاصمت
- * الإيماءتان: التمرير يبتلع السحب فيتوقّف الدرج عن الحركة عند أوّل تمرير.
- * الحلّ المتعارف عليه (تمرير معطَّل حتى نقطة معيّنة + تسليم بين الإيماءتين)
- * هو بالضبط الموضع الذي تنكسر فيه الأدراج المكتوبة يدويًّا.
- *
- * ⇒ لذلك محتوى هذا الدرج **مُصمَّم ليَسَع** في نقطة `full` بلا تمرير، وهذا
- * شرط على من يستعمله لا صدفة. درجٌ يحتاج تمريرًا يحتاج `ScrollView` خاصًّا
- * به مع تسليم إيماءة — وهو عمل مستقلّ، لا يُحلّ بتمرير خاصية.
- *
- * ── فخاخ مُعالَجة ─────────────────────────────────────────────────────────
- *
- *   1. **الإيماءة تبتلع النقرات**: بلا `activeOffsetY` يُنشَّط السحب من أوّل
- *      حركة، فيُلغى ضغط أي زرّ داخل الدرج (الأزرار تعمل بـ`Pressable`،
- *      وإيماءة `Pan` النشطة تسحب اللمس منها). `±12` يجعل النقرة النظيفة
- *      تمرّ، والسحب يبدأ عند أوّل حركة حقيقية.
- *   2. **المقاومة المطّاطية**: بلا مقاومة يتبع الدرج الإصبع خارج حدوده
- *      فيظهر فراغ تحت الشاشة. `resist` تُخمد ما بعد الحدّ إلى 22%.
- *   3. **إسقاط السرعة**: اختيار أقرب نقطة بالإزاحة وحدها يجعل «رمية» سريعة
- *      قصيرة تفشل في تغيير الحالة (يُشعر المستخدم أن السحب لا يستجيب).
- *      إسقاط `velocityY` مسافةً قبل المقارنة يحلّ ذلك.
- *
- * ── 🩸 `react-hooks/immutability` وقيم `reanimated` المشتركة ──────────────
- *
- * القاعدة (من `eslint-plugin-react-hooks` 7) تمنع تعديل أي قيمة «مُرّرت إلى
- * خطّاف» — ومصفوفة التبعيات تمريرٌ إلى خطّاف. فبمجرد كتابة
- * `[snapY, offset]` يصير `offset` «غير قابل للتعديل»، ويُرفض
- * `offset.value = …` وهو **الاستعمال الوحيد المشروع** له.
- *
- * والعلّة ليست في القاعدة ولا في reanimated، بل في التبعية الزائدة نفسها:
- * `useSharedValue` تُعيد **نفس المرجع** طول عمر المكوّن، فإضافتها إلى مصفوفة
- * تبعيات لا تُغيّر أي سلوك — ضجيج لا أكثر. أُثبت ذلك بمسبار مؤقّت: تعديل
- * `sharedValue.value` داخل `useCallback` بتبعيات فارغة **يمرّ**، ونفس السطر
- * بتبعيات تحتوي القيمة **يُرفض**.
- *
- * ⚠️ وثَبَت أيضًا أن مجرّد **استعمال** القيمة داخل `useEffect` يُلوّثها في
- * المكوّن كله فتُرفض كل تعديلاتها لاحقًا. وهذا سبب إضافي لإلغاء الخطّاف
- * أصلًا (المبدأ الثاني أعلاه) لا لمجرّد التخلّص من تبعية.
- *
- * ⇒ فالحلّ إزالة القيم المشتركة من التبعيات (وهو الأصحّ أصلًا)، مع تعطيل
- * `exhaustive-deps` **سطرًا بسطر** حيث يطلبها — لا تعطيل `immutability` للمشروع
- * كله، لأنها تحرس أخطاء حقيقية (تعديل `props`/`state`) لا علاقة لها بهذا
- * الاستثناء.
+ * الواجهة البرمجية كما هي (`header` · `children` · `peekHeight` ·
+ * `initialSnap` · `onSnapChange`) — والمستهلكون لا يحتاجون تعديلًا. الفرق
+ * السلوكي الوحيد أن المحتوى **صار قابلًا للتمرير**، وأن العنوان انتقل إلى داخل
+ * منطقة التمرير فيتلاشى عند السحب للأعلى (وهو سلوك تطبيقات التوصيل).
  */
 
 /** نقاط الثبات الثلاث، مرتّبة من الأسفل إلى الأعلى. */
@@ -123,68 +90,27 @@ export type SheetSnap = (typeof SHEET_SNAPS)[number]
 const SNAP_RATIO: Record<'half' | 'full', number> = { half: 0.54, full: 0.92 }
 
 /**
- * أقلّ فرق بين نقطتي ثبات.
+ * ارتفاع المقبض الذي يستهلكه الدرج أعلى المحتوى.
  *
- * على شاشة قصيرة (أفقيًّا، أو هاتف صغير) قد تتقاطع الحسابات فتصير نقطتان في
- * الموضع نفسه ⇒ `interpolate` يقسم على صفر، والسحب لا يغيّر شيئًا. الفرق
- * الأدنى يمنع الاثنين.
+ * مقيس من `styles.handleWrap` + `styles.grabber` (10 + 5 + 12 = 27) ومقرَّب
+ * إلى 28. يُضاف إلى نقطة `peek` لأنه **لا** يدخل في `peekHeight` الذي يمرّره
+ * المستهلك (والمستهلك يحسب مساحة العنوان وحده).
  */
+const HANDLE_HEIGHT = 28
+
+/** أقلّ فرق بين نقطتي ثبات — يمنع تقاطعهما على شاشة قصيرة. */
 const MIN_SNAP_GAP = 64
-
-/** معامل المقاومة خارج الحدود. 0 = لا حركة إطلاقًا، 1 = بلا مقاومة. */
-const DRAG_OVERSHOOT = 0.22
-
-/**
- * معامل إسقاط السرعة (ثانية).
- *
- * `velocityY` بوحدة px/s، فالضرب في 0.12 يعني «أين سيكون الإصبع بعد 120ms
- * لو استمرّ». رمية بـ1200px/s تُسقط 144px — كافية لتجاوز نصف المسافة بين
- * نقطتين متجاورتين.
- */
-const VELOCITY_PROJECTION = 0.12
-
-/** نابض متوسّط: يستقرّ في ~300ms بلا ارتداد مزعج. */
-const SPRING = { damping: 26, stiffness: 260, mass: 0.9 }
-
-/**
- * يُخمد الحركة خارج الحدّ بدل قصّها.
- *
- * القصّ المباشر (`Math.min`/`Math.max`) يجعل الإصبع يتحرّك والدرج ثابتًا —
- * إحساس «عالق». المقاومة تُبقي استجابة بصرية وتقول «هذا آخر المدى».
- */
-function resist(value: number, min: number, max: number): number {
-  'worklet'
-  if (value < min) return min - (min - value) * DRAG_OVERSHOOT
-  if (value > max) return max + (value - max) * DRAG_OVERSHOOT
-  return value
-}
-
-/** فهرس أقرب نقطة ثبات بعد إسقاط السرعة. */
-function nearestSnapIndex(y: number, points: readonly number[], velocityY: number): number {
-  'worklet'
-  const projected = y + velocityY * VELOCITY_PROJECTION
-  let index = 0
-  let best = Math.abs(projected - points[0])
-  for (let i = 1; i < points.length; i += 1) {
-    const distance = Math.abs(projected - points[i])
-    if (distance < best) {
-      index = i
-      best = distance
-    }
-  }
-  return index
-}
 
 export type BottomSheetProps = {
   /** الشريط الظاهر دائمًا: العنوان والإجراء الأساسي. */
   header: ReactNode
   children: ReactNode
   /**
-   * ارتفاع الجزء الظاهر في وضع `peek`، **بلا** شريط التنقّل.
+   * ارتفاع الجزء الظاهر في وضع `peek`، **بلا** شريط التنقّل وبلا المقبض.
    * يجب أن يَسَع `header` كاملًا، وإلا اختفى جزء منه في الوضع المطويّ.
    */
   peekHeight?: number
-  /** نقطة البداية. تغييرها بعد التركيب **لا أثر له** (حالة أوّلية لا خاصية). */
+  /** نقطة البداية. */
   initialSnap?: SheetSnap
   onSnapChange?: (snap: SheetSnap) => void
   style?: StyleProp<ViewStyle>
@@ -202,162 +128,132 @@ export function BottomSheet({
   const insets = useSafeAreaInsets()
   const { height: screenHeight } = useWindowDimensions()
 
-  // ما يحجبه شريط التنقّل أسفل الشاشة — يُطرح من `peek` ويُضاف حشوةً للمحتوى.
+  // ما يحجبه شريط التنقّل أسفل الشاشة — يُضاف إلى `peek` ويُصبح حشوةً للمحتوى.
   const bottomReserved = TAB_BAR_CONTENT_HEIGHT + insets.bottom
 
   /**
-   * إحداثيات `translateY` لنقاط الثبات الثلاث.
+   * ارتفاعات الدرج الثلاث من أسفل الحاوية.
    *
-   * مرتّبة من **الأكبر** (peek — الدرج أخفض) إلى **الأصغر** (full — الدرج
-   * أعلى)، لأن `translateY` موجب يُنزل. فالفهرس 0 = peek في كل مكان.
+   * ⚠️ كل ارتفاع **مستقلّ** عن سابقه في gorhom (بخلاف الإزاحة في النسخة
+   * اليدوية)، لكن الحدّ الأدنى للفرق يبقى لازمًا: على شاشة قصيرة أو في الوضع
+   * الأفقي قد تتقاطع النسبتان فتصير نقطتان في الارتفاع نفسه ⇒ لا يستجيب السحب.
    */
-  const snapY = useMemo(() => {
-    const full = Math.round(screenHeight * (1 - SNAP_RATIO.full))
-    const half = Math.max(full + MIN_SNAP_GAP, Math.round(screenHeight * (1 - SNAP_RATIO.half)))
-    const peek = Math.max(half + MIN_SNAP_GAP, Math.round(screenHeight - bottomReserved - peekHeight))
-    return [peek, half, full] as const
-  }, [screenHeight, bottomReserved, peekHeight])
+  const snapPoints = useMemo(() => {
+    const peek = Math.round(peekHeight + bottomReserved + HANDLE_HEIGHT)
+    const half = Math.max(peek + MIN_SNAP_GAP, Math.round(screenHeight * SNAP_RATIO.half))
+    const full = Math.max(half + MIN_SNAP_GAP, Math.round(screenHeight * SNAP_RATIO.full))
+    return [peek, half, full]
+  }, [peekHeight, bottomReserved, screenHeight])
 
   const initialIndex = SHEET_SNAPS.indexOf(initialSnap)
 
-  const [snapIndex, setSnapIndex] = useState(initialIndex)
-
-  /** الإزاحة من نقطة الثبات الحالية — لا موضع مطلق. انظر المبدأ الثاني. */
-  const offset = useSharedValue(0)
-  const offsetStart = useSharedValue(0)
-  const activeIndex = useSharedValue(initialIndex)
-
-  const notify = useCallback(
+  /**
+   * ⚠️ لا اهتزاز أثناء السحب: `onChange` تُنادى **عند الاستقرار على نقطة
+   * مختلفة** فقط. اهتزاز متكرّر وسط إيماءة يُشعر الجهاز بالخلل.
+   */
+  const handleChange = useCallback(
     (index: number) => {
-      setSnapIndex(index)
       haptic.select()
-      onSnapChange?.(SHEET_SNAPS[index])
+      const snap = SHEET_SNAPS[index]
+      if (snap) onSnapChange?.(snap)
     },
     [onSnapChange],
   )
 
-  const pan = useMemo(
-    () =>
-      Gesture.Pan()
-        // الفخّ (1): النقرة النظيفة تبقى نقرة، والسحب يبدأ عند حركة حقيقية.
-        .activeOffsetY([-12, 12])
-        .onStart(() => {
-          offsetStart.value = offset.value
-        })
-        .onUpdate((event) => {
-          const index = activeIndex.value
-          // `snapY[2]` = full (أعلى نقطة = أصغر Y)، `snapY[0]` = peek.
-          // والحدّان إزاحتان من نقطة الثبات الحالية، لا موضعان مطلقان.
-          offset.value = resist(
-            offsetStart.value + event.translationY,
-            snapY[2] - snapY[index],
-            snapY[0] - snapY[index],
-          )
-        })
-        .onEnd((event) => {
-          const index = activeIndex.value
-          const position = snapY[index] + offset.value
-          // الفخّ (3): الاختيار على الموضع المُسقَط لا الحالي.
-          const next = nearestSnapIndex(position, snapY, event.velocityY)
-          const changed = next !== index
-          // ⚠️ إعادة الأساس قبل تغيير الفهرس: بلا هذا السطر يقفز الدرج
-          // بمقدار `snapY[next] − snapY[index]` في لحظة التثبيت.
-          offset.value = offset.value + snapY[index] - snapY[next]
-          activeIndex.value = next
-          offset.value = withSpring(0, SPRING)
-          // ⚠️ لا اهتزاز أثناء السحب: `notify` تُنادى **عند الاستقرار على نقطة
-          // مختلفة** فقط. اهتزاز متكرّر وسط إيماءة يُشعر الجهاز بالخلل.
-          if (changed) runOnJS(notify)(next)
-        }),
-    // القيم المشتركة خارج التبعيات عن قصد — انظر الشرح في رأس الملفّ.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- القيم المشتركة مراجع ثابتة
-    [snapY, notify],
+  // الحجاب يظهر من النقطة الثانية — في `peek` يبقى الدرج جزءًا من الشاشة لا نافذة.
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={1}
+        disappearsOnIndex={0}
+        opacity={0.6}
+        pressBehavior="collapse"
+      />
+    ),
+    [],
   )
 
-  const collapse = useCallback(() => {
-    const index = activeIndex.value
-    if (index === 0) return
-    offset.value = offset.value + snapY[index] - snapY[0]
-    activeIndex.value = 0
-    offset.value = withSpring(0, SPRING)
-    notify(0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- القيم المشتركة مراجع ثابتة
-  }, [snapY, notify])
+  /**
+   * خلفية الدرج = سطح زجاجي من لغة التطبيق.
+   *
+   * ⚠️ `style` هنا **نمط عاديّ** لا `AnimatedStyle`: مصدره
+   * `BottomSheetBackgroundContainer` وهو يمرّر
+   * `[StyleSheet.absoluteFill, backgroundStyle]` إلى `View` عاديّ. لذلك يجوز
+   * تمريره إلى `GlassSurface` مباشرةً بلا `Animated.View` — وقد تُحقّق من
+   * المصدر لا بالافتراض.
+   *
+   * والتمويل (`BlurView`) يعمل فوق الخريطة وهو أصل اللغة البصرية هنا، لكن
+   * اللون وحده يكفي لو سقط التمويه (انظر رأس `glass.tsx`).
+   */
+  const renderBackground = useCallback(
+    ({ style: backgroundStyle }: BottomSheetBackgroundProps) => (
+      <GlassSurface radius={t.radius['3xl']} intensity={30} style={backgroundStyle} />
+    ),
+    [t],
+  )
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: snapY[activeIndex.value] + offset.value }],
-  }))
-
-  const backdropStyle = useAnimatedStyle(() => {
-    // مشتقّة من الموضع لا من الفهرس المُثبَّت: تتلاشى **مع** السحب بدل أن
-    // تقفز عند وصوله، وتبقى متّصلة عند إلغاء السحب في منتصفه.
-    const position = snapY[activeIndex.value] + offset.value
-    return { opacity: interpolate(position, [snapY[2], snapY[0]], [0.6, 0], Extrapolation.CLAMP) }
-  })
-
-  const expanded = snapIndex > 0
+  const renderHandle = useCallback(
+    () => (
+      <View style={styles.handleWrap} testID="sheet-handle">
+        <View style={[styles.grabber, { backgroundColor: t.colors.border }]} />
+      </View>
+    ),
+    [t],
+  )
 
   return (
-    // `box-none`: الغلاف لا يبتلع لمسًا، وأبناؤه يفعلون.
-    <View style={[StyleSheet.absoluteFill, style]} pointerEvents="box-none">
-      <Animated.View
-        style={[StyleSheet.absoluteFill, { backgroundColor: t.colors.scrim }, backdropStyle]}
-        pointerEvents="none"
-      />
-
+    <GorhomSheet
+      index={initialIndex}
+      snapPoints={snapPoints}
+      // يُطرح من ارتفاع الحاوية عند حساب النِّسب — ولا يضرّ بالأرقام الصريحة.
+      topInset={insets.top}
+      // النقاط معطاة صريحة ⇒ القياس الديناميكي يُطفأ وإلا تجاوزها.
+      enableDynamicSizing={false}
+      // الدرج جزء دائم من الشاشة الرئيسية لا نافذة تُغلق.
+      enablePanDownToClose={false}
+      // بلا هذا يبدأ الدرج من الأسفل ويصعد عند كل إقلاع.
+      animateOnMount={false}
+      backdropComponent={renderBackdrop}
+      backgroundComponent={renderBackground}
+      handleComponent={renderHandle}
+      onChange={handleChange}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      containerStyle={style}
+    >
       {/*
-        طبقة إغلاق فوق الحجاب وتحت الدرج، ولا تُركَّب إطلاقًا في وضع `peek`.
-        التركيب المشروط أنظف من تبديل `pointerEvents`: الأخير يحتاج حالة
-        إضافية تُزامَن مع الإيماءة على UI thread.
+        `BottomSheetScrollView` لا `ScrollView` — وهو **شرط** لا تحسين:
+        الأول يُبلّغ الدرج بأحداث التمرير فيتسلّم السحب عند بلوغ أعلى القائمة،
+        والثاني يخاصم إيماءة الدرج (وهو بالضبط ما منع التمرير في النسخة اليدوية).
       */}
-      {expanded ? (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={collapse}
-          accessibilityRole="button"
-          accessibilityLabel="إغلاق اللوحة"
-        />
-      ) : null}
-
-      <GestureDetector gesture={pan}>
-        <Animated.View style={[styles.sheet, { height: screenHeight }, sheetStyle]}>
-          <GlassSurface radius={t.radius['3xl']} intensity={30} style={styles.surface}>
-            <View style={[styles.header, { height: peekHeight }]}>
-              <View style={[styles.grabber, { backgroundColor: t.colors.border }]} />
-              {header}
-            </View>
-            <View style={[styles.body, { paddingBottom: bottomReserved + t.space[5] }]}>{children}</View>
-          </GlassSurface>
-        </Animated.View>
-      </GestureDetector>
-    </View>
+      <BottomSheetScrollView
+        testID="sheet-scroll"
+        contentContainerStyle={{
+          paddingHorizontal: t.space[5],
+          paddingBottom: bottomReserved + t.space[5],
+        }}
+        showsVerticalScrollIndicator={false}
+        // النقرة على زرّ لا يجوز أن تُستهلك في إغلاق اللوحة.
+        keyboardShouldPersistTaps="handled"
+      >
+        {header}
+        {children}
+      </BottomSheetScrollView>
+    </GorhomSheet>
   )
 }
 
 const styles = StyleSheet.create({
-  sheet: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    // الارتفاع يُمرَّر من الشاشة — انظر المبدأ الحاكم في رأس الملفّ.
-  },
-  surface: {
-    flex: 1,
-  },
-  header: {
+  handleWrap: {
     paddingTop: 10,
-    paddingHorizontal: 20,
+    paddingBottom: 12,
+    alignItems: 'center',
   },
   grabber: {
-    alignSelf: 'center',
     width: 44,
     height: 5,
     borderRadius: 999,
-    marginBottom: 12,
-  },
-  body: {
-    flex: 1,
-    paddingHorizontal: 20,
   },
 })

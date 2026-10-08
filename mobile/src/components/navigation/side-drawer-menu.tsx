@@ -1,4 +1,5 @@
 import { useUser } from '@clerk/clerk-expo'
+import { Image } from 'expo-image'
 import { usePathname, useRouter } from 'expo-router'
 import {
   Bell,
@@ -10,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 import { useState } from 'react'
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 
 import { GlassSurface } from '@/components/ui/glass'
 import { AppText } from '@/components/ui/text'
@@ -98,7 +99,13 @@ export function SideDrawerMenu() {
       {/* ── البروفايل ───────────────────────────────────────────────────── */}
       <View style={[styles.profile, { paddingBottom: t.space[5] }]}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={[styles.avatar, { borderColor: t.colors.border }]} />
+          <Image
+            source={imageUrl}
+            style={[styles.avatar, { borderColor: t.colors.border }]}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={180}
+          />
         ) : (
           <View style={[styles.avatar, { backgroundColor: t.colors.accent, borderColor: t.colors.border }]}>
             <AppText variant="heading" weight="heavy" tone="onAccent">

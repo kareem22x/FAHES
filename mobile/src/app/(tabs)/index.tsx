@@ -144,7 +144,7 @@ export default function HomeScreen() {
           </View>
         }
       >
-        <View style={styles.body}>
+        <View>
           {/* ── الطلب الجاري: بطاقة ملخّص حقيقية ──────────────────────── */}
           {current ? (
             <Pressable
@@ -228,7 +228,7 @@ export default function HomeScreen() {
             })}
           </View>
 
-          {/* ── الإجراءات — مثبّتة في الأسفل ───────────────────────────── */}
+          {/* ── الإجراءات — آخر ما في منطقة التمرير ───────────────────── */}
           <View style={[styles.actions, { gap: t.space[3], paddingTop: t.space[5] }]}>
             {payable ? (
               <Pressable
@@ -295,7 +295,6 @@ const styles = StyleSheet.create({
   sheetHeader: { flex: 1, justifyContent: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   grow: { flex: 1, minWidth: 0 },
-  body: { flex: 1 },
   currentCard: { borderWidth: 1 },
   metaRow: { flexDirection: 'row', alignItems: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -310,6 +309,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     height: 48,
   },
-  actions: { marginTop: 'auto' },
+  actions: {},
   payRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1 },
 })

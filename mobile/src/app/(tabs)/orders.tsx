@@ -1,10 +1,11 @@
+import { FlashList } from '@shopify/flash-list'
 import { Car } from 'lucide-react-native'
 import { useCallback, useMemo } from 'react'
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native'
+import { RefreshControl, StyleSheet, View } from 'react-native'
 
 import { RequestCard } from '@/components/request-card'
 import { Screen } from '@/components/ui/screen'
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { EmptyState, ErrorState, SkeletonList } from '@/components/ui/states'
 import { AppText } from '@/components/ui/text'
 import { useSession } from '@/lib/auth'
 import { useCustomerRequests } from '@/hooks/use-requests'
@@ -14,10 +15,14 @@ import { useTheme } from '@/theme'
 /**
  * طلباتي — الشاشة الرئيسية للعميل.
  *
- * ── لماذا `FlatList` لا `ScrollView` ──────────────────────────────────────
+ * ── لماذا `FlashList` لا `FlatList` ولا `ScrollView` ──────────────────────────────────────
  *
- * `FlatList` تُنشئ الصفوف المرئية فقط. مع عشرات الطلبات يصير الفرق محسوسًا
- * على جهاز متوسط — و`ScrollView` ترسم الكل دفعة واحدة فتُجمّد الإقلاع.
+ * `ScrollView` ترسم الكل دفعة واحدة فتُجمّد الإقلاع. و`FlatList` تُنشئ المرئي
+ * فقط لكنها **تُبقي حاوية صفوف لكل عنصر مرّ** وتُعيد بناء القياس عند كل تمرير.
+ * و`FlashList` v2 تُعيد تدوير الخلايا (recycling) فلا يتراكم شيء.
+ *
+ * ⚠️ **v2 حذفت `estimatedItemSize`** — وهي في كل مثال قديم على الإنترنت.
+ * تمريرها خطأ نوع في `tsc` لا صمت، ولا حاجة لها: v2 تقيس بنفسها.
  *
  * ── الترتيب ───────────────────────────────────────────────────────────────
  *
@@ -62,11 +67,12 @@ export default function OrdersScreen() {
     [],
   )
 
-  // أول تحميل: هيكل بدل شاشة فارغة.
+  // أول تحميل: هيكل بشكل الطلبات نفسها — لا مؤشّر دوّار.
+  // الهيكل يقول «هذا ما سيظهر»، والمؤشّر يقول «انتظر» فقط.
   if (loading) {
     return (
-      <Screen>
-        <LoadingState label="جارٍ تحميل طلباتك…" />
+      <Screen padded={false} edges={{ top: true }}>
+        <SkeletonList count={4} />
       </Screen>
     )
   }
@@ -82,7 +88,7 @@ export default function OrdersScreen() {
 
   return (
     <Screen padded={false} edges={{ top: true }}>
-      <FlatList
+      <FlashList
         data={sorted}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
