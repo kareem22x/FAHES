@@ -24,11 +24,25 @@ import { I18nManager, Platform } from 'react-native'
  * ── الويب ─────────────────────────────────────────────────────────────────
  *
  * `I18nManager` لا يفعل شيئًا على الويب (`react-native-web` يتجاهله)، والاتجاه
- * هناك يأتي من `dir="rtl"` في المستند. لذلك لا نُنادي شيئًا على الويب بدل
- * إيهام القارئ بأن النداء يعمل.
+ * هناك يأتي من `dir` في المستند. فبدل ترك الويب LTR — وهو ما يجعل المعاينة
+ * **لا تشبه المنتج**: `flexDirection: 'row'` لا يُقلب، فتنفصل نقطة القائمة عن
+ * نصّها، و`text-align: start` يصير يسارًا — نضبط `dir="rtl"` هنا.
+ *
+ * ⚠️ **هذا ليس ترفًا تجميليًّا**: هدف الويب هو الوسيلة الوحيدة لمعاينة الواجهة
+ * بلا محاكي، ومعاينة تُظهر اتجاهًا مخالفًا تُخفي أخطاء التخطيط الحقيقية
+ * وتُظهر أخطاء وهمية. فبضبطه تصير المعاينة مرآة صادقة للجهاز.
+ *
+ * و`lang="ar"` معه: يُصلح تشكيل الأرقام واختيار الخط الاحتياطي في المتصفح.
  */
 export function enforceRTL(): void {
-  if (Platform.OS === 'web') return
+  if (Platform.OS === 'web') {
+    // `document` غير معرَّف في العرض على الخادم (SSR) ⇒ الفحص لازم.
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('dir', 'rtl')
+      document.documentElement.setAttribute('lang', 'ar')
+    }
+    return
+  }
 
   // `allowRTL` قبل `forceRTL`: الثانية بلا الأولى لا تفعل شيئًا على أندرويد.
   I18nManager.allowRTL(true)
@@ -42,5 +56,8 @@ export function enforceRTL(): void {
  * تحميل واحدة ليقلب. مفيدة في سجل الإقلاع، ولا يبنى عليها أي قرار عرض.
  */
 export function isRTLEffective(): boolean {
-  return Platform.OS !== 'web' && I18nManager.isRTL
+  if (Platform.OS === 'web') {
+    return typeof document !== 'undefined' && document.documentElement.getAttribute('dir') === 'rtl'
+  }
+  return I18nManager.isRTL
 }

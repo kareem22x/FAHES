@@ -1,6 +1,15 @@
 import { useColorScheme } from 'react-native'
 
-import { darkPalette, lightPalette, statusTones, type Palette, type StatusTone, type ToneColors } from './colors'
+import {
+  darkPalette,
+  feedbackTones,
+  lightPalette,
+  statusTones,
+  type FeedbackTone,
+  type Palette,
+  type StatusTone,
+  type ToneColors,
+} from './colors'
 import { fontFamily } from './fonts'
 import { duration, fontSize, fontWeight, hitTarget, lineHeight, radius, shadow, space } from './tokens'
 
@@ -23,6 +32,12 @@ export type Theme = {
   colors: Palette
   /** ألوان شارات الحالة — تتبع الوضع تلقائيًّا. */
   tones: Record<StatusTone, ToneColors>
+  /**
+   * ألوان الرسائل (خطأ · نجاح · معلومة) — **للنصوص والأسطح** لا للحدود
+   * المشبعة. انظر `colors.ts`: `colors.error` تباينه 3.2:1 على السطح الداكن،
+   * وهذه الدرجات مصحَّحة لتتجاوز 4.5:1.
+   */
+  feedback: Record<FeedbackTone, ToneColors>
   font: typeof fontFamily
   fontSize: typeof fontSize
   lineHeight: typeof lineHeight
@@ -41,6 +56,7 @@ function buildTheme(mode: ThemeMode): Theme {
     mode,
     colors: mode === 'dark' ? darkPalette : lightPalette,
     tones: statusTones[mode],
+    feedback: feedbackTones[mode],
     font: fontFamily,
     fontSize,
     lineHeight,

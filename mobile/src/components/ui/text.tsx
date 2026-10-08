@@ -77,17 +77,21 @@ export function AppText({
   const resolvedWeight = weight ?? spec.weight
   const family = t.font[resolvedWeight]
 
+  // ⚠️ `success`/`warning`/`error` تأخذ من `t.feedback` **لا** من `t.colors`:
+  // القيم الخام هناك مشبعة وتصلح للحدود والأيقونات، لكن تباينها كنصّ على
+  // السطح الداكن 3.2:1 (القياس في `theme/colors.ts`) ⇒ غير مقروءة. ومن يريد
+  // اللون الخام للحدّ أو الأيقونة يستعمله من `t.colors` مباشرةً.
   const color =
     tone === 'muted'
       ? t.colors.textMuted
       : tone === 'accent'
         ? t.colors.accent
         : tone === 'success'
-          ? t.colors.success
+          ? t.feedback.success.text
           : tone === 'warning'
-            ? t.colors.warning
+            ? t.feedback.warning.text
             : tone === 'error'
-              ? t.colors.error
+              ? t.feedback.error.text
               : tone === 'onAccent'
                 ? t.colors.onAccent
                 : t.colors.text

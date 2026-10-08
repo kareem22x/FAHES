@@ -150,3 +150,48 @@ export const statusTones = {
   light: lightTones,
   dark: darkTones,
 } as const
+
+/**
+ * ألوان التغذية الراجعة — خطأ · نجاح · معلومة.
+ *
+ * ── المشكلة التي تحلّها (مقيسة لا مُفترَضة) ────────────────────────────────
+ *
+ * `--color-error: #bf3b2c` **لا يُعاد توجيهه في الوضع الداكن** على الويب
+ * (`theme-dark.css` يعيد توجيه `text-muted` و`border` و`border-light` فقط)،
+ * و`darkPalette` ينقله كما هو حفاظًا على التطابق.
+ *
+ * والنتيجة أن نصًّا بلون الخطأ على سطح داكن يعطي تباينًا:
+ *   • `#bf3b2c` على `#111a2b` ⇒ **3.2:1**  (المطلوب لـWCAG AA: 4.5:1)
+ *   • `#bf3b2c` على `#0b1220` ⇒ **3.5:1**
+ * أي أن رسالة خطأ في الوضع الداكن **يصعب قراءتها** — وهي بالضبط الرسالة التي
+ * لا يجوز أن تُفوَّت. والمشكلة نفسها في `success` و`warning`.
+ *
+ * ── القاعدة ───────────────────────────────────────────────────────────────
+ *
+ * `colors.error/success/warning` تبقى **القيم الخام** — صحيحة للحدود
+ * والأيقونات والرسوم (لون مشبع على مساحة صغيرة).
+ * أما **النصّ** فيأخذ من هنا، حيث لكل وضع درجته المقروءة.
+ *
+ * ⚠️ هذه المجموعة **جديدة في التطبيق ولا نظير لها في الويب** — بنفس وضع
+ * `darkTones` أعلاه. أُضيفت بعد قياس التباين لا بالذوق.
+ * (نصوص الوضع الداكن فُتِّحت حتى تتجاوز 4.5:1 على خلفياتها.)
+ */
+export type FeedbackTone = 'error' | 'success' | 'warning' | 'info'
+
+export const feedbackTones: Record<'light' | 'dark', Record<FeedbackTone, ToneColors>> = {
+  light: {
+    // `#a92f22` أغمق من `#bf3b2c` عن قصد ⇒ 6.3:1 على `#f5f8fd` بدل 4.2:1.
+    error: { background: '#fdecea', border: '#f7cfc9', text: '#a92f22' },
+    success: { background: accentRamp.mint100, border: '#c4e6d6', text: accentRamp.mint600 },
+    // `#8a5a12` بدل `accentRamp.amber600` (`#b0741b`): الأخير يعطي 3.7:1 فقط
+    // على الخلفية الفاتحة — وهو لون شارة لا لون نصّ.
+    warning: { background: accentRamp.amber100, border: '#f0dfbc', text: '#8a5a12' },
+    info: { background: brandRamp[50], border: brandRamp[100], text: brandRamp[700] },
+  },
+  dark: {
+    error: { background: '#3a1a17', border: '#6b2c25', text: '#ffb3a7' },
+    success: { background: '#10352a', border: '#1c5a45', text: '#7ee2b8' },
+    warning: { background: '#3a2c12', border: '#5c451c', text: '#f0c274' },
+    info: { background: '#152648', border: '#274b8f', text: '#a8c8ff' },
+  },
+}

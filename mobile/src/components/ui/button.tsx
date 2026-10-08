@@ -54,19 +54,47 @@ export function Button({
 
   const isInert = disabled || loading
 
+  /**
+   * ⚠️ `disabled` و`loading` ليسا الحالة نفسها وإن كان كلاهما يمنع الضغط.
+   *
+   * • `loading` = العمل جارٍ ⇒ الزرّ يبقى بلون الهوية ويُعرض مؤشّر مكان النصّ.
+   * • `disabled` = لا شيء ليُفعَل بعد ⇒ خلفية **محايدة** ونصّ خافت.
+   *
+   * ولماذا لا تكفي `opacity` وحدها؟ لأن تخفيف شفافية خلفية الهوية يُنتج أزرق
+   * باهتًا بنصّ أبيض — تباين ضعيف جدًّا في الوضع الفاتح. رُصد ذلك في لقطة
+   * حقيقية لشاشة الدخول: زرّ «أرسل رمز التحقق» قبل كتابة البريد كان نصّه
+   * شبه غير مقروء. الخلفية المحايدة تقول «غير متاح» بلا أن تفقد النصّ.
+   */
+  const isDisabled = disabled && !loading
+  const isFilled = variant === 'primary' || variant === 'danger'
+
   const background =
-    variant === 'primary'
-      ? t.colors.accent
-      : variant === 'danger'
-        ? t.colors.error
-        : variant === 'secondary'
-          ? t.colors.surface
-          : 'transparent'
+    isDisabled && isFilled
+      ? t.colors.skeleton
+      : variant === 'primary'
+        ? t.colors.accent
+        : variant === 'danger'
+          ? t.colors.error
+          : variant === 'secondary'
+            ? t.colors.surface
+            : 'transparent'
 
   const borderColor =
-    variant === 'secondary' ? t.colors.border : variant === 'ghost' ? 'transparent' : background
+    isDisabled && isFilled
+      ? t.colors.skeleton
+      : variant === 'secondary'
+        ? t.colors.border
+        : variant === 'ghost'
+          ? 'transparent'
+          : background
 
-  const labelTone = variant === 'primary' || variant === 'danger' ? 'onAccent' : variant === 'ghost' ? 'accent' : 'default'
+  const labelTone = isDisabled
+    ? 'muted'
+    : variant === 'primary' || variant === 'danger'
+      ? 'onAccent'
+      : variant === 'ghost'
+        ? 'accent'
+        : 'default'
 
   return (
     <Pressable
@@ -85,10 +113,14 @@ export function Button({
           borderColor,
           borderWidth: variant === 'secondary' ? 1 : 0,
           borderRadius: t.radius.sm,
-          opacity: isInert ? 0.55 : pressed ? 0.88 : 1,
+          // `loading` يخفت قليلًا فقط (الزرّ ما زال فعلًا جاريًا)؛ أما
+          // `disabled` فقد صار رماديًّا محايدًا فلا يحتاج تخفيفًا آخر.
+          opacity: loading ? 0.85 : pressed ? 0.88 : 1,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
         },
-        variant === 'primary' ? t.shadow.brand : null,
+        // ظلّ الهوية الملوّن للزرّ **الفعّال** وحده: ظلّ أزرق تحت خلفية رمادية
+        // يبدو خطأً — الزرّ المعطَّل ليس مرتفعًا عن السطح.
+        variant === 'primary' && !isInert ? t.shadow.brand : null,
         style,
       ]}
     >
