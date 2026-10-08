@@ -5,9 +5,12 @@ import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import { SideDrawer, SideDrawerProvider } from '@/components/navigation/side-drawer'
+import { SideDrawerMenu } from '@/components/navigation/side-drawer-menu'
 import { AppAuthProvider } from '@/lib/auth'
 import { assertEnv } from '@/lib/env'
 import { enforceRTL } from '@/lib/rtl'
+import { applyWebInputChrome } from '@/lib/web-input'
 import { useAppFonts } from '@/theme/fonts'
 import { useTheme } from '@/theme'
 
@@ -21,6 +24,9 @@ import { useTheme } from '@/theme'
  *   2. `SplashScreen.preventAutoHideAsync()` — قبل أول رسم، وإلا وميض شاشة
  *      بيضاء بين شاشة البداية والواجهة.
  *   3. `assertEnv()` — يشتكي مبكرًا على إعداد خاطئ بدل رسالة غامضة من Clerk.
+ *   4. `applyWebInputChrome()` — ورقة أنماط الويب (`touch-action: manipulation`
+ *      وإلغاء اختيار النصّ). على مستوى الوحدة مثل `enforceRTL` لأنه ضبط مستند
+ *      لا حالة واجهة، ولا يخصّ الجهاز (انظر رأس `lib/web-input.ts`).
  *
  * ── ترتيب المزوّدات ───────────────────────────────────────────────────────
  *
@@ -30,6 +36,7 @@ import { useTheme } from '@/theme'
  */
 
 enforceRTL()
+applyWebInputChrome()
 assertEnv()
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -110,17 +117,34 @@ function ThemedNavigator() {
   return (
     <ThemeProvider value={navTheme}>
       <StatusBar style={t.isDark ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: t.colors.background },
-          animation: 'slide_from_left',
-        }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-      </Stack>
+      {/*
+        ⚠️ القائمة الجانبية تُركَّب **هنا** لا في مجموعة التبويبات: يجب أن
+        تعلو شريط التنقّل السفلي أيضًا، والشريط شقيق للشاشات لا ابن لها. وفي
+        الجذر تصير فوق كل شيء بلا استثناء.
+
+        والمزوّد **خارج** `Stack`: الزرّ الذي يفتح القائمة يعيش داخل شاشة،
+        واللوح يعيش هنا — فالحالة يجب أن تكون فوق الاثنين.
+      */}
+      <SideDrawerProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: t.colors.background },
+            animation: 'slide_from_left',
+          }}
+        >
+          {/*
+            لا `Stack.Screen name="index"`: البوابة التي كانت عنده انتقلت إلى
+            حرس `(tabs)/_layout.tsx`، ومسار `/` صار شاشة التبويب الأولى
+            (`(tabs)/index`). وجود الاثنين معًا كان يعني مسارين يتنازعان `/`.
+          */}
+          <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        </Stack>
+        <SideDrawer>
+          <SideDrawerMenu />
+        </SideDrawer>
+      </SideDrawerProvider>
     </ThemeProvider>
   )
 }

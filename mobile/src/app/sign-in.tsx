@@ -125,7 +125,9 @@ export default function SignInScreen() {
         return
       }
       await setActive({ session: sessionId })
-      router.replace('/(tabs)/orders')
+      // الوجهة الشاشة الرئيسية لا «طلباتي»: بعد الدخول يريد المستخدم أن يرى
+      // الخريطة وحالة طلبه الجاري، لا قائمة. والقائمة تبويب على بعد ضغطة.
+      router.replace('/(tabs)')
     },
     [router, setActive],
   )
