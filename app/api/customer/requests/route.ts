@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
 import { getCustomerRequests } from '@/lib/customer-data'
+import { mayUseCustomerSurface } from '@/lib/surface-access'
 
 /**
  * طلبات العميل — قائمة.
@@ -31,7 +32,15 @@ import { getCustomerRequests } from '@/lib/customer-data'
  */
 export async function GET() {
   const session = await getSession()
-  if (!session || session.role !== 'customer') {
+  // المسند في `lib/surface-access.ts` لا هنا — لأن **حرس الصفحة** يسأل السؤال
+  // نفسه: `requireRoles(['customer'])` يُدخل المالك على الملكية وحدها. وكان
+  // هذا السطر يفحص `role !== 'customer'` فيرفض المالك الذي أدخلته الصفحة ⇒
+  // لوحة تُرسم ثم يفشل جلبها، وفي تطبيق الجوال شاشة «تعذّر إكمال العملية»
+  // كاملة. الحارسان صارا يستدعيان دالة واحدة فلا يتباعدان.
+  // `!session` أولًا لا تكرارًا: المسند يقبل `null` ويعيد `false`، لكن
+  // TypeScript لا يضيّق النوع عبر دالة تُعيد `boolean` — فبلا هذا الفحص يبقى
+  // `session` محتملًا أن يكون `null` عند `session.sub` أدناه.
+  if (!session || !mayUseCustomerSurface(session)) {
     return NextResponse.json(
       { error: 'سجّل الدخول كعميل لعرض طلباتك.', reason: 'unauthenticated' },
       { status: 401 },

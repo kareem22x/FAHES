@@ -109,11 +109,82 @@ function applySecurityHeaders(response: NextResponse, pathname = '/') {
   return response
 }
 
+/**
+ * ── CORS على `/api/*` (أُضيف 2026-10-09) ────────────────────────────────────
+ *
+ * سبب الوجود: تطبيق الجوال. المتصفح **وحده** يفرض CORS؛ React Native لا يفرضه،
+ * فالطلب من الجهاز ينجح أصلًا. لكن معاينة الويب (Expo web على `localhost:8081`)
+ * تنطلق من أصل مختلف عن `fahes-gray.vercel.app`، والمتصفح يمنع قراءة الرد —
+ * فيسقط `fetch` ويظهر خطأ الشبكة في كل شاشة، بلا أي خطأ في السجل. القياس
+ * المباشر كان: `GET /api/customer/requests` مع `Origin` ⇒ `401` **بلا**
+ * `access-control-allow-origin`، و`OPTIONS` ⇒ `204` بلا ترويسات CORS.
+ *
+ * ── لماذا صدى الأصل (`echo`) لا قائمة بيضاء ────────────────────────────────
+ *
+ * التطبيق يعمل من أصول لا نعرفها مسبقًا (جهاز المطوّر، بناء ويب منشور، نفق).
+ * وقائمة بيضاء تُكسر عند كل أصل جديد بلا أن تحمي شيئًا، لأن **الكوكيز لا تُرفق**:
+ * انظر الملاحظة الحاكمة أدناه.
+ *
+ * ── الحارس: لا `Access-Control-Allow-Credentials` — وهذا مقصود ──────────────
+ *
+ * المصادقة هنا **رمز Bearer صريح** يُمرَّر في ترويسة، لا كوكي جلسة. والمتصفح لا
+ * يُرفق ترويسة يختارها موقع آخر أبدًا. فبترك `Allow-Credentials` غائبًا:
+ *
+ *   * لا يُرسل المتصفح كوكي الضحية إلى أصل عابر ⇒ هجوم CSRF مستحيل؛
+ *   * ولا يُكشف جسم الرد لصفحة خبيثة (المتصفح يحجب القراءة عند غياب هذا الحقل)؛
+ *   * ولا يملك المهاجم رمزًا يضعه في الترويسة أصلًا.
+ *
+ * أي أن صدى الأصل مع غياب الاعتمادات = سلوك واجهة عامة آمنة، لا توسيع صلاحية.
+ * (موقع الويب نفسه من نفس الأصل لا يتأثر: المتصفح يتجاهل CORS للأصل الواحد.)
+ *
+ * و`Cross-Origin-Resource-Policy` يُرخّى إلى `cross-origin` هنا **فقط**، لأن
+ * `/api/*` مقصود أن يُقرأ من خارج الأصل؛ وباقي الموقع يبقى `same-origin`.
+ */
+const CORS_ALLOWED_HEADERS = 'authorization,content-type'
+const CORS_ALLOWED_METHODS = 'GET,POST,PATCH,PUT,DELETE,OPTIONS'
+const CORS_MAX_AGE = '86400'
+
+function isApiPath(pathname: string): boolean {
+  return pathname === '/api' || pathname.startsWith('/api/')
+}
+
+function applyCors(response: NextResponse, request: NextRequest): NextResponse {
+  const origin = request.headers.get('origin')
+
+  // `Vary` يُضاف دائمًا — حتى بلا `Origin` — لأن الجسم واحد لكن ترويساته تختلف
+  // بحسب الأصل، وذاكرة وسيطة مشتركة يجب ألّا تُسلّم ردًّا مُوسَمًا لأصل آخر.
+  response.headers.append('Vary', 'Origin')
+
+  if (!origin) return response
+
+  response.headers.set('Access-Control-Allow-Origin', origin)
+  response.headers.set('Access-Control-Allow-Methods', CORS_ALLOWED_METHODS)
+  response.headers.set('Access-Control-Allow-Headers', CORS_ALLOWED_HEADERS)
+  response.headers.set('Access-Control-Max-Age', CORS_MAX_AGE)
+  response.headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
+
+  return response
+}
+
+/** يجمع ترويسات الأمان مع CORS لمسارات `/api/*`. الترتيب مهم: CORS يكتب آخرًا. */
+function withHeaders(response: NextResponse, request: NextRequest, pathname: string): NextResponse {
+  applySecurityHeaders(response, pathname)
+  if (isApiPath(pathname)) applyCors(response, request)
+  return response
+}
+
 export default clerkMiddleware(async (auth, request: NextRequest) => {
   const { pathname } = request.nextUrl
 
+  // طلب تمهيدي (preflight) لا يحمل اعتمادًا بحكم المواصفة، فلا يجوز أن يصل إلى
+  // بوابة الجلسة: Clerk كان سيجيبه بإعادة توجيه إلى `/sign-in`، والمتصفح يقرأ
+  // ذلك كفشل تمهيدي فيُسقط الطلب الحقيقي. نُجيبه هنا وننهي.
+  if (isApiPath(pathname) && request.method === 'OPTIONS') {
+    return withHeaders(new NextResponse(null, { status: 204 }), request, pathname)
+  }
+
   if (!isProtected(pathname)) {
-    return applySecurityHeaders(NextResponse.next(), pathname)
+    return withHeaders(NextResponse.next(), request, pathname)
   }
 
   const { userId, sessionId } = await auth()
@@ -137,11 +208,11 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
         gateUrl.pathname = '/verify-phone'
         gateUrl.search = ''
         gateUrl.searchParams.set('redirect_url', pathname)
-        return applySecurityHeaders(NextResponse.redirect(gateUrl), pathname)
+        return withHeaders(NextResponse.redirect(gateUrl), request, pathname)
       }
     }
 
-    return applySecurityHeaders(NextResponse.next(), pathname)
+    return withHeaders(NextResponse.next(), request, pathname)
   }
 
   // Drop the request at the edge and leave a trail. The audit write is
@@ -164,7 +235,7 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
   signInUrl.search = ''
   signInUrl.searchParams.set('redirect_url', pathname)
 
-  return applySecurityHeaders(NextResponse.redirect(signInUrl), pathname)
+  return withHeaders(NextResponse.redirect(signInUrl), request, pathname)
 })
 
 export const config = {
